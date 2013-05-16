@@ -81,8 +81,7 @@ public final class StringCharacterIterator implements CharacterIterator {
      *            start}, {@code location > end} or if {@code end} is greater
      *            than the length of {@code value}.
      */
-    public StringCharacterIterator(String value, int start, int end,
-            int location) {
+    public StringCharacterIterator(String value, int start, int end, int location) {
         string = value;
         if (start < 0 || end > string.length() || start > end
                 || location < start || location > end) {
@@ -105,7 +104,7 @@ public final class StringCharacterIterator implements CharacterIterator {
         try {
             return super.clone();
         } catch (CloneNotSupportedException e) {
-            throw new AssertionError(e); // android-changed
+            throw new AssertionError(e);
         }
     }
 

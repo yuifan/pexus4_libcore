@@ -17,12 +17,6 @@
 
 package tests.security.cert;
 
-import dalvik.annotation.TestLevel;
-import dalvik.annotation.TestTargetNew;
-import dalvik.annotation.TestTargetClass;
-
-import junit.framework.TestCase;
-
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigInteger;
@@ -57,19 +51,17 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-
 import javax.security.auth.x500.X500Principal;
-
-
-import org.apache.harmony.security.tests.support.cert.MyCRL;
-import org.apache.harmony.security.tests.support.cert.TestUtils;
-import org.apache.harmony.security.tests.support.TestKeyPair;
+import junit.framework.TestCase;
 import org.apache.harmony.security.asn1.ASN1Boolean;
 import org.apache.harmony.security.asn1.ASN1Integer;
 import org.apache.harmony.security.asn1.ASN1OctetString;
 import org.apache.harmony.security.asn1.ASN1Oid;
 import org.apache.harmony.security.asn1.ASN1Sequence;
 import org.apache.harmony.security.asn1.ASN1Type;
+import org.apache.harmony.security.tests.support.TestKeyPair;
+import org.apache.harmony.security.tests.support.cert.MyCRL;
+import org.apache.harmony.security.tests.support.cert.TestUtils;
 import org.apache.harmony.security.x501.Name;
 import org.apache.harmony.security.x509.CertificatePolicies;
 import org.apache.harmony.security.x509.GeneralName;
@@ -83,7 +75,6 @@ import org.apache.harmony.security.x509.PrivateKeyUsagePeriod;
 /**
  * X509CertSelectorTest
  */
-@TestTargetClass(X509CertSelector.class)
 public class X509CertSelectorTest extends TestCase {
 
     byte[][] constraintBytes = new byte[][] {
@@ -128,87 +119,86 @@ public class X509CertSelectorTest extends TestCase {
                     1, -128, 1, 0}};
 
     /**
-     * @tests java.security.cert.X509CertSelector#addSubjectAlternativeName(int, byte[])
+     * java.security.cert.X509CertSelector#addSubjectAlternativeName(int, byte[])
      */
-    @TestTargetNew(
-        level = TestLevel.PARTIAL,
-        notes = "IOException checking missed",
-        method = "addSubjectAlternativeName",
-        args = {int.class, byte[].class}
-    )
     public void test_addSubjectAlternativeNameLintLbyte_array() throws IOException {
         // Regression for HARMONY-2487
-        int[] types = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+        int[] types = { GeneralName.OTHER_NAME,
+                        GeneralName.RFC822_NAME,
+                        GeneralName.DNS_NAME,
+                        GeneralName.X400_ADDR,
+                        GeneralName.DIR_NAME,
+                        GeneralName.EDIP_NAME,
+                        GeneralName.UR_ID,
+                        GeneralName.IP_ADDR,
+                        GeneralName.REG_ID };
         for (int i = 0; i < types.length; i++) {
             try {
                 new X509CertSelector().addSubjectAlternativeName(types[i],
                         (byte[]) null);
-                fail("No expected NullPointerException for type: " + i);
-            } catch (NullPointerException e) {
+                fail("No expected NullPointerException for type: " + types[i]);
+            } catch (NullPointerException expected) {
             }
         }
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#addSubjectAlternativeName(int, String)
+     * java.security.cert.X509CertSelector#addSubjectAlternativeName(int, String)
      */
-    @TestTargetNew(
-        level = TestLevel.PARTIAL,
-        notes = "Verifies IOException.",
-        method = "addSubjectAlternativeName",
-        args = {int.class, java.lang.String.class}
-    )
     public void test_addSubjectAlternativeNameLintLjava_lang_String() {
         // Regression for HARMONY-727
-        int[] types = { 0, 2, 3, 4, 5, 6, 7, 8 };
+        int[] types = { GeneralName.OTHER_NAME,
+                        // GeneralName.RFC822_NAME,
+                        GeneralName.DNS_NAME,
+                        GeneralName.X400_ADDR,
+                        GeneralName.DIR_NAME,
+                        GeneralName.EDIP_NAME,
+                        GeneralName.UR_ID,
+                        GeneralName.IP_ADDR,
+                        GeneralName.REG_ID };
         for (int i = 0; i < types.length; i++) {
             try {
                 new X509CertSelector().addSubjectAlternativeName(types[i],
-                        "0xDFRF");
-                fail("IOException expected");
-            } catch (IOException e) {
+                        "-0xDFRF");
+                fail("IOException expected for type: " + types[i]);
+            } catch (IOException expected) {
             }
         }
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#addPathToName(int, byte[])
+     * java.security.cert.X509CertSelector#addPathToName(int, byte[])
      */
-    @TestTargetNew(
-        level = TestLevel.PARTIAL,
-        notes = "Verifies NullPointerException.",
-        method = "addPathToName",
-        args = {int.class, byte[].class}
-    )
     public void test_addPathToNameLintLbyte_array() throws IOException {
         // Regression for HARMONY-2487
-        int[] types = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+        int[] types = { GeneralName.OTHER_NAME,
+                        GeneralName.RFC822_NAME,
+                        GeneralName.DNS_NAME,
+                        GeneralName.X400_ADDR,
+                        GeneralName.DIR_NAME,
+                        GeneralName.EDIP_NAME,
+                        GeneralName.UR_ID,
+                        GeneralName.IP_ADDR,
+                        GeneralName.REG_ID };
         for (int i = 0; i < types.length; i++) {
             try {
                 new X509CertSelector().addPathToName(types[i], (byte[]) null);
-                fail("No expected NullPointerException for type: " + i);
-            } catch (NullPointerException e) {
+                fail("No expected NullPointerException for type: " + types[i]);
+            } catch (NullPointerException expected) {
             }
         }
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#addPathToName(int, String)
+     * java.security.cert.X509CertSelector#addPathToName(int, String)
      */
-    @TestTargetNew(
-        level = TestLevel.PARTIAL,
-        notes = "Verifies IOException.",
-        method = "addPathToName",
-        args = {int.class, java.lang.String.class}
-    )
     public void test_addPathToNameLintLjava_lang_String() {
         // Regression for HARMONY-724
         for (int type = 0; type <= 8; type++) {
             try {
                 new X509CertSelector().addPathToName(type, (String) null);
-                fail("IOException expected!");
-            } catch (IOException ioe) {
-                // expected
+                fail();
+            } catch (IOException expected) {
             }
         }
 
@@ -216,118 +206,74 @@ public class X509CertSelectorTest extends TestCase {
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#X509CertSelector()
+     * java.security.cert.X509CertSelector#X509CertSelector()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "X509CertSelector",
-        args = {}
-    )
     public void test_X509CertSelector() {
-        X509CertSelector selector = null;
-        try {
-            selector = new X509CertSelector();
-        } catch (Exception e) {
-            fail("Unexpected exception " + e.getMessage());
-        }
+        X509CertSelector selector = new X509CertSelector();
         assertEquals(-1, selector.getBasicConstraints());
         assertTrue(selector.getMatchAllSubjectAltNames());
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#clone()
+     * java.security.cert.X509CertSelector#clone()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "clone",
-        args = {}
-    )
     public void test_clone() throws Exception {
         X509CertSelector selector = new X509CertSelector();
         X509CertSelector selector1 = (X509CertSelector) selector.clone();
 
-        assertEquals(selector.getMatchAllSubjectAltNames(), selector1
-                .getMatchAllSubjectAltNames());
-        assertEquals(selector.getAuthorityKeyIdentifier(), selector1
-                .getAuthorityKeyIdentifier());
-        assertEquals(selector.getBasicConstraints(), selector1
-                .getBasicConstraints());
+        assertEquals(selector.getMatchAllSubjectAltNames(), selector1.getMatchAllSubjectAltNames());
+        assertEquals(selector.getAuthorityKeyIdentifier(), selector1.getAuthorityKeyIdentifier());
+        assertEquals(selector.getBasicConstraints(), selector1.getBasicConstraints());
         assertEquals(selector.getCertificate(), selector1.getCertificate());
-        assertEquals(selector.getCertificateValid(), selector1
-                .getCertificateValid());
-        assertEquals(selector.getExtendedKeyUsage(), selector1
-                .getExtendedKeyUsage());
+        assertEquals(selector.getCertificateValid(), selector1.getCertificateValid());
+        assertEquals(selector.getExtendedKeyUsage(), selector1.getExtendedKeyUsage());
         assertEquals(selector.getIssuer(), selector1.getIssuer());
         assertEquals(selector.getIssuerAsBytes(), selector1.getIssuerAsBytes());
-        assertEquals(selector.getIssuerAsString(), selector1
-                .getIssuerAsString());
+        assertEquals(selector.getIssuerAsString(), selector1.getIssuerAsString());
         assertEquals(selector.getKeyUsage(), selector1.getKeyUsage());
-        assertEquals(selector.getNameConstraints(), selector1
-                .getNameConstraints());
+        assertEquals(selector.getNameConstraints(), selector1.getNameConstraints());
         assertEquals(selector.getPathToNames(), selector1.getPathToNames());
         assertEquals(selector.getPolicy(), selector1.getPolicy());
-        assertEquals(selector.getPrivateKeyValid(), selector1
-                .getPrivateKeyValid());
+        assertEquals(selector.getPrivateKeyValid(), selector1.getPrivateKeyValid());
         assertEquals(selector.getSerialNumber(), selector1.getSerialNumber());
         assertEquals(selector.getSubject(), selector1.getSubject());
-        assertEquals(selector.getSubjectAlternativeNames(), selector1
-                .getSubjectAlternativeNames());
-        assertEquals(selector.getSubjectAsBytes(), selector1
-                .getSubjectAsBytes());
-        assertEquals(selector.getSubjectAsString(), selector1
-                .getSubjectAsString());
-        assertEquals(selector.getSubjectKeyIdentifier(), selector1
-                .getSubjectKeyIdentifier());
-        assertEquals(selector.getSubjectPublicKey(), selector1
-                .getSubjectPublicKey());
-        assertEquals(selector.getSubjectPublicKeyAlgID(), selector1
-                .getSubjectPublicKeyAlgID());
+        assertEquals(selector.getSubjectAlternativeNames(), selector1.getSubjectAlternativeNames());
+        assertEquals(selector.getSubjectAsBytes(), selector1.getSubjectAsBytes());
+        assertEquals(selector.getSubjectAsString(), selector1.getSubjectAsString());
+        assertEquals(selector.getSubjectKeyIdentifier(), selector1.getSubjectKeyIdentifier());
+        assertEquals(selector.getSubjectPublicKey(), selector1.getSubjectPublicKey());
+        assertEquals(selector.getSubjectPublicKeyAlgID(), selector1.getSubjectPublicKeyAlgID());
 
         selector = null;
         try {
             selector.clone();
-            fail("NullPointerException expected");
-        } catch (NullPointerException e) {
-            // expected
+            fail();
+        } catch (NullPointerException expected) {
         }
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#getAuthorityKeyIdentifier()
+     * java.security.cert.X509CertSelector#getAuthorityKeyIdentifier()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getAuthorityKeyIdentifier",
-        args = {}
-    )
     public void test_getAuthorityKeyIdentifier() {
         byte[] akid1 = new byte[] { 4, 5, 1, 2, 3, 4, 5 }; // random value
         byte[] akid2 = new byte[] { 4, 5, 5, 4, 3, 2, 1 }; // random value
         X509CertSelector selector = new X509CertSelector();
 
-        assertNull("Selector should return null", selector
-                .getAuthorityKeyIdentifier());
+        assertNull("Selector should return null",
+                   selector.getAuthorityKeyIdentifier());
+        assertFalse("The returned keyID should be equal to specified",
+                   Arrays.equals(akid1, selector.getAuthorityKeyIdentifier()));
         selector.setAuthorityKeyIdentifier(akid1);
-        assertTrue("The returned keyID should be equal to specified", Arrays
-                .equals(akid1, selector.getAuthorityKeyIdentifier()));
-        assertTrue("The returned keyID should be equal to specified", Arrays
-                .equals(akid1, selector.getAuthorityKeyIdentifier()));
-        assertFalse("The returned keyID should differ", Arrays.equals(akid2,
-                selector.getAuthorityKeyIdentifier()));
+        assertTrue("The returned keyID should be equal to specified",
+                   Arrays.equals(akid1, selector.getAuthorityKeyIdentifier()));
+        assertFalse("The returned keyID should differ",
+                    Arrays.equals(akid2, selector.getAuthorityKeyIdentifier()));
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#getBasicConstraints()
+     * java.security.cert.X509CertSelector#getBasicConstraints()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getBasicConstraints",
-        args = {}
-    )
     public void test_getBasicConstraints() {
         X509CertSelector selector = new X509CertSelector();
         int[] validValues = { 2, 1, 0, 1, 2, 3, 10, 20 };
@@ -338,24 +284,18 @@ public class X509CertSelectorTest extends TestCase {
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#getCertificate()
+     * java.security.cert.X509CertSelector#getCertificate()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getCertificate",
-        args = {}
-    )
-    public void test_getCertificate() throws CertificateException {
+    public void test_getCertificate() throws Exception {
         X509CertSelector selector = new X509CertSelector();
         CertificateFactory certFact = CertificateFactory.getInstance("X509");
-        X509Certificate cert1 = (X509Certificate) certFact
-                .generateCertificate(new ByteArrayInputStream(TestUtils
-                        .getX509Certificate_v3()));
+        X509Certificate cert1 = (X509Certificate)
+                certFact.generateCertificate(new ByteArrayInputStream(
+                        TestUtils.getX509Certificate_v3()));
 
-        X509Certificate cert2 = (X509Certificate) certFact
-                .generateCertificate(new ByteArrayInputStream(TestUtils
-                        .getX509Certificate_v1()));
+        X509Certificate cert2 = (X509Certificate)
+                certFact.generateCertificate(new ByteArrayInputStream(
+                        TestUtils.getX509Certificate_v1()));
 
         selector.setCertificate(cert1);
         assertEquals(cert1, selector.getCertificate());
@@ -368,82 +308,62 @@ public class X509CertSelectorTest extends TestCase {
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#getCertificateValid()
+     * java.security.cert.X509CertSelector#getCertificateValid()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getCertificateValid",
-        args = {}
-    )
     public void test_getCertificateValid() {
         Date date1 = new Date(100);
         Date date2 = new Date(200);
         Date date3 = Calendar.getInstance().getTime();
         X509CertSelector selector = new X509CertSelector();
 
-        assertNull("Selector should return null", selector
-                .getCertificateValid());
+        assertNull("Selector should return null",
+                   selector.getCertificateValid());
         selector.setCertificateValid(date1);
-        assertTrue("The returned date should be equal to specified", date1
-                .equals(selector.getCertificateValid()));
+        assertTrue("The returned date should be equal to specified",
+                   date1.equals(selector.getCertificateValid()));
         selector.getCertificateValid().setTime(200);
-        assertTrue("The returned date should be equal to specified", date1
-                .equals(selector.getCertificateValid()));
-        assertFalse("The returned date should differ", date2.equals(selector
-                .getCertificateValid()));
+        assertTrue("The returned date should be equal to specified",
+                   date1.equals(selector.getCertificateValid()));
+        assertFalse("The returned date should differ",
+                    date2.equals(selector.getCertificateValid()));
         selector.setCertificateValid(date3);
-        assertTrue("The returned date should be equal to specified", date3
-                .equals(selector.getCertificateValid()));
+        assertTrue("The returned date should be equal to specified",
+                   date3.equals(selector.getCertificateValid()));
         selector.setCertificateValid(null);
         assertNull(selector.getCertificateValid());
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#getExtendedKeyUsage()
+     * java.security.cert.X509CertSelector#getExtendedKeyUsage()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getExtendedKeyUsage",
-        args = {}
-    )
-    public void test_getExtendedKeyUsage() {
-        HashSet<String> ku = new HashSet<String>(Arrays
-                .asList(new String[] { "1.3.6.1.5.5.7.3.1",
-                        "1.3.6.1.5.5.7.3.2", "1.3.6.1.5.5.7.3.3",
-                        "1.3.6.1.5.5.7.3.4", "1.3.6.1.5.5.7.3.8",
-                        "1.3.6.1.5.5.7.3.9", "1.3.6.1.5.5.7.3.5",
-                        "1.3.6.1.5.5.7.3.6", "1.3.6.1.5.5.7.3.7" }));
+    public void test_getExtendedKeyUsage() throws Exception {
+        HashSet<String> ku = new HashSet<String>(Arrays.asList(new String[] {
+            "1.3.6.1.5.5.7.3.1",
+            "1.3.6.1.5.5.7.3.2",
+            "1.3.6.1.5.5.7.3.3",
+            "1.3.6.1.5.5.7.3.4",
+            "1.3.6.1.5.5.7.3.8",
+            "1.3.6.1.5.5.7.3.9",
+            "1.3.6.1.5.5.7.3.5",
+            "1.3.6.1.5.5.7.3.6",
+            "1.3.6.1.5.5.7.3.7"
+        }));
         X509CertSelector selector = new X509CertSelector();
 
-        assertNull("Selector should return null", selector
-                .getExtendedKeyUsage());
-        try {
-            selector.setExtendedKeyUsage(ku);
-        } catch (IOException e) {
-            fail("Unexpected IOException was thrown.");
-        }
-        assertTrue(
-                "The returned extendedKeyUsage should be equal to specified",
-                ku.equals(selector.getExtendedKeyUsage()));
+        assertNull("Selector should return null", selector.getExtendedKeyUsage());
+        selector.setExtendedKeyUsage(ku);
+        assertTrue("The returned extendedKeyUsage should be equal to specified",
+                   ku.equals(selector.getExtendedKeyUsage()));
         try {
             selector.getExtendedKeyUsage().add("KRIBLEGRABLI");
             fail("The returned Set should be immutable.");
-        } catch (UnsupportedOperationException e) {
-            // expected
+        } catch (UnsupportedOperationException expected) {
         }
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#getIssuer()
+     * java.security.cert.X509CertSelector#getIssuer()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getIssuer",
-        args = {}
-    )
     public void test_getIssuer() {
         X500Principal iss1 = new X500Principal("O=First Org.");
         X500Principal iss2 = new X500Principal("O=Second Org.");
@@ -451,22 +371,16 @@ public class X509CertSelectorTest extends TestCase {
 
         assertNull("Selector should return null", selector.getIssuer());
         selector.setIssuer(iss1);
-        assertEquals("The returned issuer should be equal to specified", iss1,
-                selector.getIssuer());
-        assertFalse("The returned issuer should differ", iss2.equals(selector
-                .getIssuer()));
+        assertEquals("The returned issuer should be equal to specified",
+                     iss1, selector.getIssuer());
+        assertFalse("The returned issuer should differ",
+                    iss2.equals(selector.getIssuer()));
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#getIssuerAsBytes()
+     * java.security.cert.X509CertSelector#getIssuerAsBytes()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getIssuerAsBytes",
-        args = {}
-    )
-    public void test_getIssuerAsBytes() {
+    public void test_getIssuerAsBytes() throws Exception {
         byte[] name1 = new byte[]
         // manually obtained DER encoding of "O=First Org." issuer name;
         { 48, 21, 49, 19, 48, 17, 6, 3, 85, 4, 10, 19, 10, 70, 105, 114, 115,
@@ -480,31 +394,19 @@ public class X509CertSelectorTest extends TestCase {
         X500Principal iss2 = new X500Principal(name2);
         X509CertSelector selector = new X509CertSelector();
 
-        try {
-            assertNull("Selector should return null", selector
-                    .getIssuerAsBytes());
-            selector.setIssuer(iss1);
-            assertTrue("The returned issuer should be equal to specified",
-                    Arrays.equals(name1, selector.getIssuerAsBytes()));
-            assertFalse("The returned issuer should differ", name2
-                    .equals(selector.getIssuerAsBytes()));
-            selector.setIssuer(iss2);
-            assertTrue("The returned issuer should be equal to specified",
-                    Arrays.equals(name2, selector.getIssuerAsBytes()));
-        } catch (IOException e) {
-            fail("Unexpected IOException was thrown.");
-        }
+        assertNull("Selector should return null", selector.getIssuerAsBytes());
+        selector.setIssuer(iss1);
+        assertTrue("The returned issuer should be equal to specified",
+                   Arrays.equals(name1, selector.getIssuerAsBytes()));
+        assertFalse("The returned issuer should differ", name2.equals(selector.getIssuerAsBytes()));
+        selector.setIssuer(iss2);
+        assertTrue("The returned issuer should be equal to specified",
+                   Arrays.equals(name2, selector.getIssuerAsBytes()));
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#getIssuerAsString()
+     * java.security.cert.X509CertSelector#getIssuerAsString()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getIssuerAsString",
-        args = {}
-    )
     public void test_getIssuerAsString() {
         String name1 = "O=First Org.";
         String name2 = "O=Second Org.";
@@ -515,23 +417,17 @@ public class X509CertSelectorTest extends TestCase {
         assertNull("Selector should return null", selector.getIssuerAsString());
         selector.setIssuer(iss1);
         assertEquals("The returned issuer should be equal to specified", name1,
-                selector.getIssuerAsString());
-        assertFalse("The returned issuer should differ", name2.equals(selector
-                .getIssuerAsString()));
+                     selector.getIssuerAsString());
+        assertFalse("The returned issuer should differ",
+                    name2.equals(selector.getIssuerAsString()));
         selector.setIssuer(iss2);
         assertEquals("The returned issuer should be equal to specified", name2,
-                selector.getIssuerAsString());
+                     selector.getIssuerAsString());
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#getKeyUsage()
+     * java.security.cert.X509CertSelector#getKeyUsage()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getKeyUsage",
-        args = {}
-    )
     public void test_getKeyUsage() {
         boolean[] ku = new boolean[] { true, false, true, false, true, false,
                 true, false, true };
@@ -539,41 +435,29 @@ public class X509CertSelectorTest extends TestCase {
 
         assertNull("Selector should return null", selector.getKeyUsage());
         selector.setKeyUsage(ku);
-        assertTrue("The returned date should be equal to specified", Arrays
-                .equals(ku, selector.getKeyUsage()));
+        assertTrue("The returned date should be equal to specified",
+                   Arrays.equals(ku, selector.getKeyUsage()));
         boolean[] result = selector.getKeyUsage();
         result[0] = !result[0];
-        assertTrue("The returned keyUsage should be equal to specified", Arrays
-                .equals(ku, selector.getKeyUsage()));
+        assertTrue("The returned keyUsage should be equal to specified",
+                   Arrays.equals(ku, selector.getKeyUsage()));
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#getMatchAllSubjectAltNames()
+     * java.security.cert.X509CertSelector#getMatchAllSubjectAltNames()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getMatchAllSubjectAltNames",
-        args = {}
-    )
     public void test_getMatchAllSubjectAltNames() {
         X509CertSelector selector = new X509CertSelector();
-        assertTrue("The matchAllNames initially should be true", selector
-                .getMatchAllSubjectAltNames());
+        assertTrue("The matchAllNames initially should be true",
+                   selector.getMatchAllSubjectAltNames());
         selector.setMatchAllSubjectAltNames(false);
-        assertFalse("The value should be false", selector
-                .getMatchAllSubjectAltNames());
+        assertFalse("The value should be false",
+                    selector.getMatchAllSubjectAltNames());
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#getNameConstraints()
+     * java.security.cert.X509CertSelector#getNameConstraints()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getNameConstraints",
-        args = {}
-    )
     public void test_getNameConstraints() throws IOException {
 
 // Used to generate following byte array
@@ -606,88 +490,68 @@ public class X509CertSelectorTest extends TestCase {
 
         for (int i = 0; i < constraintBytes.length; i++) {
             selector.setNameConstraints(constraintBytes[i]);
-            assertTrue(Arrays.equals(constraintBytes[i], selector
-                    .getNameConstraints()));
+            assertTrue(Arrays.equals(constraintBytes[i],
+                                     selector.getNameConstraints()));
         }
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#getPathToNames()
+     * java.security.cert.X509CertSelector#getPathToNames()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getPathToNames",
-        args = {}
-    )
-    public void test_getPathToNames() {
-        try {
-            GeneralName san0 = new GeneralName(new OtherName("1.2.3.4.5",
-                    new byte[] { 1, 2, 0, 1 }));
-            GeneralName san1 = new GeneralName(1, "rfc@822.Name");
-            GeneralName san2 = new GeneralName(2, "dNSName");
-            GeneralName san3 = new GeneralName(new ORAddress());
-            GeneralName san4 = new GeneralName(new Name("O=Organization"));
-            GeneralName san6 = new GeneralName(6, "http://uniform.Resource.Id");
-            GeneralName san7 = new GeneralName(7, "1.1.1.1");
-            GeneralName san8 = new GeneralName(8, "1.2.3.4444.55555");
+    public void test_getPathToNames() throws Exception {
+        GeneralName san0 = new GeneralName(new OtherName("1.2.3.4.5",
+                                                         new byte[] { 1, 2, 0, 1 }));
+        GeneralName san1 = new GeneralName(1, "rfc@822.Name");
+        GeneralName san2 = new GeneralName(2, "dNSName");
+        GeneralName san3 = new GeneralName(new ORAddress());
+        GeneralName san4 = new GeneralName(new Name("O=Organization"));
+        GeneralName san6 = new GeneralName(6, "http://uniform.Resource.Id");
+        GeneralName san7 = new GeneralName(7, "1.1.1.1");
+        GeneralName san8 = new GeneralName(8, "1.2.3.4444.55555");
 
-            GeneralNames sans1 = new GeneralNames();
-            sans1.addName(san0);
-            sans1.addName(san1);
-            sans1.addName(san2);
-            sans1.addName(san3);
-            sans1.addName(san4);
-            sans1.addName(san6);
-            sans1.addName(san7);
-            sans1.addName(san8);
-            GeneralNames sans2 = new GeneralNames();
-            sans2.addName(san0);
+        GeneralNames sans1 = new GeneralNames();
+        sans1.addName(san0);
+        sans1.addName(san1);
+        sans1.addName(san2);
+        sans1.addName(san3);
+        sans1.addName(san4);
+        sans1.addName(san6);
+        sans1.addName(san7);
+        sans1.addName(san8);
+        GeneralNames sans2 = new GeneralNames();
+        sans2.addName(san0);
 
-            TestCert cert1 = new TestCert(sans1);
-            TestCert cert2 = new TestCert(sans2);
-            X509CertSelector selector = new X509CertSelector();
-            selector.setMatchAllSubjectAltNames(true);
+        TestCert cert1 = new TestCert(sans1);
+        TestCert cert2 = new TestCert(sans2);
+        X509CertSelector selector = new X509CertSelector();
+        selector.setMatchAllSubjectAltNames(true);
 
-            selector.setPathToNames(null);
-            assertTrue("Any certificate should match in the case of null "
-                    + "subjectAlternativeNames criteria.", selector
-                    .match(cert1)
-                    && selector.match(cert2));
+        selector.setPathToNames(null);
+        assertTrue("Any certificate should match in the case of null "
+                   + "subjectAlternativeNames criteria.",
+                   selector.match(cert1) && selector.match(cert2));
 
-            Collection<List<?>> sans = sans1.getPairsList();
+        Collection<List<?>> sans = sans1.getPairsList();
 
-            selector.setPathToNames(sans);
-
-            Collection<List<?>> col = selector.getPathToNames();
-            Iterator<List<?>> i = col.iterator();
-            while (i.hasNext()) {
-                Object o = i.next();
-                if (!(o instanceof List)) {
-                    fail("expected a List");
-                }
-            }
-
-        } catch (IOException e) {
-            e.printStackTrace();
-            fail("Unexpected IOException was thrown.");
-        }
+        selector.setPathToNames(sans);
+        selector.getPathToNames();
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#getPolicy()
+     * java.security.cert.X509CertSelector#getPolicy()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getPolicy",
-        args = {}
-    )
     public void test_getPolicy() throws IOException {
-        String[] policies1 = new String[] { "1.3.6.1.5.5.7.3.1",
-                "1.3.6.1.5.5.7.3.2", "1.3.6.1.5.5.7.3.3", "1.3.6.1.5.5.7.3.4",
-                "1.3.6.1.5.5.7.3.8", "1.3.6.1.5.5.7.3.9", "1.3.6.1.5.5.7.3.5",
-                "1.3.6.1.5.5.7.3.6", "1.3.6.1.5.5.7.3.7" };
+        String[] policies1 = new String[] {
+            "1.3.6.1.5.5.7.3.1",
+            "1.3.6.1.5.5.7.3.2",
+            "1.3.6.1.5.5.7.3.3",
+            "1.3.6.1.5.5.7.3.4",
+            "1.3.6.1.5.5.7.3.8",
+            "1.3.6.1.5.5.7.3.9",
+            "1.3.6.1.5.5.7.3.5",
+            "1.3.6.1.5.5.7.3.6",
+            "1.3.6.1.5.5.7.3.7"
+        };
 
         String[] policies2 = new String[] { "1.3.6.7.3.1" };
 
@@ -707,14 +571,8 @@ public class X509CertSelectorTest extends TestCase {
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#getPrivateKeyValid()
+     * java.security.cert.X509CertSelector#getPrivateKeyValid()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getPrivateKeyValid",
-        args = {}
-    )
     public void test_getPrivateKeyValid() {
         Date date1 = new Date(100);
         Date date2 = new Date(200);
@@ -722,24 +580,18 @@ public class X509CertSelectorTest extends TestCase {
 
         assertNull("Selector should return null", selector.getPrivateKeyValid());
         selector.setPrivateKeyValid(date1);
-        assertTrue("The returned date should be equal to specified", date1
-                .equals(selector.getPrivateKeyValid()));
+        assertTrue("The returned date should be equal to specified",
+                   date1.equals(selector.getPrivateKeyValid()));
         selector.getPrivateKeyValid().setTime(200);
-        assertTrue("The returned date should be equal to specified", date1
-                .equals(selector.getPrivateKeyValid()));
-        assertFalse("The returned date should differ", date2.equals(selector
-                .getPrivateKeyValid()));
+        assertTrue("The returned date should be equal to specified",
+                   date1.equals(selector.getPrivateKeyValid()));
+        assertFalse("The returned date should differ",
+                    date2.equals(selector.getPrivateKeyValid()));
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#getSerialNumber()
+     * java.security.cert.X509CertSelector#getSerialNumber()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getSerialNumber",
-        args = {}
-    )
     public void test_getSerialNumber() {
         BigInteger ser1 = new BigInteger("10000");
         BigInteger ser2 = new BigInteger("10001");
@@ -748,20 +600,14 @@ public class X509CertSelectorTest extends TestCase {
         assertNull("Selector should return null", selector.getSerialNumber());
         selector.setSerialNumber(ser1);
         assertEquals("The returned serial number should be equal to specified",
-                ser1, selector.getSerialNumber());
-        assertFalse("The returned serial number should differ", ser2
-                .equals(selector.getSerialNumber()));
+                     ser1, selector.getSerialNumber());
+        assertFalse("The returned serial number should differ",
+                    ser2.equals(selector.getSerialNumber()));
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#getSubject()
+     * java.security.cert.X509CertSelector#getSubject()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getSubject",
-        args = {}
-    )
     public void test_getSubject() {
         X500Principal sub1 = new X500Principal("O=First Org.");
         X500Principal sub2 = new X500Principal("O=Second Org.");
@@ -770,96 +616,70 @@ public class X509CertSelectorTest extends TestCase {
         assertNull("Selector should return null", selector.getSubject());
         selector.setSubject(sub1);
         assertEquals("The returned subject should be equal to specified", sub1,
-                selector.getSubject());
-        assertFalse("The returned subject should differ", sub2.equals(selector
-                .getSubject()));
+                     selector.getSubject());
+        assertFalse("The returned subject should differ",
+                    sub2.equals(selector.getSubject()));
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#getSubjectAlternativeNames()
+     * java.security.cert.X509CertSelector#getSubjectAlternativeNames()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getSubjectAlternativeNames",
-        args = {}
-    )
-    public void test_getSubjectAlternativeNames() {
-        try {
-            GeneralName san1 = new GeneralName(1, "rfc@822.Name");
-            GeneralName san2 = new GeneralName(2, "dNSName");
+    public void test_getSubjectAlternativeNames() throws Exception {
+        GeneralName san1 = new GeneralName(1, "rfc@822.Name");
+        GeneralName san2 = new GeneralName(2, "dNSName");
 
-            GeneralNames sans = new GeneralNames();
-            sans.addName(san1);
-            sans.addName(san2);
+        GeneralNames sans = new GeneralNames();
+        sans.addName(san1);
+        sans.addName(san2);
 
-            TestCert cert_1 = new TestCert(sans);
-            X509CertSelector selector = new X509CertSelector();
+        TestCert cert_1 = new TestCert(sans);
+        X509CertSelector selector = new X509CertSelector();
 
-            assertNull("Selector should return null", selector
-                    .getSubjectAlternativeNames());
+        assertNull("Selector should return null",
+                   selector.getSubjectAlternativeNames());
 
-            selector.setSubjectAlternativeNames(sans.getPairsList());
-            assertTrue("The certificate should match the selection criteria.",
-                    selector.match(cert_1));
-            selector.getSubjectAlternativeNames().clear();
-            assertTrue("The modification of initialization object "
-                    + "should not affect the modification "
-                    + "of internal object.", selector.match(cert_1));
-        } catch (IOException e) {
-            e.printStackTrace();
-            fail("Unexpected IOException was thrown.");
-        }
+        selector.setSubjectAlternativeNames(sans.getPairsList());
+        assertTrue("The certificate should match the selection criteria.",
+                   selector.match(cert_1));
+        selector.getSubjectAlternativeNames().clear();
+        assertTrue("The modification of initialization object "
+                   + "should not affect the modification "
+                   + "of internal object.",
+                   selector.match(cert_1));
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#getSubjectAsBytes()
+     * java.security.cert.X509CertSelector#getSubjectAsBytes()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getSubjectAsBytes",
-        args = {}
-    )
-    public void test_getSubjectAsBytes() {
+    public void test_getSubjectAsBytes() throws Exception {
         byte[] name1 = new byte[]
         // manually obtained DER encoding of "O=First Org." issuer name;
-        { 48, 21, 49, 19, 48, 17, 6, 3, 85, 4, 10, 19, 10, 70, 105, 114, 115,
-                116, 32, 79, 114, 103, 46 };
+                { 48, 21, 49, 19, 48, 17, 6, 3, 85, 4, 10, 19, 10, 70, 105, 114, 115,
+                  116, 32, 79, 114, 103, 46 };
         byte[] name2 = new byte[]
         // manually obtained DER encoding of "O=Second Org." issuer name;
-        { 48, 22, 49, 20, 48, 18, 6, 3, 85, 4, 10, 19, 11, 83, 101, 99, 111,
-                110, 100, 32, 79, 114, 103, 46 };
+                { 48, 22, 49, 20, 48, 18, 6, 3, 85, 4, 10, 19, 11, 83, 101, 99, 111,
+                  110, 100, 32, 79, 114, 103, 46 };
 
         X500Principal sub1 = new X500Principal(name1);
         X500Principal sub2 = new X500Principal(name2);
         X509CertSelector selector = new X509CertSelector();
 
-        try {
-            assertNull("Selector should return null", selector
-                    .getSubjectAsBytes());
-            selector.setSubject(sub1);
-            assertTrue("The returned issuer should be equal to specified",
-                    Arrays.equals(name1, selector.getSubjectAsBytes()));
-            assertFalse("The returned issuer should differ", name2
-                    .equals(selector.getSubjectAsBytes()));
-            selector.setSubject(sub2);
-            assertTrue("The returned issuer should be equal to specified",
-                    Arrays.equals(name2, selector.getSubjectAsBytes()));
-        } catch (IOException e) {
-            fail("Unexpected IOException was thrown.");
-        }
+        assertNull("Selector should return null",
+                   selector.getSubjectAsBytes());
+        selector.setSubject(sub1);
+        assertTrue("The returned issuer should be equal to specified",
+                   Arrays.equals(name1, selector.getSubjectAsBytes()));
+        assertFalse("The returned issuer should differ",
+                    name2.equals(selector.getSubjectAsBytes()));
+        selector.setSubject(sub2);
+        assertTrue("The returned issuer should be equal to specified",
+                   Arrays.equals(name2, selector.getSubjectAsBytes()));
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#getSubjectAsString()
+     * java.security.cert.X509CertSelector#getSubjectAsString()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getSubjectAsString",
-        args = {}
-    )
     public void test_getSubjectAsString() {
         String name1 = "O=First Org.";
         String name2 = "O=Second Org.";
@@ -870,49 +690,36 @@ public class X509CertSelectorTest extends TestCase {
         assertNull("Selector should return null", selector.getSubjectAsString());
         selector.setSubject(sub1);
         assertEquals("The returned subject should be equal to specified",
-                name1, selector.getSubjectAsString());
-        assertFalse("The returned subject should differ", name2.equals(selector
-                .getSubjectAsString()));
+                     name1, selector.getSubjectAsString());
+        assertFalse("The returned subject should differ",
+                    name2.equals(selector.getSubjectAsString()));
         selector.setSubject(sub2);
         assertEquals("The returned subject should be equal to specified",
-                name2, selector.getSubjectAsString());
+                     name2, selector.getSubjectAsString());
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#getSubjectKeyIdentifier()
+     * java.security.cert.X509CertSelector#getSubjectKeyIdentifier()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getSubjectKeyIdentifier",
-        args = {}
-    )
     public void test_getSubjectKeyIdentifier() {
         byte[] skid1 = new byte[] { 1, 2, 3, 4, 5 }; // random value
         byte[] skid2 = new byte[] { 4, 5, 5, 4, 3, 2, 1 }; // random value
         X509CertSelector selector = new X509CertSelector();
 
-        assertNull("Selector should return null", selector
-                .getSubjectKeyIdentifier());
+        assertNull("Selector should return null", selector.getSubjectKeyIdentifier());
         selector.setSubjectKeyIdentifier(skid1);
-        assertTrue("The returned keyID should be equal to specified", Arrays
-                .equals(skid1, selector.getSubjectKeyIdentifier()));
+        assertTrue("The returned keyID should be equal to specified",
+                   Arrays.equals(skid1, selector.getSubjectKeyIdentifier()));
         selector.getSubjectKeyIdentifier()[0]++;
-        assertTrue("The returned keyID should be equal to specified", Arrays
-                .equals(skid1, selector.getSubjectKeyIdentifier()));
-        assertFalse("The returned keyID should differ", Arrays.equals(skid2,
-                selector.getSubjectKeyIdentifier()));
+        assertTrue("The returned keyID should be equal to specified",
+                   Arrays.equals(skid1, selector.getSubjectKeyIdentifier()));
+        assertFalse("The returned keyID should differ",
+                    Arrays.equals(skid2, selector.getSubjectKeyIdentifier()));
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#getSubjectPublicKey()
+     * java.security.cert.X509CertSelector#getSubjectPublicKey()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getSubjectPublicKey",
-        args = {}
-    )
     public void test_getSubjectPublicKey() throws Exception {
 
         // SubjectPublicKeyInfo ::= SEQUENCE {
@@ -943,22 +750,14 @@ public class X509CertSelectorTest extends TestCase {
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#getSubjectPublicKeyAlgID()
+     * java.security.cert.X509CertSelector#getSubjectPublicKeyAlgID()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getSubjectPublicKeyAlgID",
-        args = {}
-    )
-    public void test_getSubjectPublicKeyAlgID() {
+    public void test_getSubjectPublicKeyAlgID() throws Exception {
 
         X509CertSelector selector = new X509CertSelector();
-        String[] validOIDs = { "0.0.20", "1.25.0", "2.0.39", "0.2.10", "1.35.15",
-                "2.17.89" };
+        String[] validOIDs = { "0.0.20", "1.25.0", "2.0.39", "0.2.10", "1.35.15", "2.17.89" };
 
-        assertNull("Selector should return null", selector
-                .getSubjectPublicKeyAlgID());
+        assertNull("Selector should return null", selector.getSubjectPublicKeyAlgID());
 
         for (int i = 0; i < validOIDs.length; i++) {
             try {
@@ -973,39 +772,28 @@ public class X509CertSelectorTest extends TestCase {
         String pkaid1 = "1.2.840.113549.1.1.1"; // RSA encryption
         String pkaid2 = "1.2.840.113549.1.1.4"; // MD5 with RSA encryption
 
-        try {
-            selector.setSubjectPublicKeyAlgID(pkaid1);
-        } catch (IOException e) {
-            fail("Unexpected IOException was thrown.");
-        }
-        assertTrue("The returned oid should be equal to specified", pkaid1
-                .equals(selector.getSubjectPublicKeyAlgID()));
-        assertFalse("The returned oid should differ", pkaid2.equals(selector
-                .getSubjectPublicKeyAlgID()));
+        selector.setSubjectPublicKeyAlgID(pkaid1);
+        assertTrue("The returned oid should be equal to specified",
+                   pkaid1.equals(selector.getSubjectPublicKeyAlgID()));
+        assertFalse("The returned oid should differ",
+                    pkaid2.equals(selector.getSubjectPublicKeyAlgID()));
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#match(java.security.cert.Certificate)
+     * java.security.cert.X509CertSelector#match(java.security.cert.Certificate)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "match",
-        args = {java.security.cert.Certificate.class}
-    )
-    public void test_matchLjava_security_cert_Certificate()
-            throws CertificateException {
+    public void test_matchLjava_security_cert_Certificate() throws Exception {
         X509CertSelector selector = new X509CertSelector();
         assertFalse(selector.match(null));
 
         CertificateFactory certFact = CertificateFactory.getInstance("X509");
-        X509Certificate cert1 = (X509Certificate) certFact
-                .generateCertificate(new ByteArrayInputStream(TestUtils
-                        .getX509Certificate_v3()));
+        X509Certificate cert1 = (X509Certificate)
+                certFact.generateCertificate(new ByteArrayInputStream(
+                        TestUtils.getX509Certificate_v3()));
 
-        X509Certificate cert2 = (X509Certificate) certFact
-                .generateCertificate(new ByteArrayInputStream(TestUtils
-                        .getX509Certificate_v1()));
+        X509Certificate cert2 = (X509Certificate)
+                certFact.generateCertificate(new ByteArrayInputStream(
+                        TestUtils.getX509Certificate_v1()));
 
         selector.setCertificate(cert1);
         assertTrue(selector.match(cert1));
@@ -1017,15 +805,9 @@ public class X509CertSelectorTest extends TestCase {
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#setAuthorityKeyIdentifier(byte[])
+     * java.security.cert.X509CertSelector#setAuthorityKeyIdentifier(byte[])
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "setAuthorityKeyIdentifier",
-        args = {byte[].class}
-    )
-    public void test_setAuthorityKeyIdentifierLB$() throws CertificateException {
+    public void test_setAuthorityKeyIdentifierLB$() throws Exception {
         X509CertSelector selector = new X509CertSelector();
 
         byte[] akid1 = new byte[] { 1, 2, 3, 4, 5 }; // random value
@@ -1057,23 +839,15 @@ public class X509CertSelectorTest extends TestCase {
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#setBasicConstraints(int)
+     * java.security.cert.X509CertSelector#setBasicConstraints(int)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "setBasicConstraints",
-        args = {int.class}
-    )
     public void test_setBasicConstraintsLint() {
         X509CertSelector selector = new X509CertSelector();
         int[] invalidValues = { -3, -4, -5, 1000000000 };
         for (int i = 0; i < invalidValues.length; i++) {
             try {
                 selector.setBasicConstraints(-3);
-                fail("IllegalArgumentException expected");
-            } catch (IllegalArgumentException e) {
-                // expected
+            } catch (IllegalArgumentException expected) {
             }
         }
 
@@ -1085,16 +859,10 @@ public class X509CertSelectorTest extends TestCase {
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#setCertificate(java.security.cert.Certificate)
+     * java.security.cert.X509CertSelector#setCertificate(java.security.cert.Certificate)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "setCertificate",
-        args = {java.security.cert.X509Certificate.class}
-    )
     public void test_setCertificateLjava_security_cert_X509Certificate()
-            throws CertificateException {
+            throws Exception {
 
         TestCert cert1 = new TestCert("same certificate");
         TestCert cert2 = new TestCert("other certificate");
@@ -1102,31 +870,25 @@ public class X509CertSelectorTest extends TestCase {
 
         selector.setCertificate(null);
         assertTrue("Any certificates should match in the case of null "
-                + "certificateEquals criteria.", selector.match(cert1)
-                && selector.match(cert2));
+                + "certificateEquals criteria.",
+                   selector.match(cert1) && selector.match(cert2));
         selector.setCertificate(cert1);
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert1));
+                   selector.match(cert1));
         assertFalse("The certificate should not match the selection criteria.",
-                selector.match(cert2));
+                    selector.match(cert2));
         selector.setCertificate(cert2);
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert2));
+                   selector.match(cert2));
         selector.setCertificate(null);
         assertNull(selector.getCertificate());
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#setCertificateValid(java.util.Date)
+     * java.security.cert.X509CertSelector#setCertificateValid(java.util.Date)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "setCertificateValid",
-        args = {java.util.Date.class}
-    )
     public void test_setCertificateValidLjava_util_Date()
-            throws CertificateException {
+            throws Exception {
         X509CertSelector selector = new X509CertSelector();
 
         Date date1 = new Date(100);
@@ -1148,64 +910,50 @@ public class X509CertSelectorTest extends TestCase {
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#setExtendedKeyUsage(Set<String>)
+     * java.security.cert.X509CertSelector#setExtendedKeyUsage(Set<String>)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "setExtendedKeyUsage",
-        args = {java.util.Set.class}
-    )
-    public void test_setExtendedKeyUsageLjava_util_Set()
-            throws CertificateException {
-        HashSet<String> ku1 = new HashSet<String>(Arrays
-                .asList(new String[] { "1.3.6.1.5.5.7.3.1",
-                        "1.3.6.1.5.5.7.3.2", "1.3.6.1.5.5.7.3.3",
-                        "1.3.6.1.5.5.7.3.4", "1.3.6.1.5.5.7.3.8",
-                        "1.3.6.1.5.5.7.3.9", "1.3.6.1.5.5.7.3.5",
-                        "1.3.6.1.5.5.7.3.6", "1.3.6.1.5.5.7.3.7" }));
+    public void test_setExtendedKeyUsageLjava_util_Set() throws Exception {
+        HashSet<String> ku1 = new HashSet<String>(Arrays.asList(new String[] {
+            "1.3.6.1.5.5.7.3.1",
+            "1.3.6.1.5.5.7.3.2",
+            "1.3.6.1.5.5.7.3.3",
+            "1.3.6.1.5.5.7.3.4",
+            "1.3.6.1.5.5.7.3.8",
+            "1.3.6.1.5.5.7.3.9",
+            "1.3.6.1.5.5.7.3.5",
+            "1.3.6.1.5.5.7.3.6",
+            "1.3.6.1.5.5.7.3.7"
+        }));
         HashSet<String> ku2 = new HashSet<String>(Arrays.asList(new String[] {
-                "1.3.6.1.5.5.7.3.1", "1.3.6.1.5.5.7.3.2", "1.3.6.1.5.5.7.3.3",
-                "1.3.6.1.5.5.7.3.4", "1.3.6.1.5.5.7.3.8", "1.3.6.1.5.5.7.3.9",
-                "1.3.6.1.5.5.7.3.5", "1.3.6.1.5.5.7.3.6" }));
+            "1.3.6.1.5.5.7.3.1",
+            "1.3.6.1.5.5.7.3.2",
+            "1.3.6.1.5.5.7.3.3",
+            "1.3.6.1.5.5.7.3.4",
+            "1.3.6.1.5.5.7.3.8",
+            "1.3.6.1.5.5.7.3.9",
+            "1.3.6.1.5.5.7.3.5",
+            "1.3.6.1.5.5.7.3.6"
+        }));
         TestCert cert1 = new TestCert(ku1);
         TestCert cert2 = new TestCert(ku2);
 
         X509CertSelector selector = new X509CertSelector();
 
-        try {
-            selector.setExtendedKeyUsage(null);
-        } catch (IOException e) {
-            fail("Unexpected IOException was thrown.");
-        }
+        selector.setExtendedKeyUsage(null);
         assertTrue("Any certificate should match in the case of null "
-                + "extendedKeyUsage criteria.", selector.match(cert1)
-                && selector.match(cert2));
-        try {
-            selector.setExtendedKeyUsage(ku1);
-        } catch (IOException e) {
-            fail("Unexpected IOException was thrown.");
-        }
+                   + "extendedKeyUsage criteria.",
+                   selector.match(cert1)&& selector.match(cert2));
+        selector.setExtendedKeyUsage(ku1);
         assertEquals(ku1, selector.getExtendedKeyUsage());
 
-        try {
-            selector.setExtendedKeyUsage(ku2);
-        } catch (IOException e) {
-            fail("Unexpected IOException was thrown.");
-        }
+        selector.setExtendedKeyUsage(ku2);
         assertEquals(ku2, selector.getExtendedKeyUsage());
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#setIssuer(byte[])
+     * java.security.cert.X509CertSelector#setIssuer(byte[])
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "setIssuer",
-        args = {byte[].class}
-    )
-    public void test_setIssuerLB$() throws CertificateException {
+    public void test_setIssuerLB$() throws Exception {
         byte[] name1 = new byte[]
         // manually obtained DER encoding of "O=First Org." issuer name;
         { 48, 21, 49, 19, 48, 17, 6, 3, 85, 4, 10, 19, 10, 70, 105, 114, 115,
@@ -1221,42 +969,24 @@ public class X509CertSelectorTest extends TestCase {
 
         X509CertSelector selector = new X509CertSelector();
 
-        try {
-            selector.setIssuer((byte[]) null);
-        } catch (IOException e) {
-            fail("Unexpected IOException was thrown.");
-        }
+        selector.setIssuer((byte[]) null);
         assertTrue("Any certificates should match "
-                + "in the case of null issuer criteria.", selector.match(cert1)
-                && selector.match(cert2));
-        try {
-            selector.setIssuer(name1);
-        } catch (IOException e) {
-            fail("Unexpected IOException was thrown.");
-        }
+                   + "in the case of null issuer criteria.", selector.match(cert1)
+                   && selector.match(cert2));
+        selector.setIssuer(name1);
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert1));
+                   selector.match(cert1));
         assertFalse("The certificate should not match the selection criteria.",
-                selector.match(cert2));
-        try {
-            selector.setIssuer(name2);
-        } catch (IOException e) {
-            fail("Unexpected IOException was thrown.");
-        }
+                    selector.match(cert2));
+        selector.setIssuer(name2);
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert2));
+                   selector.match(cert2));
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#setIssuer(java.lang.String)
+     * java.security.cert.X509CertSelector#setIssuer(java.lang.String)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "setIssuer",
-        args = {java.lang.String.class}
-    )
-    public void test_setIssuerLjava_lang_String() throws CertificateException {
+    public void test_setIssuerLjava_lang_String() throws Exception {
 
         String name1 = "O=First Org.";
         String name2 = "O=Second Org.";
@@ -1267,43 +997,25 @@ public class X509CertSelectorTest extends TestCase {
 
         X509CertSelector selector = new X509CertSelector();
 
-        try {
-            selector.setIssuer((String) null);
-        } catch (IOException e) {
-            fail("Unexpected IOException was thrown.");
-        }
+        selector.setIssuer((String) null);
         assertTrue("Any certificates should match "
-                + "in the case of null issuer criteria.", selector.match(cert1)
-                && selector.match(cert2));
-        try {
-            selector.setIssuer(name1);
-        } catch (IOException e) {
-            fail("Unexpected IOException was thrown.");
-        }
+                   + "in the case of null issuer criteria.",
+                   selector.match(cert1) && selector.match(cert2));
+        selector.setIssuer(name1);
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert1));
+                   selector.match(cert1));
         assertFalse("The certificate should not match the selection criteria.",
-                selector.match(cert2));
-        try {
-            selector.setIssuer(name2);
-        } catch (IOException e) {
-            fail("Unexpected IOException was thrown.");
-        }
+                    selector.match(cert2));
+        selector.setIssuer(name2);
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert2));
+                   selector.match(cert2));
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#setIssuer(javax.security.auth.x500.X500Principal)
+     * java.security.cert.X509CertSelector#setIssuer(javax.security.auth.x500.X500Principal)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "setIssuer",
-        args = {javax.security.auth.x500.X500Principal.class}
-    )
     public void test_setIssuerLjavax_security_auth_x500_X500Principal()
-            throws CertificateException {
+            throws Exception {
         X500Principal iss1 = new X500Principal("O=First Org.");
         X500Principal iss2 = new X500Principal("O=Second Org.");
         TestCert cert1 = new TestCert(iss1);
@@ -1312,28 +1024,22 @@ public class X509CertSelectorTest extends TestCase {
 
         selector.setIssuer((X500Principal) null);
         assertTrue("Any certificates should match "
-                + "in the case of null issuer criteria.", selector.match(cert1)
-                && selector.match(cert2));
+                   + "in the case of null issuer criteria.",
+                   selector.match(cert1) && selector.match(cert2));
         selector.setIssuer(iss1);
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert1));
+                   selector.match(cert1));
         assertFalse("The certificate should not match the selection criteria.",
-                selector.match(cert2));
+                    selector.match(cert2));
         selector.setIssuer(iss2);
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert2));
+                   selector.match(cert2));
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#setKeyUsage(boolean)
+     * java.security.cert.X509CertSelector#setKeyUsage(boolean)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "setKeyUsage",
-        args = {boolean[].class}
-    )
-    public void test_setKeyUsageZ() throws CertificateException {
+    public void test_setKeyUsageZ() throws Exception {
         boolean[] ku1 = new boolean[] { true, true, true, true, true, true,
                 true, true, true };
         // decipherOnly is disallowed
@@ -1346,17 +1052,16 @@ public class X509CertSelectorTest extends TestCase {
         X509CertSelector selector = new X509CertSelector();
 
         selector.setKeyUsage(null);
-        assertTrue("Any certificate should match in the case of null "
-                + "keyUsage criteria.", selector.match(cert1)
-                && selector.match(cert2));
+        assertTrue("Any certificate should match in the case of null keyUsage criteria.",
+                   selector.match(cert1) && selector.match(cert2));
         selector.setKeyUsage(ku1);
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert1));
+                   selector.match(cert1));
         assertFalse("The certificate should not match the selection criteria.",
-                selector.match(cert2));
+                    selector.match(cert2));
         assertTrue("The certificate which does not have a keyUsage extension "
-                + "implicitly allows all keyUsage values.", selector
-                .match(cert3));
+                   + "implicitly allows all keyUsage values.",
+                   selector.match(cert3));
         selector.setKeyUsage(ku2);
         ku2[0] = !ku2[0];
         assertTrue("The certificate should match the selection criteria.",
@@ -1364,14 +1069,8 @@ public class X509CertSelectorTest extends TestCase {
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#setMatchAllSubjectAltNames(boolean)
+     * java.security.cert.X509CertSelector#setMatchAllSubjectAltNames(boolean)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "setMatchAllSubjectAltNames",
-        args = {boolean.class}
-    )
     public void test_setMatchAllSubjectAltNamesZ() {
         TestCert cert = new TestCert();
         X509CertSelector selector = new X509CertSelector();
@@ -1382,15 +1081,9 @@ public class X509CertSelectorTest extends TestCase {
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#setNameConstraints(byte[]
+     * java.security.cert.X509CertSelector#setNameConstraints(byte[]
      *        bytes)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "setNameConstraints",
-        args = {byte[].class}
-    )
     public void test_setNameConstraintsLB$() throws IOException {
 //        GeneralName[] name_constraints = new GeneralName[] {
 //                new GeneralName(1, "822.Name"),
@@ -1416,88 +1109,67 @@ public class X509CertSelectorTest extends TestCase {
 
         for (int i = 0; i < constraintBytes.length; i++) {
             selector.setNameConstraints(constraintBytes[i]);
-            assertTrue(Arrays.equals(constraintBytes[i], selector
-                    .getNameConstraints()));
+            assertTrue(Arrays.equals(constraintBytes[i], selector.getNameConstraints()));
         }
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#setPathToNames(Collection<List<?>>)
+     * java.security.cert.X509CertSelector#setPathToNames(Collection<List<?>>)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "setPathToNames",
-        args = {java.util.Collection.class}
-    )
-    public void test_setPathToNamesLjava_util_Collection() {
-        try {
-            GeneralName san0 = new GeneralName(new OtherName("1.2.3.4.5",
-                    new byte[] { 1, 2, 0, 1 }));
-            GeneralName san1 = new GeneralName(1, "rfc@822.Name");
-            GeneralName san2 = new GeneralName(2, "dNSName");
-            GeneralName san3 = new GeneralName(new ORAddress());
-            GeneralName san4 = new GeneralName(new Name("O=Organization"));
-            GeneralName san6 = new GeneralName(6, "http://uniform.Resource.Id");
-            GeneralName san7 = new GeneralName(7, "1.1.1.1");
-            GeneralName san8 = new GeneralName(8, "1.2.3.4444.55555");
+    public void test_setPathToNamesLjava_util_Collection() throws Exception {
+        GeneralName san0 = new GeneralName(new OtherName("1.2.3.4.5",
+                                                         new byte[] { 1, 2, 0, 1 }));
+        GeneralName san1 = new GeneralName(1, "rfc@822.Name");
+        GeneralName san2 = new GeneralName(2, "dNSName");
+        GeneralName san3 = new GeneralName(new ORAddress());
+        GeneralName san4 = new GeneralName(new Name("O=Organization"));
+        GeneralName san6 = new GeneralName(6, "http://uniform.Resource.Id");
+        GeneralName san7 = new GeneralName(7, "1.1.1.1");
+        GeneralName san8 = new GeneralName(8, "1.2.3.4444.55555");
 
-            GeneralNames sans1 = new GeneralNames();
-            sans1.addName(san0);
-            sans1.addName(san1);
-            sans1.addName(san2);
-            sans1.addName(san3);
-            sans1.addName(san4);
-            sans1.addName(san6);
-            sans1.addName(san7);
-            sans1.addName(san8);
-            GeneralNames sans2 = new GeneralNames();
-            sans2.addName(san0);
+        GeneralNames sans1 = new GeneralNames();
+        sans1.addName(san0);
+        sans1.addName(san1);
+        sans1.addName(san2);
+        sans1.addName(san3);
+        sans1.addName(san4);
+        sans1.addName(san6);
+        sans1.addName(san7);
+        sans1.addName(san8);
+        GeneralNames sans2 = new GeneralNames();
+        sans2.addName(san0);
 
-            TestCert cert1 = new TestCert(sans1);
-            TestCert cert2 = new TestCert(sans2);
-            X509CertSelector selector = new X509CertSelector();
-            selector.setMatchAllSubjectAltNames(true);
+        TestCert cert1 = new TestCert(sans1);
+        TestCert cert2 = new TestCert(sans2);
+        X509CertSelector selector = new X509CertSelector();
+        selector.setMatchAllSubjectAltNames(true);
 
-            selector.setPathToNames(null);
-            assertTrue("Any certificate should match in the case of null "
-                    + "subjectAlternativeNames criteria.", selector
-                    .match(cert1)
-                    && selector.match(cert2));
+        selector.setPathToNames(null);
+        assertTrue("Any certificate should match in the case of null "
+                   + "subjectAlternativeNames criteria.",
+                   selector.match(cert1) && selector.match(cert2));
 
-            Collection<List<?>> sans = sans1.getPairsList();
+        Collection<List<?>> sans = sans1.getPairsList();
 
-            selector.setPathToNames(sans);
-
-            Collection<List<?>> col = selector.getPathToNames();
-            Iterator<List<?>> i = col.iterator();
-            while (i.hasNext()) {
-                Object o = i.next();
-                if (!(o instanceof List)) {
-                    fail("expected a List");
-                }
-            }
-
-        } catch (IOException e) {
-            e.printStackTrace();
-            fail("Unexpected IOException was thrown.");
-        }
+        selector.setPathToNames(sans);
+        selector.getPathToNames();
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#setPolicy(Set<String>)
+     * java.security.cert.X509CertSelector#setPolicy(Set<String>)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "setPolicy",
-        args = {java.util.Set.class}
-    )
     public void test_setPolicyLjava_util_Set() throws IOException {
-        String[] policies1 = new String[] { "1.3.6.1.5.5.7.3.1",
-                "1.3.6.1.5.5.7.3.2", "1.3.6.1.5.5.7.3.3", "1.3.6.1.5.5.7.3.4",
-                "1.3.6.1.5.5.7.3.8", "1.3.6.1.5.5.7.3.9", "1.3.6.1.5.5.7.3.5",
-                "1.3.6.1.5.5.7.3.6", "1.3.6.1.5.5.7.3.7" };
+        String[] policies1 = new String[] { 
+            "1.3.6.1.5.5.7.3.1",
+            "1.3.6.1.5.5.7.3.2",
+            "1.3.6.1.5.5.7.3.3",
+            "1.3.6.1.5.5.7.3.4",
+            "1.3.6.1.5.5.7.3.8",
+            "1.3.6.1.5.5.7.3.9",
+            "1.3.6.1.5.5.7.3.5",
+            "1.3.6.1.5.5.7.3.6",
+            "1.3.6.1.5.5.7.3.7"
+        };
 
         String[] policies2 = new String[] { "1.3.6.7.3.1" };
 
@@ -1511,33 +1183,27 @@ public class X509CertSelectorTest extends TestCase {
 
         selector.setPolicy(null);
         assertTrue("Any certificate should match in the case of null "
-                + "privateKeyValid criteria.", selector.match(cert1)
-                && selector.match(cert2));
+                + "privateKeyValid criteria.",
+                   selector.match(cert1) && selector.match(cert2));
 
         selector.setPolicy(p1);
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert1));
+                   selector.match(cert1));
         assertFalse("The certificate should not match the selection criteria.",
-                selector.match(cert2));
+                    selector.match(cert2));
 
         selector.setPolicy(p2);
         assertFalse("The certificate should not match the selection criteria.",
-                selector.match(cert1));
+                    selector.match(cert1));
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert2));
+                   selector.match(cert2));
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#setPrivateKeyValid(java.util.Date)
+     * java.security.cert.X509CertSelector#setPrivateKeyValid(java.util.Date)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "setPrivateKeyValid",
-        args = {java.util.Date.class}
-    )
     public void test_setPrivateKeyValidLjava_util_Date()
-            throws CertificateException {
+            throws Exception {
         Date date1 = new Date(100000000);
         Date date2 = new Date(200000000);
         Date date3 = new Date(300000000);
@@ -1550,30 +1216,24 @@ public class X509CertSelectorTest extends TestCase {
 
         selector.setPrivateKeyValid(null);
         assertTrue("Any certificate should match in the case of null "
-                + "privateKeyValid criteria.", selector.match(cert1)
-                && selector.match(cert2));
+                + "privateKeyValid criteria.",
+                   selector.match(cert1) && selector.match(cert2));
         selector.setPrivateKeyValid(date4);
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert1));
+                   selector.match(cert1));
         assertFalse("The certificate should not match the selection criteria.",
-                selector.match(cert2));
+                    selector.match(cert2));
         selector.setPrivateKeyValid(date5);
         date5.setTime(date4.getTime());
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert2));
+                   selector.match(cert2));
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#setSerialNumber(java.math.BigInteger)
+     * java.security.cert.X509CertSelector#setSerialNumber(java.math.BigInteger)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "setSerialNumber",
-        args = {java.math.BigInteger.class}
-    )
     public void test_setSerialNumberLjava_math_BigInteger()
-            throws CertificateException {
+            throws Exception {
         BigInteger ser1 = new BigInteger("10000");
         BigInteger ser2 = new BigInteger("10001");
         TestCert cert1 = new TestCert(ser1);
@@ -1582,28 +1242,22 @@ public class X509CertSelectorTest extends TestCase {
 
         selector.setSerialNumber(null);
         assertTrue("Any certificate should match in the case of null "
-                + "serialNumber criteria.", selector.match(cert1)
-                && selector.match(cert2));
+                   + "serialNumber criteria.",
+                   selector.match(cert1) && selector.match(cert2));
         selector.setSerialNumber(ser1);
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert1));
+                   selector.match(cert1));
         assertFalse("The certificate should not match the selection criteria.",
-                selector.match(cert2));
+                    selector.match(cert2));
         selector.setSerialNumber(ser2);
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert2));
+                   selector.match(cert2));
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#setSubject(byte[])
+     * java.security.cert.X509CertSelector#setSubject(byte[])
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "setSubject",
-        args = {byte[].class}
-    )
-    public void test_setSubjectLB$() throws CertificateException {
+    public void test_setSubjectLB$() throws Exception {
         byte[] name1 = new byte[]
         // manually obtained DER encoding of "O=First Org." issuer name;
         { 48, 21, 49, 19, 48, 17, 6, 3, 85, 4, 10, 19, 10, 70, 105, 114, 115,
@@ -1619,42 +1273,24 @@ public class X509CertSelectorTest extends TestCase {
 
         X509CertSelector selector = new X509CertSelector();
 
-        try {
-            selector.setSubject((byte[]) null);
-        } catch (IOException e) {
-            fail("Unexpected IOException was thrown.");
-        }
+        selector.setSubject((byte[]) null);
         assertTrue("Any certificates should match "
-                + "in the case of null issuer criteria.", selector.match(cert1)
-                && selector.match(cert2));
-        try {
-            selector.setSubject(name1);
-        } catch (IOException e) {
-            fail("Unexpected IOException was thrown.");
-        }
+                   + "in the case of null issuer criteria.",
+                   selector.match(cert1) && selector.match(cert2));
+        selector.setSubject(name1);
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert1));
+                   selector.match(cert1));
         assertFalse("The certificate should not match the selection criteria.",
-                selector.match(cert2));
-        try {
-            selector.setSubject(name2);
-        } catch (IOException e) {
-            fail("Unexpected IOException was thrown.");
-        }
+                    selector.match(cert2));
+        selector.setSubject(name2);
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert2));
+                   selector.match(cert2));
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#setSubject(java.lang.String)
+     * java.security.cert.X509CertSelector#setSubject(java.lang.String)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "setSubject",
-        args = {java.lang.String.class}
-    )
-    public void test_setSubjectLjava_lang_String() throws CertificateException {
+    public void test_setSubjectLjava_lang_String() throws Exception {
         String name1 = "O=First Org.";
         String name2 = "O=Second Org.";
         X500Principal sub1 = new X500Principal(name1);
@@ -1663,44 +1299,25 @@ public class X509CertSelectorTest extends TestCase {
         TestCert cert2 = new TestCert(sub2);
         X509CertSelector selector = new X509CertSelector();
 
-        try {
-            selector.setSubject((String) null);
-        } catch (IOException e) {
-            fail("Unexpected IOException was thrown.");
-        }
+        selector.setSubject((String) null);
         assertTrue("Any certificates should match "
-                + "in the case of null subject criteria.", selector
-                .match(cert1)
-                && selector.match(cert2));
-        try {
-            selector.setSubject(name1);
-        } catch (IOException e) {
-            fail("Unexpected IOException was thrown.");
-        }
+                   + "in the case of null subject criteria.",
+                   selector.match(cert1) && selector.match(cert2));
+        selector.setSubject(name1);
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert1));
+                   selector.match(cert1));
         assertFalse("The certificate should not match the selection criteria.",
-                selector.match(cert2));
-        try {
-            selector.setSubject(name2);
-        } catch (IOException e) {
-            fail("Unexpected IOException was thrown.");
-        }
+                    selector.match(cert2));
+        selector.setSubject(name2);
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert2));
+                   selector.match(cert2));
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#setSubject(javax.security.auth.x500.X500Principal)
+     * java.security.cert.X509CertSelector#setSubject(javax.security.auth.x500.X500Principal)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "setSubject",
-        args = {javax.security.auth.x500.X500Principal.class}
-    )
     public void test_setSubjectLjavax_security_auth_x500_X500Principal()
-            throws CertificateException {
+            throws Exception {
         X500Principal sub1 = new X500Principal("O=First Org.");
         X500Principal sub2 = new X500Principal("O=Second Org.");
         TestCert cert1 = new TestCert(sub1);
@@ -1709,93 +1326,66 @@ public class X509CertSelectorTest extends TestCase {
 
         selector.setSubject((X500Principal) null);
         assertTrue("Any certificates should match "
-                + "in the case of null subjcet criteria.", selector
-                .match(cert1)
-                && selector.match(cert2));
+                   + "in the case of null subjcet criteria.",
+                   selector.match(cert1) && selector.match(cert2));
         selector.setSubject(sub1);
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert1));
+                   selector.match(cert1));
         assertFalse("The certificate should not match the selection criteria.",
-                selector.match(cert2));
+                    selector.match(cert2));
         selector.setSubject(sub2);
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert2));
+                   selector.match(cert2));
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#setSubjectAlternativeNames(Collection<List<?>>)
+     * java.security.cert.X509CertSelector#setSubjectAlternativeNames(Collection<List<?>>)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "setSubjectAlternativeNames",
-        args = {java.util.Collection.class}
-    )
-    public void test_setSubjectAlternativeNamesLjava_util_Collection() {
+    public void test_setSubjectAlternativeNamesLjava_util_Collection() throws Exception {
 
-        try {
-            GeneralName san0 = new GeneralName(new OtherName("1.2.3.4.5",
-                    new byte[] { 1, 2, 0, 1 }));
-            GeneralName san1 = new GeneralName(1, "rfc@822.Name");
-            GeneralName san2 = new GeneralName(2, "dNSName");
-            GeneralName san3 = new GeneralName(new ORAddress());
-            GeneralName san4 = new GeneralName(new Name("O=Organization"));
-            GeneralName san6 = new GeneralName(6, "http://uniform.Resource.Id");
-            GeneralName san7 = new GeneralName(7, "1.1.1.1");
-            GeneralName san8 = new GeneralName(8, "1.2.3.4444.55555");
+        GeneralName san0 = new GeneralName(new OtherName("1.2.3.4.5",
+                                                         new byte[] { 1, 2, 0, 1 }));
+        GeneralName san1 = new GeneralName(1, "rfc@822.Name");
+        GeneralName san2 = new GeneralName(2, "dNSName");
+        GeneralName san3 = new GeneralName(new ORAddress());
+        GeneralName san4 = new GeneralName(new Name("O=Organization"));
+        GeneralName san6 = new GeneralName(6, "http://uniform.Resource.Id");
+        GeneralName san7 = new GeneralName(7, "1.1.1.1");
+        GeneralName san8 = new GeneralName(8, "1.2.3.4444.55555");
 
-            GeneralNames sans1 = new GeneralNames();
-            sans1.addName(san0);
-            sans1.addName(san1);
-            sans1.addName(san2);
-            sans1.addName(san3);
-            sans1.addName(san4);
-            sans1.addName(san6);
-            sans1.addName(san7);
-            sans1.addName(san8);
-            GeneralNames sans2 = new GeneralNames();
-            sans2.addName(san0);
+        GeneralNames sans1 = new GeneralNames();
+        sans1.addName(san0);
+        sans1.addName(san1);
+        sans1.addName(san2);
+        sans1.addName(san3);
+        sans1.addName(san4);
+        sans1.addName(san6);
+        sans1.addName(san7);
+        sans1.addName(san8);
+        GeneralNames sans2 = new GeneralNames();
+        sans2.addName(san0);
 
-            TestCert cert1 = new TestCert(sans1);
-            TestCert cert2 = new TestCert(sans2);
-            X509CertSelector selector = new X509CertSelector();
-            selector.setMatchAllSubjectAltNames(true);
+        TestCert cert1 = new TestCert(sans1);
+        TestCert cert2 = new TestCert(sans2);
+        X509CertSelector selector = new X509CertSelector();
+        selector.setMatchAllSubjectAltNames(true);
 
-            selector.setSubjectAlternativeNames(null);
-            assertTrue("Any certificate should match in the case of null "
-                    + "subjectAlternativeNames criteria.", selector
-                    .match(cert1)
-                    && selector.match(cert2));
+        selector.setSubjectAlternativeNames(null);
+        assertTrue("Any certificate should match in the case of null "
+                   + "subjectAlternativeNames criteria.",
+                   selector.match(cert1) && selector.match(cert2));
 
-            Collection<List<?>> sans = sans1.getPairsList();
+        Collection<List<?>> sans = sans1.getPairsList();
 
-            selector.setSubjectAlternativeNames(sans);
+        selector.setSubjectAlternativeNames(sans);
 
-            Collection<List<?>> col = selector.getSubjectAlternativeNames();
-            Iterator<List<?>> i = col.iterator();
-            while (i.hasNext()) {
-                Object o = i.next();
-                if (!(o instanceof List)) {
-                    fail("expected a List");
-                }
-            }
-
-        } catch (IOException e) {
-            e.printStackTrace();
-            fail("Unexpected IOException was thrown.");
-        }
+        selector.getSubjectAlternativeNames();
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#setSubjectKeyIdentifier(byte[])
+     * java.security.cert.X509CertSelector#setSubjectKeyIdentifier(byte[])
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "setSubjectKeyIdentifier",
-        args = {byte[].class}
-    )
-    public void test_setSubjectKeyIdentifierLB$() throws CertificateException {
+    public void test_setSubjectKeyIdentifierLB$() throws Exception {
         byte[] skid1 = new byte[] { 1, 2, 3, 4, 5 }; // random value
         byte[] skid2 = new byte[] { 5, 4, 3, 2, 1 }; // random value
         TestCert cert1 = new TestCert(skid1);
@@ -1804,28 +1394,22 @@ public class X509CertSelectorTest extends TestCase {
 
         selector.setSubjectKeyIdentifier(null);
         assertTrue("Any certificate should match in the case of null "
-                + "serialNumber criteria.", selector.match(cert1)
-                && selector.match(cert2));
+                + "serialNumber criteria.",
+                   selector.match(cert1) && selector.match(cert2));
         selector.setSubjectKeyIdentifier(skid1);
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert1));
+                   selector.match(cert1));
         assertFalse("The certificate should not match the selection criteria.",
-                selector.match(cert2));
+                    selector.match(cert2));
         selector.setSubjectKeyIdentifier(skid2);
         skid2[0]++;
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert2));
+                   selector.match(cert2));
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#setSubjectPublicKey(byte[])
+     * java.security.cert.X509CertSelector#setSubjectPublicKey(byte[])
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "setSubjectPublicKey",
-        args = {byte[].class}
-    )
     public void test_setSubjectPublicKeyLB$() throws Exception {
 
         //SubjectPublicKeyInfo  ::=  SEQUENCE  {
@@ -1849,24 +1433,12 @@ public class X509CertSelectorTest extends TestCase {
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#setSubjectPublicKey(java.security.PublicKey key)
+     * java.security.cert.X509CertSelector#setSubjectPublicKey(java.security.PublicKey key)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "setSubjectPublicKey",
-        args = {java.security.PublicKey.class}
-    )
     public void test_setSubjectPublicKeyLjava_security_PublicKey()
-            throws CertificateException {
-        PublicKey pkey1 = null;
-        PublicKey pkey2 = null;
-        try {
-            pkey1 = new TestKeyPair("RSA").getPublic();
-            pkey2 = new TestKeyPair("DSA").getPublic();
-        } catch (Exception e) {
-            fail("Unexpected Exception was thrown: " + e.getMessage());
-        }
+            throws Exception {
+        PublicKey pkey1 = new TestKeyPair("RSA").getPublic();
+        PublicKey pkey2 = new TestKeyPair("DSA").getPublic();
 
         TestCert cert1 = new TestCert(pkey1);
         TestCert cert2 = new TestCert(pkey2);
@@ -1874,107 +1446,80 @@ public class X509CertSelectorTest extends TestCase {
 
         selector.setSubjectPublicKey((PublicKey) null);
         assertTrue("Any certificate should match in the case of null "
-                + "subjectPublicKey criteria.", selector.match(cert1)
-                && selector.match(cert2));
+                   + "subjectPublicKey criteria.",
+                   selector.match(cert1) && selector.match(cert2));
         selector.setSubjectPublicKey(pkey1);
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert1));
+                   selector.match(cert1));
         assertFalse("The certificate should not match the selection criteria.",
-                selector.match(cert2));
+                    selector.match(cert2));
         selector.setSubjectPublicKey(pkey2);
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert2));
+                   selector.match(cert2));
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#setSubjectPublicKeyAlgID(java.lang.String)
+     * java.security.cert.X509CertSelector#setSubjectPublicKeyAlgID(java.lang.String)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "setSubjectPublicKeyAlgID",
-        args = {java.lang.String.class}
-    )
-    public void test_setSubjectPublicKeyAlgIDLjava_lang_String()
-            throws CertificateException {
+    public void test_setSubjectPublicKeyAlgIDLjava_lang_String() throws Exception {
 
         X509CertSelector selector = new X509CertSelector();
         String pkaid1 = "1.2.840.113549.1.1.1"; // RSA (source:
         // http://asn1.elibel.tm.fr)
         String pkaid2 = "1.2.840.10040.4.1"; // DSA (source:
         // http://asn1.elibel.tm.fr)
-        PublicKey pkey1;
-        PublicKey pkey2;
-        try {
-            pkey1 = new TestKeyPair("RSA").getPublic();
-            pkey2 = new TestKeyPair("DSA").getPublic();
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail("Unexpected Exception was thrown: " + e.getMessage());
-            return;
-        }
+        PublicKey pkey1 = new TestKeyPair("RSA").getPublic();;
+        PublicKey pkey2 = new TestKeyPair("DSA").getPublic();;
+
         TestCert cert1 = new TestCert(pkey1);
         TestCert cert2 = new TestCert(pkey2);
 
-        try {
-            selector.setSubjectPublicKeyAlgID(null);
-        } catch (IOException e) {
-
-            fail("Unexpected IOException was thrown.");
-        }
+        selector.setSubjectPublicKeyAlgID(null);
         assertTrue("Any certificate should match in the case of null "
-                + "subjectPublicKeyAlgID criteria.", selector.match(cert1)
-                && selector.match(cert2));
+                   + "subjectPublicKeyAlgID criteria.",
+                   selector.match(cert1) && selector.match(cert2));
 
-        String[] validOIDs = { "0.0.20", "1.25.0", "2.0.39", "0.2.10", "1.35.15",
-                "2.17.89", "2.5.29.16", "2.5.29.17", "2.5.29.30", "2.5.29.32",
-                "2.5.29.37" };
+        String[] validOIDs = {
+            "0.0.20",
+            "1.25.0",
+            "2.0.39",
+            "0.2.10",
+            "1.35.15",
+            "2.17.89",
+            "2.5.29.16",
+            "2.5.29.17",
+            "2.5.29.30",
+            "2.5.29.32",
+            "2.5.29.37"
+        };
 
         for (int i = 0; i < validOIDs.length; i++) {
-            try {
-                selector.setSubjectPublicKeyAlgID(validOIDs[i]);
-                assertEquals(validOIDs[i], selector.getSubjectPublicKeyAlgID());
-            } catch (IOException e) {
-                fail("Unexpected exception " + e.getMessage());
-            }
+            selector.setSubjectPublicKeyAlgID(validOIDs[i]);
+            assertEquals(validOIDs[i], selector.getSubjectPublicKeyAlgID());
         }
 
-        String[] invalidOIDs = { "0.20", "1.25", "2.39", "3.10"};
+        String[] invalidOIDs = { "0.20", "1.25", "2.39", "3.10" };
         for (int i = 0; i < invalidOIDs.length; i++) {
             try {
                 selector.setSubjectPublicKeyAlgID(invalidOIDs[i]);
                 fail("IOException wasn't thrown for " + invalidOIDs[i]);
-            } catch (IOException e) {
+            } catch (IOException expected) {
             }
         }
 
-        try {
-            selector.setSubjectPublicKeyAlgID(pkaid1);
-        } catch (IOException e) {
-            fail("Unexpected IOException was thrown.");
-        }
+        selector.setSubjectPublicKeyAlgID(pkaid1);
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert1));
+                   selector.match(cert1));
         assertFalse("The certificate should not match the selection criteria.",
-                selector.match(cert2));
-        try {
-            selector.setSubjectPublicKeyAlgID(pkaid2);
-        } catch (IOException e) {
-            fail("Unexpected IOException was thrown.");
-        }
+                    selector.match(cert2));
+        selector.setSubjectPublicKeyAlgID(pkaid2);
         assertTrue("The certificate should match the selection criteria.",
-                selector.match(cert2));
+                   selector.match(cert2));
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#toString()
+     * java.security.cert.X509CertSelector#toString()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "toString",
-        args = {}
-    )
     public void test_toString() {
         X509CertSelector selector = new X509CertSelector();
         assertNotNull(selector.toString());
@@ -2117,13 +1662,11 @@ public class X509CertSelectorTest extends TestCase {
         }
 
         public void setExtendedKeyUsage(Set<String> extKeyUsage) {
-            this.extKeyUsage = (extKeyUsage == null) ? null : new ArrayList<String>(
-                    extKeyUsage);
+            this.extKeyUsage = (extKeyUsage == null) ? null : new ArrayList<String>(extKeyUsage);
         }
 
         public void setKeyUsage(boolean[] keyUsage) {
-            this.keyUsage = (keyUsage == null) ? null : (boolean[]) keyUsage
-                    .clone();
+            this.keyUsage = (keyUsage == null) ? null : (boolean[]) keyUsage.clone();
         }
 
         public void setPublicKey(PublicKey key) {
@@ -2334,8 +1877,7 @@ public class X509CertSelectorTest extends TestCase {
                                 ASN1Integer.getInstance() })
                                 .encode(new Object[] {
                                         new Boolean(pathLen != 1),
-                                        BigInteger.valueOf(pathLen)
-                                                .toByteArray() }));
+                                        BigInteger.valueOf(pathLen).toByteArray() }));
             }
             if ("2.5.29.17".equals(oid) && (sans != null)) {
                 if (sans.getNames() == null) {
@@ -2399,8 +1941,9 @@ public class X509CertSelectorTest extends TestCase {
         BigInteger revokedSerialNumber = BigInteger.valueOf(1);
         crl = new MyCRL("X.509");
 //        X509CRL rootCRL = X509CRL;
-//        X509CRL interCRL = X509CRLExample.createCRL(interCert, interPair
-//                .getPrivate(), revokedSerialNumber);
+//        X509CRL interCRL = X509CRLExample.createCRL(interCert,
+//                                                    interPair.getPrivate(),
+//                                                    revokedSerialNumber);
 
         // create CertStore to support path building
         List<Object> list = new ArrayList<Object>();
@@ -2408,16 +1951,14 @@ public class X509CertSelectorTest extends TestCase {
         list.add(rootCertificate);
         list.add(endCertificate);
 
-//        CollectionCertStoreParameters params = new CollectionCertStoreParameters(
-//                list);
+//        CollectionCertStoreParameters params = new CollectionCertStoreParameters(list);
 //        CertStore store = CertStore.getInstance("Collection", params);
 //
         theCertSelector = new X509CertSelector();
         theCertSelector.setCertificate(endCertificate);
-        theCertSelector.setIssuer(endCertificate.getIssuerX500Principal()
-                .getEncoded());
+        theCertSelector.setIssuer(endCertificate.getIssuerX500Principal().getEncoded());
 
-     // build the path
+        // build the path
         builder = CertPathBuilder.getInstance("PKIX");
 
     }
@@ -2428,8 +1969,7 @@ public class X509CertSelectorTest extends TestCase {
                 Collections.singleton(new TrustAnchor(rootCertificate, null)),
                 theCertSelector);
         try {
-        result = (PKIXCertPathBuilderResult) builder
-        .build(buildParams);
+        result = (PKIXCertPathBuilderResult) builder.build(buildParams);
         } catch(CertPathBuilderException e) {
             return null;
         }
@@ -2437,14 +1977,8 @@ public class X509CertSelectorTest extends TestCase {
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#addPathToName(int, byte[])
+     * java.security.cert.X509CertSelector#addPathToName(int, byte[])
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "Verifies Exception",
-        method = "addPathToName",
-        args = {int.class, byte[].class}
-    )
     public void test_addPathToNameLintLbyte_array2() throws Exception {
         TestUtils.initCertPathSSCertChain();
         setupEnvironment();
@@ -2480,14 +2014,8 @@ public class X509CertSelectorTest extends TestCase {
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#addPathToName(int, String)
+     * java.security.cert.X509CertSelector#addPathToName(int, String)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "Verifies IOException.",
-        method = "addPathToName",
-        args = {int.class, java.lang.String.class}
-    )
     public void test_addPathToNameLintLjava_lang_String2() throws Exception {
         setupEnvironment();
         byte[] bytes, bytesName;
@@ -2523,14 +2051,8 @@ public class X509CertSelectorTest extends TestCase {
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#addSubjectAlternativeName(int, byte[])
+     * java.security.cert.X509CertSelector#addSubjectAlternativeName(int, byte[])
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "IOException checking missed",
-        method = "addSubjectAlternativeName",
-        args = {int.class, byte[].class}
-    )
     public void test_addSubjectAlternativeNameLintLbyte_array2()
             throws Exception {
 
@@ -2572,14 +2094,8 @@ public class X509CertSelectorTest extends TestCase {
     }
 
     /**
-     * @tests java.security.cert.X509CertSelector#addSubjectAlternativeName(int, String)
+     * java.security.cert.X509CertSelector#addSubjectAlternativeName(int, String)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "addSubjectAlternativeName",
-        args = {int.class, java.lang.String.class}
-    )
     public void test_addSubjectAlternativeNameLintLjava_lang_String2() throws Exception{
         GeneralName san6 = new GeneralName(6, "http://uniform.Resource.Id");
         GeneralName san2 = new GeneralName(2, "dNSName");

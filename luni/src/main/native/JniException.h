@@ -21,11 +21,7 @@
 
 void jniThrowExceptionWithErrno(JNIEnv* env, const char* exceptionClassName, int error);
 
-void jniThrowBindException(JNIEnv* env, int error);
-void jniThrowConnectException(JNIEnv* env, int error);
 void jniThrowOutOfMemoryError(JNIEnv* env, const char* message);
-void jniThrowSecurityException(JNIEnv* env, int error);
 void jniThrowSocketException(JNIEnv* env, int error);
-void jniThrowSocketTimeoutException(JNIEnv* env, int error);
 
 #endif  // JNI_EXCEPTION_H_included

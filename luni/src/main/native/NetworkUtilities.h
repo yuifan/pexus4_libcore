@@ -15,22 +15,32 @@
  */
 
 #include "jni.h"
-
 #include <sys/socket.h>
 
-// Convert from byte[] to InetAddress.
-jobject byteArrayToInetAddress(JNIEnv* env, jbyteArray byteArray);
+// Convert from sockaddr_storage to Inet4Address (AF_INET), Inet6Address (AF_INET6), or
+// InetUnixAddress (AF_UNIX). If 'port' is non-NULL and the address family includes a notion
+// of port number, *port will be set to the port number.
+jobject sockaddrToInetAddress(JNIEnv* env, const sockaddr_storage& ss, int* port);
 
-// Convert from byte[] to sockaddr_storage.
-bool byteArrayToSocketAddress(JNIEnv* env, jclass, jbyteArray byteArray, int port, sockaddr_storage* ss);
+// Convert from InetAddress to sockaddr_storage. An InetUnixAddress will be converted to
+// an AF_UNIX sockaddr_un. An Inet6Address will be converted to an AF_INET6 sockaddr_in6.
+// An Inet4Address will be converted to an IPv4-mapped AF_INET6 sockaddr_in6. This is what
+// you want if you're about to perform an operation on a socket, since all our sockets
+// are AF_INET6.
+bool inetAddressToSockaddr(JNIEnv* env, jobject inetAddress, int port,
+                           sockaddr_storage& ss, socklen_t& sa_len);
 
-// Convert from sockaddr_storage to byte[].
-jbyteArray socketAddressToByteArray(JNIEnv* env, sockaddr_storage* ss);
-
-// Convert from sockaddr_storage to InetAddress.
-jobject socketAddressToInetAddress(JNIEnv* env, sockaddr_storage* ss);
+// Convert from InetAddress to sockaddr_storage. An InetUnixAddress will be converted to
+// an AF_UNIX sockaddr_un. An Inet6Address will be converted to an AF_INET6 sockaddr_in6.
+// An Inet4Address will be converted to a sockaddr_in. This is probably only useful for
+// getnameinfo(2), where we'll be presenting the result to the user and the user may actually
+// care whether the original address was pure IPv4 or an IPv4-mapped IPv6 address, and
+// for the MCAST_JOIN_GROUP socket option.
+bool inetAddressToSockaddrVerbatim(JNIEnv* env, jobject inetAddress, int port,
+                                   sockaddr_storage& ss, socklen_t& sa_len);
 
 
 
 // Changes 'fd' to be blocking/non-blocking. Returns false and sets errno on failure.
+// @Deprecated - use IoUtils.setBlocking
 bool setBlocking(int fd, bool blocking);

@@ -36,7 +36,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import org.apache.harmony.luni.util.Base64;
+import libcore.io.Base64;
+import libcore.io.Streams;
 import org.apache.harmony.security.asn1.ASN1Constants;
 import org.apache.harmony.security.asn1.BerInputStream;
 import org.apache.harmony.security.pkcs7.ContentInfo;
@@ -124,7 +125,7 @@ public class X509CertFactoryImpl extends CertificateFactorySpi {
         if (inStream == null) {
             throw new CertificateException("inStream == null");
         }
-        ArrayList result = new ArrayList();
+        ArrayList<Certificate> result = new ArrayList<Certificate>();
         try {
             if (!inStream.markSupported()) {
                 // create the mark supporting wrapper
@@ -196,7 +197,8 @@ public class X509CertFactoryImpl extends CertificateFactorySpi {
                 // some Certificates have been read
                 return result;
             } else if (ch == -1) {
-                throw new CertificateException("There is no data in the stream");
+                /* No data in the stream, so return the empty collection. */
+                return result;
             }
             // else: check if it is PKCS7
             if (second_asn1_tag == ASN1Constants.TAG_OID) {
@@ -210,12 +212,10 @@ public class X509CertFactoryImpl extends CertificateFactorySpi {
                 if (data == null) {
                     throw new CertificateException("Invalid PKCS7 data provided");
                 }
-                List certs = data.getCertificates();
+                List<org.apache.harmony.security.x509.Certificate> certs = data.getCertificates();
                 if (certs != null) {
-                    for (int i = 0; i < certs.size(); i++) {
-                        result.add(new X509CertImpl(
-                            (org.apache.harmony.security.x509.Certificate)
-                                certs.get(i)));
+                    for (org.apache.harmony.security.x509.Certificate cert : certs) {
+                        result.add(new X509CertImpl(cert));
                     }
                 }
                 return result;
@@ -267,7 +267,7 @@ public class X509CertFactoryImpl extends CertificateFactorySpi {
         if (inStream == null) {
             throw new CRLException("inStream == null");
         }
-        ArrayList result = new ArrayList();
+        ArrayList<CRL> result = new ArrayList<CRL>();
         try {
             if (!inStream.markSupported()) {
                 inStream = new RestoringInputStream(inStream);
@@ -351,11 +351,10 @@ public class X509CertFactoryImpl extends CertificateFactorySpi {
                 if (data == null) {
                     throw new CRLException("Invalid PKCS7 data provided");
                 }
-                List crls = data.getCRLs();
+                List<CertificateList> crls = data.getCRLs();
                 if (crls != null) {
-                    for (int i = 0; i < crls.size(); i++) {
-                        result.add(new X509CRLImpl(
-                            (CertificateList) crls.get(i)));
+                    for (CertificateList crl : crls) {
+                        result.add(new X509CRLImpl(crl));
                     }
                 }
                 return result;
@@ -416,7 +415,7 @@ public class X509CertFactoryImpl extends CertificateFactorySpi {
      * @see java.security.cert.CertificateFactorySpi#engineGenerateCertPath(List)
      * method documentation for more info
      */
-    public CertPath engineGenerateCertPath(List certificates)
+    public CertPath engineGenerateCertPath(List<? extends Certificate> certificates)
             throws CertificateException {
         return new X509CertPathImpl(certificates);
     }
@@ -645,7 +644,7 @@ public class X509CertFactoryImpl extends CertificateFactorySpi {
                 if (encoding.length < CERT_CACHE_SEED_LENGTH) {
                     throw new CertificateException("Bad Certificate encoding");
                 }
-                inStream.read(encoding);
+                Streams.readFully(inStream, encoding);
                 Certificate res = (Certificate) CERT_CACHE.get(hash, encoding);
                 if (res != null) {
                     return res;
@@ -716,7 +715,7 @@ public class X509CertFactoryImpl extends CertificateFactorySpi {
                 if (encoding.length < CRL_CACHE_SEED_LENGTH) {
                     throw new CRLException("Bad CRL encoding");
                 }
-                inStream.read(encoding);
+                Streams.readFully(inStream, encoding);
                 CRL res = (CRL) CRL_CACHE.get(hash, encoding);
                 if (res != null) {
                     return res;
@@ -834,11 +833,6 @@ public class X509CertFactoryImpl extends CertificateFactorySpi {
         }
 
         @Override
-        public int read(byte[] b) throws IOException {
-            return read(b, 0, b.length);
-        }
-
-        @Override
         public int read(byte[] b, int off, int len) throws IOException {
             int read_b;
             int i;
@@ -858,23 +852,6 @@ public class X509CertFactoryImpl extends CertificateFactorySpi {
             } else {
                 throw new IOException("Could not reset the stream: " +
                         "position became invalid or stream has not been marked");
-            }
-        }
-
-        @Override
-        public long skip(long n) throws IOException {
-            if (pos >= 0) {
-                long i = 0;
-                int av = available();
-                if (av < n) {
-                    n = av;
-                }
-                while ((i < n) && (read() != -1)) {
-                    i++;
-                }
-                return i;
-            } else {
-                return inStream.skip(n);
             }
         }
     }

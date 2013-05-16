@@ -17,11 +17,6 @@
 
 package org.apache.harmony.security.tests.java.security;
 
-import dalvik.annotation.TestTargetClass;
-import dalvik.annotation.TestTargetNew;
-import dalvik.annotation.TestTargets;
-import dalvik.annotation.TestLevel;
-
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.security.AlgorithmParameters;
@@ -29,6 +24,8 @@ import java.security.InvalidKeyException;
 import java.security.InvalidParameterException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.PublicKey;
@@ -39,60 +36,49 @@ import java.security.SignatureException;
 import java.security.cert.Certificate;
 import java.security.spec.DSAParameterSpec;
 import java.util.HashSet;
-import java.util.Locale;
 import java.util.Set;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
+import libcore.java.security.StandardNames;
 
-@TestTargetClass(Signature.class)
 public class Signature2Test extends junit.framework.TestCase {
 
     private static final String MESSAGE = "abc";
 
-    static KeyPair dsaKeys;
-    static KeyPair rsaKeys;
-    static {
-        try {
+    private static KeyPair DSA_KEYS;
+    private static KeyPair RSA_KEYS;
+
+    private static KeyPair getDsaKeys() throws Exception {
+        if (DSA_KEYS == null) {
             KeyPairGenerator keyGen = KeyPairGenerator.getInstance("DSA");
             keyGen.initialize(1024);
-            dsaKeys = keyGen.generateKeyPair();
-
-            KeyPairGenerator keyGen2 = KeyPairGenerator.getInstance("RSA");
-            keyGen2.initialize(1024);
-            rsaKeys = keyGen2.generateKeyPair();
-        } catch (Exception e) {
-            fail(e.toString());
+            DSA_KEYS = keyGen.generateKeyPair();
         }
+        return DSA_KEYS;
+    }
+
+    private static KeyPair getRsaKeys() throws Exception {
+        if (RSA_KEYS == null) {
+            KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
+            keyGen.initialize(1024);
+            RSA_KEYS = keyGen.generateKeyPair();
+        }
+        return RSA_KEYS;
     }
 
     /**
-     * @tests java.security.Signature#clone()
+     * java.security.Signature#clone()
      */
-    @TestTargetNew(
-        level = TestLevel.PARTIAL_COMPLETE,
-        notes = "CloneNotSupportedException checking was tested",
-        method = "clone",
-        args = {}
-    )
     public void test_clone() throws Exception {
         Signature s = Signature.getInstance("DSA");
         try {
             s.clone();
-            fail("A Signature may not be cloneable");
-        } catch (CloneNotSupportedException e) {
-            // Expected - a Signature may not be cloneable
+            fail();
+        } catch (CloneNotSupportedException expected) {
         }
     }
 
     /**
-     * @tests java.security.Signature#getAlgorithm()
+     * java.security.Signature#getAlgorithm()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getAlgorithm",
-        args = {}
-    )
     public void test_getAlgorithm() throws Exception {
         String alg = Signature.getInstance("DSA").getAlgorithm();
         assertTrue("getAlgorithm did not get DSA (" + alg + ")", alg
@@ -100,39 +86,22 @@ public class Signature2Test extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.security.Signature#getInstance(java.lang.String)
+     * java.security.Signature#getInstance(java.lang.String)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getInstance",
-        args = {java.lang.String.class}
-    )
-    public void test_getInstanceLjava_lang_String() {
-        try {
-            Signature.getInstance("DSA");
-        } catch (Exception e) {
-            fail("Unexpected exception for DSA algorithm");
-        }
+    public void test_getInstanceLjava_lang_String() throws Exception {
+        Signature.getInstance("DSA");
 
         try {
-            Signature.getInstance("SHA-256");
-            fail("NoSuchAlgorithmException was not thrown for unavailable algorithm");
-        } catch (NoSuchAlgorithmException e) {
-            //expected
+            Signature.getInstance("bogus");
+            fail();
+        } catch (NoSuchAlgorithmException expected) {
         }
     }
 
     /**
-     * @tests java.security.Signature#getInstance(java.lang.String,
+     * java.security.Signature#getInstance(java.lang.String,
      *        java.security.Provider)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getInstance",
-        args = {java.lang.String.class, java.security.Provider.class}
-    )
     public void test_getInstanceLjava_lang_StringLjava_lang_String_java_security_Provider()
             throws Exception {
         Provider[] providers = Security.getProviders("Signature.DSA");
@@ -145,65 +114,53 @@ public class Signature2Test extends junit.framework.TestCase {
 
         try {
             Signature.getInstance((String) null, (Provider) null);
-            fail("NullPointerException expected");
-        } catch (NullPointerException e) {
-            // expected
+            fail();
+        } catch (NullPointerException expected) {
         }
 
         try {
             Signature.getInstance("DSA", (Provider) null);
-            fail("IllegalArgumentException expected");
-        } catch (IllegalArgumentException e) {
-            // expected
+            fail();
+        } catch (IllegalArgumentException expected) {
         }
 
         try {
             Signature.getInstance((String) null, providers[0]);
-            fail("NullPointerException expected");
-        } catch (NullPointerException e) {
-            // expected
+            fail();
+        } catch (NullPointerException expected) {
         }
 
         try {
-            Signature.getInstance("SHA-256", providers[0]);
-            fail("NoSuchAlgorithmException expected");
-        } catch (NoSuchAlgorithmException e) {
-            // expected
+            Signature.getInstance("bogus", providers[0]);
+            fail();
+        } catch (NoSuchAlgorithmException expected) {
         }
     }
 
     /**
-     * @tests java.security.Signature#getInstance(java.lang.String,
+     * java.security.Signature#getInstance(java.lang.String,
      *        java.lang.String)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getInstance",
-        args = {java.lang.String.class, java.lang.String.class}
-    )
     public void test_getInstanceLjava_lang_StringLjava_lang_String()
             throws Exception {
         Provider[] providers = Security.getProviders("Signature.DSA");
 
         for (int i = 0; i < providers.length; i++) {
             Signature.getInstance("DSA", providers[i].getName());
-        }// end for
+        }
 
         try {
-            Signature.getInstance("SHA-256", providers[0].getName());
-            fail("NoSuchAlgorithmException expected");
-        } catch (NoSuchAlgorithmException e) {
-            // expected
+            Signature.getInstance("bogus", providers[0].getName());
+            fail();
+        } catch (NoSuchAlgorithmException expected) {
         }
 
         Provider[] pp = Security.getProviders();
         for (int i = 0; i < pp.length; i++) {
             try {
                 Signature.getInstance("DSA", pp[i].toString());
-                fail("NoSuchProviderException expected");
-            } catch (NoSuchProviderException e) {
-                // expected
+                fail(pp[i].toString());
+            } catch (NoSuchProviderException expected) {
             }
         }
 
@@ -211,22 +168,15 @@ public class Signature2Test extends junit.framework.TestCase {
         for (int i = 0; i < sp.length; i++) {
             try {
                 Signature.getInstance("DSA", sp[i]);
-                fail("IllegalArgumentException was not throw for " + sp[i]);
-            } catch (IllegalArgumentException e) {
-                // expected
+                fail(sp[i]);
+            } catch (IllegalArgumentException expected) {
             }
         }
     }
 
     /**
-     * @tests java.security.Signature#getParameters()
+     * java.security.Signature#getParameters()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getParameters",
-        args = {}
-    )
     public void test_getParameters() throws Exception {
         Signature sig = Signature.getInstance("DSA");
         try {
@@ -238,28 +188,17 @@ public class Signature2Test extends junit.framework.TestCase {
         try {
             MySignature sig2 = new MySignature("test");
             sig2.getParameters();
-            fail("expected UnsupportedOperationException");
-        } catch (UnsupportedOperationException e) {
-            // ok
+            fail();
+        } catch (UnsupportedOperationException expected) {
         }
 
-        try {
-            MySignature sig2 = new MySignature("ABC");
-            sig2.getParameters();
-        } catch (UnsupportedOperationException e) {
-            fail("unexpected: " + e);
-        }
+        MySignature sig2 = new MySignature("ABC");
+        sig2.getParameters();
     }
 
     /**
-     * @tests java.security.Signature#getParameter(java.lang.String)
+     * java.security.Signature#getParameter(java.lang.String)
      */
-    @TestTargetNew(
-        level = TestLevel.PARTIAL_COMPLETE,
-        notes = "Just exception case was tested",
-        method = "getParameter",
-        args = {java.lang.String.class}
-    )
     @SuppressWarnings("deprecation")
     public void test_getParameterLjava_lang_String() throws Exception {
         Signature sig = Signature.getInstance("DSA");
@@ -272,100 +211,58 @@ public class Signature2Test extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.security.Signature#getProvider()
+     * java.security.Signature#getProvider()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getProvider",
-        args = {}
-    )
     public void test_getProvider() throws Exception {
         Provider p = Signature.getInstance("DSA").getProvider();
         assertNotNull("provider is null", p);
     }
 
     /**
-     * @tests java.security.Signature#initSign(java.security.PrivateKey)
+     * java.security.Signature#initSign(java.security.PrivateKey)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "initSign",
-        args = {java.security.PrivateKey.class}
-    )
     public void test_initSignLjava_security_PrivateKey() throws Exception {
-        try {
-            Signature.getInstance("DSA").initSign(dsaKeys.getPrivate());
-        } catch (InvalidKeyException e) {
-            fail("unexpected: " + e);
-        }
+        Signature.getInstance("DSA").initSign(getDsaKeys().getPrivate());
 
         try {
-            Signature.getInstance("DSA").initSign(rsaKeys.getPrivate());
-            fail("expected InvalidKeyException");
-        } catch (InvalidKeyException e) {
-            // ok
+            Signature.getInstance("DSA").initSign(getRsaKeys().getPrivate());
+            fail();
+        } catch (InvalidKeyException expected) {
         }
     }
 
-    @TestTargetNew (
-            level=TestLevel.COMPLETE,
-            method="initSign",
-            args={PrivateKey.class, SecureRandom.class}
-    )
-    public void test_initSignLjava_security_PrivateKeyLjava_security_SecureRandom() {
+    public void test_initSignLjava_security_PrivateKeyLjava_security_SecureRandom()
+            throws Exception {
+        Signature sig = Signature.getInstance("DSA");
+        sig.initSign(getDsaKeys().getPrivate(), new SecureRandom());
+    }
 
+    public void test_initSignLjava_security_PrivateKeyLjava_security_SecureRandom_mismatch()
+            throws Exception {
         try {
             Signature sig = Signature.getInstance("DSA");
-            sig.initSign(dsaKeys.getPrivate(), new SecureRandom());
-        } catch (NoSuchAlgorithmException e) {
-            fail("unexpected: " + e);
-        } catch (InvalidKeyException e) {
-            fail("unexpected: " + e);
-        }
-
-        try {
-            Signature sig = Signature.getInstance("DSA");
-            sig.initSign(rsaKeys.getPrivate(), new SecureRandom());
-            fail("expected InvalidKeyException");
-        } catch (InvalidKeyException e) {
-            // ok
-        } catch (NoSuchAlgorithmException e) {
-            fail("unexpected: " + e);
+            sig.initSign(getRsaKeys().getPrivate(), new SecureRandom());
+            fail();
+        } catch (InvalidKeyException expected) {
         }
     }
 
     /**
-     * @tests java.security.Signature#initVerify(java.security.PublicKey)
+     * java.security.Signature#initVerify(java.security.PublicKey)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "initVerify",
-        args = {java.security.PublicKey.class}
-    )
     public void test_initVerifyLjava_security_PublicKey() throws Exception {
-        Signature.getInstance("DSA").initVerify(dsaKeys.getPublic());
+        Signature.getInstance("DSA").initVerify(getDsaKeys().getPublic());
 
         try {
-            Signature.getInstance("DSA").initVerify(rsaKeys.getPublic());
-            fail("expected InvalidKeyException");
-        } catch (InvalidKeyException e) {
-            // ok
+            Signature.getInstance("DSA").initVerify(getRsaKeys().getPublic());
+            fail();
+        } catch (InvalidKeyException expected) {
         }
-
     }
 
     /**
-     * @tests java.security.Signature#initVerify(java.security.cert.Certificate)
+     * java.security.Signature#initVerify(java.security.cert.Certificate)
      */
-    @TestTargetNew(
-        level = TestLevel.PARTIAL,
-        notes = "InvalidKeyException checking missed",
-        method = "initVerify",
-        args = {java.security.cert.Certificate.class}
-    )
     public void test_initVerifyLjava_security_Certificate() throws Exception {
         Provider p = new MyProvider();
         p.put("DSA", "tests.java.security.support.cert.MyCertificate$1");
@@ -381,9 +278,8 @@ public class Signature2Test extends junit.framework.TestCase {
 
             try {
                 Signature.getInstance("DSA").initVerify((Certificate) null);
-                fail("NullPointerException expected");
-            } catch (NullPointerException e) {
-                // fail
+                fail();
+            } catch (NullPointerException expected) {
             }
         } finally {
             Security.removeProvider(myProvider.getName());
@@ -391,15 +287,9 @@ public class Signature2Test extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.security.Signature#setParameter(java.lang.String,
+     * java.security.Signature#setParameter(java.lang.String,
      *        java.lang.Object)
      */
-    @TestTargetNew(
-        level = TestLevel.PARTIAL,
-        notes = "Just exception case was tested",
-        method = "setParameter",
-        args = {java.lang.String.class, java.lang.Object.class}
-    )
     @SuppressWarnings("deprecation")
     public void test_setParameterLjava_lang_StringLjava_lang_Object()
             throws Exception {
@@ -416,14 +306,8 @@ public class Signature2Test extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.security.Signature#setParameter(java.security.spec.AlgorithmParameterSpec)
+     * java.security.Signature#setParameter(java.security.spec.AlgorithmParameterSpec)
      */
-    @TestTargetNew(
-        level = TestLevel.PARTIAL,
-        notes = "Just exception case was tested",
-        method = "setParameter",
-        args = {java.security.spec.AlgorithmParameterSpec.class}
-    )
     public void test_setParameterLjava_security_spec_AlgorithmParameterSpec()
             throws Exception {
         Signature sig = Signature.getInstance("DSA");
@@ -440,47 +324,29 @@ public class Signature2Test extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.security.Signature#sign()
+     * java.security.Signature#sign()
      */
-    @TestTargetNew(
-        level = TestLevel.SUFFICIENT,
-        notes = "Verification of returned value missed. SignatureException checking missed.",
-        method = "sign",
-        args = {}
-    )
     public void test_sign() throws Exception {
         Signature sig = Signature.getInstance("DSA");
-        sig.initSign(dsaKeys.getPrivate());
+        sig.initSign(getDsaKeys().getPrivate());
         sig.update(MESSAGE.getBytes());
         sig.sign();
     }
 
     /**
-     * @tests java.security.Signature#toString()
+     * java.security.Signature#toString()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "toString",
-        args = {}
-    )
     public void test_toString() throws Exception {
         String str = Signature.getInstance("DSA").toString();
         assertNotNull("toString is null", str);
     }
 
     /**
-     * @tests java.security.Signature#update(byte[])
+     * java.security.Signature#update(byte[])
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "SignatureException checking missed",
-        method = "update",
-        args = {byte[].class}
-    )
     public void test_update$B() throws Exception {
         Signature sig = Signature.getInstance("DSA");
-        sig.initSign(dsaKeys.getPrivate());
+        sig.initSign(getDsaKeys().getPrivate());
 
         byte[] bytes = MESSAGE.getBytes();
         sig.update(bytes);
@@ -488,33 +354,25 @@ public class Signature2Test extends junit.framework.TestCase {
         try {
             Signature sig2 = Signature.getInstance("DSA");
             sig2.update(MESSAGE.getBytes());
-            fail("expected SignatureException");
-        } catch (SignatureException e) {
-            // ok
+            fail();
+        } catch (SignatureException expected) {
         }
     }
 
     /**
-     * @tests java.security.Signature#update(byte[], int, int)
+     * java.security.Signature#update(byte[], int, int)
      */
-    @TestTargetNew(
-        level = TestLevel.PARTIAL,
-        notes = "SignatureException checking missed. Verification of different values off and len missed.",
-        method = "update",
-        args = {byte[].class, int.class, int.class}
-    )
     public void test_update$BII() throws Exception {
         Signature sig = Signature.getInstance("DSA");
         byte[] bytes = MESSAGE.getBytes();
 
         try {
             sig.update(bytes, 0, bytes.length);
-            fail("expected SignatureException");
-        } catch (SignatureException e) {
-            // ok;
+            fail();
+        } catch (SignatureException expected) {
         }
 
-        sig.initSign(dsaKeys.getPrivate());
+        sig.initSign(getDsaKeys().getPrivate());
 
 
         sig.update(bytes, 0, bytes.length);
@@ -523,138 +381,110 @@ public class Signature2Test extends junit.framework.TestCase {
 
         try {
             sig.update(bytes, bytes.length -3, 4);
-            fail("expected IllegalArgumentException");
-        } catch (IllegalArgumentException e) {
-            // ok
+            fail();
+        } catch (IllegalArgumentException expected) {
         }
 
         try {
             sig.update(null, 0, 5);
-            fail("expected IllegalArgumentException");
-        } catch (IllegalArgumentException e) {
-            // ok
+            fail();
+        } catch (IllegalArgumentException expected) {
         }
     }
 
     /**
-     * @tests java.security.Signature#update(byte)
+     * java.security.Signature#update(byte)
      */
-    @TestTargetNew(
-        level = TestLevel.PARTIAL,
-        notes = "SignatureException checking missed",
-        method = "update",
-        args = {byte.class}
-    )
     public void test_updateB() throws Exception {
         Signature sig = Signature.getInstance("DSA");
-        sig.initSign(dsaKeys.getPrivate());
+        sig.initSign(getDsaKeys().getPrivate());
 
         sig.update(MESSAGE.getBytes()[0]);
 
     }
 
     /**
-     * @tests java.security.Signature#update(ByteBuffer data)
+     * java.security.Signature#update(ByteBuffer data)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "update",
-        args = {java.nio.ByteBuffer.class}
-    )
     public void test_updateLjava_nio_ByteBuffer() throws Exception {
         Signature sig = Signature.getInstance("DSA");
         ByteBuffer buffer = ByteBuffer.allocate(10);
 
         try {
             sig.update(buffer);
-            fail("SignatureException expected");
-        } catch (SignatureException e) {
-            // expected
+            fail();
+        } catch (SignatureException expected) {
         }
-        try {
-            sig.initSign(dsaKeys.getPrivate());
-            sig.update(buffer);
-        } catch (Exception e) {
-            fail("Unexpected exception " + e.getMessage());
-        }
+
+        sig.initSign(getDsaKeys().getPrivate());
+        sig.update(buffer);
 
     }
 
     /**
-     * @tests java.security.Signature#verify(byte[])
+     * java.security.Signature#verify(byte[])
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "verify",
-        args = {byte[].class}
-    )
     public void test_verify$B() throws Exception {
         Signature sig = Signature.getInstance("DSA");
 
         try {
             sig.verify(new byte[] { 0,1,2,3 });
-            fail("expected SignatureException");
-        } catch (SignatureException e) {
-            // ok
+            fail();
+        } catch (SignatureException expected) {
         }
 
-        sig.initSign(dsaKeys.getPrivate());
+        sig.initSign(getDsaKeys().getPrivate());
         sig.update(MESSAGE.getBytes());
         byte[] signature = sig.sign();
 
-        sig.initVerify(dsaKeys.getPublic());
+        sig.initVerify(getDsaKeys().getPublic());
         sig.update(MESSAGE.getBytes());
         assertTrue("Sign/Verify does not pass", sig.verify(signature));
     }
 
     /**
-     * @tests java.security.Signature#verify(byte[], int, int)
+     * java.security.Signature#verify(byte[], int, int)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "verify",
-        args = {byte[].class, int.class, int.class}
-    )
     public void test_verify$BII() throws Exception {
         Signature sig = Signature.getInstance("DSA");
-        sig.initSign(dsaKeys.getPrivate());
+        sig.initSign(getDsaKeys().getPrivate());
         sig.update(MESSAGE.getBytes());
         byte[] signature = sig.sign();
 
-        sig.initVerify(dsaKeys.getPublic());
+        sig.initVerify(getDsaKeys().getPublic());
         sig.update(MESSAGE.getBytes());
         assertTrue("Sign/Verify does not pass", sig.verify(signature, 0,
                 signature.length));
 
         try {
             sig.verify(null, 0, signature.length);
-            fail("IllegalArgumentException expected");
-        } catch (IllegalArgumentException e) {
-            // expected
+            fail();
+        } catch (IllegalArgumentException expected) {
         }
 
         try {
             sig.verify(signature, -5, signature.length);
-            fail("IllegalArgumentException expected");
-        } catch (IllegalArgumentException e) {
-            // expected
+            fail();
+        } catch (IllegalArgumentException expected) {
         }
 
-        try {
-            sig.verify(signature, signature.length, 0);
-            fail("SignatureException expected");
-        } catch (SignatureException e) {
-            // expected
+        if (StandardNames.IS_RI) {
+            try {
+                sig.verify(signature, signature.length, 0);
+                fail();
+            } catch (SignatureException expected) {
+            }
+        } else {
+            // Calling Signature.verify a second time should not throw
+            // http://code.google.com/p/android/issues/detail?id=34933
+            boolean verified = sig.verify(signature, signature.length, 0);
+            assertFalse(verified);
         }
 
         try {
             sig.verify(signature, 0, signature.length * 2);
-            fail("IllegalArgumentException expected");
-        } catch (IllegalArgumentException e) {
-            // expected
+            fail();
+        } catch (IllegalArgumentException expected) {
         }
     }
 

@@ -19,8 +19,8 @@ package org.apache.harmony.xml.parsers;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLConnection;
-import java.util.StringTokenizer;
 import javax.xml.parsers.DocumentBuilder;
+import libcore.io.IoUtils;
 import org.apache.harmony.xml.dom.CDATASectionImpl;
 import org.apache.harmony.xml.dom.DOMImplementationImpl;
 import org.apache.harmony.xml.dom.DocumentImpl;
@@ -44,10 +44,7 @@ import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
 /**
- * Provides a straightforward DocumentBuilder implementation based on
- * XMLPull/KXML. The class is used internally only, thus only notable members
- * that are not already in the abstract superclass are documented. Hope that's
- * ok.
+ * Builds a DOM using KXmlParser.
  */
 class DocumentBuilderImpl extends DocumentBuilder {
 
@@ -93,7 +90,7 @@ class DocumentBuilderImpl extends DocumentBuilder {
     @Override
     public Document parse(InputSource source) throws SAXException, IOException {
         if (source == null) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("source == null");
         }
 
         String namespaceURI = null;
@@ -105,8 +102,8 @@ class DocumentBuilderImpl extends DocumentBuilder {
                 dom, namespaceURI, qualifiedName, doctype, inputEncoding);
         document.setDocumentURI(systemId);
 
+        KXmlParser parser = new KXmlParser();
         try {
-            KXmlParser parser = new KXmlParser();
             parser.keepNamespaceAttributes();
             parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, namespaceAware);
 
@@ -121,24 +118,22 @@ class DocumentBuilderImpl extends DocumentBuilder {
                 // TODO: if null, extract the inputEncoding from the Content-Type header?
                 parser.setInput(urlConnection.getInputStream(), inputEncoding);
             } else {
-                throw new SAXParseException(
-                        "InputSource needs a stream, reader or URI", null);
+                throw new SAXParseException("InputSource needs a stream, reader or URI", null);
             }
 
-            if(parser.nextToken() == XmlPullParser.END_DOCUMENT) {
-                throw new SAXParseException(
-                        "Unexpected end of document", null);
+            if (parser.nextToken() == XmlPullParser.END_DOCUMENT) {
+                throw new SAXParseException("Unexpected end of document", null);
             }
 
             parse(parser, document, document, XmlPullParser.END_DOCUMENT);
 
             parser.require(XmlPullParser.END_DOCUMENT, null, null);
         } catch (XmlPullParserException ex) {
-            if(ex.getDetail() instanceof IOException) {
-                throw (IOException)ex.getDetail();
+            if (ex.getDetail() instanceof IOException) {
+                throw (IOException) ex.getDetail();
             }
-            if(ex.getDetail() instanceof RuntimeException) {
-                throw (RuntimeException)ex.getDetail();
+            if (ex.getDetail() instanceof RuntimeException) {
+                throw (RuntimeException) ex.getDetail();
             }
 
             LocatorImpl locator = new LocatorImpl();
@@ -148,14 +143,15 @@ class DocumentBuilderImpl extends DocumentBuilder {
             locator.setLineNumber(ex.getLineNumber());
             locator.setColumnNumber(ex.getColumnNumber());
 
-            SAXParseException newEx = new SAXParseException(ex.getMessage(),
-                    locator);
+            SAXParseException newEx = new SAXParseException(ex.getMessage(), locator);
 
             if (errorHandler != null) {
                 errorHandler.error(newEx);
             }
 
             throw newEx;
+        } finally {
+            IoUtils.closeQuietly(parser);
         }
 
         return document;
@@ -178,7 +174,7 @@ class DocumentBuilderImpl extends DocumentBuilder {
      * @throws XmlPullParserException If a parsing error occurs.
      * @throws IOException If a general IO error occurs.
      */
-    private void parse(XmlPullParser parser, DocumentImpl document, Node node,
+    private void parse(KXmlParser parser, DocumentImpl document, Node node,
             int endToken) throws XmlPullParserException, IOException {
 
         int token = parser.getEventType();
@@ -205,45 +201,10 @@ class DocumentBuilderImpl extends DocumentBuilder {
                 node.appendChild(document.createProcessingInstruction(target,
                         data));
             } else if (token == XmlPullParser.DOCDECL) {
-                /*
-                 * Found a document type declaration. Unfortunately KXML doesn't
-                 * have the necessary details. Do we parse it ourselves, or do
-                 * we silently ignore it, since it isn't mandatory in DOM 2
-                 * anyway?
-                 */
-                StringTokenizer tokenizer = new StringTokenizer(parser.getText());
-                if (tokenizer.hasMoreTokens()) {
-                    String name = tokenizer.nextToken();
-                    String pubid = null;
-                    String sysid = null;
-
-                    if (tokenizer.hasMoreTokens()) {
-                        String text = tokenizer.nextToken();
-
-                        if ("SYSTEM".equals(text)) {
-                            if (tokenizer.hasMoreTokens()) {
-                                sysid = tokenizer.nextToken();
-                            }
-                        } else if ("PUBLIC".equals(text)) {
-                            if (tokenizer.hasMoreTokens()) {
-                                pubid = tokenizer.nextToken();
-                            }
-                            if (tokenizer.hasMoreTokens()) {
-                                sysid = tokenizer.nextToken();
-                            }
-                        }
-                    }
-
-                    if (pubid != null && pubid.length() >= 2 && pubid.startsWith("\"") && pubid.endsWith("\"")) {
-                        pubid = pubid.substring(1, pubid.length() - 1);
-                    }
-
-                    if (sysid != null && sysid.length() >= 2 && sysid.startsWith("\"") && sysid.endsWith("\"")) {
-                        sysid = sysid.substring(1, sysid.length() - 1);
-                    }
-
-                    document.appendChild(new DocumentTypeImpl(document, name, pubid, sysid));
-                }
+                String name = parser.getRootElementName();
+                String publicId = parser.getPublicId();
+                String systemId = parser.getSystemId();
+                document.appendChild(new DocumentTypeImpl(document, name, publicId, systemId));
 
             } else if (token == XmlPullParser.COMMENT) {
                 /*
@@ -281,9 +242,9 @@ class DocumentBuilderImpl extends DocumentBuilder {
                     // TODO Implement this...
                 }
 
-                String replacement = resolveStandardEntity(entity);
-                if (replacement != null) {
-                    appendText(document, node, token, replacement);
+                String resolved = resolvePredefinedOrCharacterEntity(entity);
+                if (resolved != null) {
+                    appendText(document, node, token, resolved);
                 } else {
                     node.appendChild(document.createEntityReference(entity));
                 }
@@ -374,15 +335,15 @@ class DocumentBuilderImpl extends DocumentBuilder {
      */
     private void appendText(DocumentImpl document, Node parent, int token, String text) {
         // Ignore empty runs.
-        if (text.length() == 0) {
+        if (text.isEmpty()) {
             return;
         }
         // Merge with any previous text node if possible.
-        if (coalescing) {
+        if (coalescing || token != XmlPullParser.CDSECT) {
             Node lastChild = parent.getLastChild();
             if (lastChild != null && lastChild.getNodeType() == Node.TEXT_NODE) {
                 Text textNode = (Text) lastChild;
-                textNode.setData(textNode.getNodeValue() + text);
+                textNode.appendData(text);
                 return;
             }
         }
@@ -404,8 +365,6 @@ class DocumentBuilderImpl extends DocumentBuilder {
 
     /**
      * Controls whether this DocumentBuilder ignores comments.
-     *
-     * @param value Turns comment ignorance on or off.
      */
     public void setIgnoreComments(boolean value) {
         ignoreComments = value;
@@ -417,8 +376,6 @@ class DocumentBuilderImpl extends DocumentBuilder {
 
     /**
      * Controls whether this DocumentBuilder ignores element content whitespace.
-     *
-     * @param value Turns element whitespace content ignorance on or off.
      */
     public void setIgnoreElementContentWhitespace(boolean value) {
         ignoreElementContentWhitespace = value;
@@ -426,38 +383,31 @@ class DocumentBuilderImpl extends DocumentBuilder {
 
     /**
      * Controls whether this DocumentBuilder is namespace-aware.
-     *
-     * @param value Turns namespace awareness on or off.
      */
     public void setNamespaceAware(boolean value) {
         namespaceAware = value;
     }
 
     /**
-     * Resolves predefined XML character or entity references.
-     *
-     * @param entity The reference to resolve, not including
-     *               the ampersand or the semicolon.
-     *
-     * @return The proper replacement, or null, if the entity is unknown.
+     * Returns the replacement text or null if {@code entity} isn't predefined.
      */
-    private String resolveStandardEntity(String entity) {
+    private String resolvePredefinedOrCharacterEntity(String entityName) {
         // Character references, section 4.1 of the XML specification.
-        if (entity.startsWith("#x")) {
-            return resolveCharacterReference(entity.substring(2), 16);
-        } else if (entity.startsWith("#")) {
-            return resolveCharacterReference(entity.substring(1), 10);
+        if (entityName.startsWith("#x")) {
+            return resolveCharacterReference(entityName.substring(2), 16);
+        } else if (entityName.startsWith("#")) {
+            return resolveCharacterReference(entityName.substring(1), 10);
         }
         // Predefined entities, section 4.6 of the XML specification.
-        if ("lt".equals(entity)) {
+        if ("lt".equals(entityName)) {
             return "<";
-        } else if ("gt".equals(entity)) {
+        } else if ("gt".equals(entityName)) {
             return ">";
-        } else if ("amp".equals(entity)) {
+        } else if ("amp".equals(entityName)) {
             return "&";
-        } else if ("apos".equals(entity)) {
+        } else if ("apos".equals(entityName)) {
             return "'";
-        } else if ("quot".equals(entity)) {
+        } else if ("quot".equals(entityName)) {
             return "\"";
         } else {
             return null;

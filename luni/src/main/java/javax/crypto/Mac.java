@@ -36,7 +36,7 @@ import org.apache.harmony.security.fortress.Engine;
 public class Mac implements Cloneable {
 
     //Used to access common engine functionality
-    private static final Engine engine = new Engine("Mac");
+    private static final Engine ENGINE = new Engine("Mac");
 
     // Store used provider
     private final Provider provider;
@@ -101,12 +101,10 @@ public class Mac implements Cloneable {
     public static final Mac getInstance(String algorithm)
             throws NoSuchAlgorithmException {
         if (algorithm == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("algorithm == null");
         }
-        synchronized (engine) {
-            engine.getInstance(algorithm, null);
-            return new Mac((MacSpi) engine.spi, engine.provider, algorithm);
-        }
+        Engine.SpiAndProvider sap = ENGINE.getInstance(algorithm, null);
+        return new Mac((MacSpi) sap.spi, sap.provider, algorithm);
     }
 
     /**
@@ -165,12 +163,10 @@ public class Mac implements Cloneable {
             throw new IllegalArgumentException("provider == null");
         }
         if (algorithm == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("algorithm == null");
         }
-        synchronized (engine) {
-            engine.getInstance(algorithm, provider, null);
-            return new Mac((MacSpi) engine.spi, provider, algorithm);
-        }
+        Object spi = ENGINE.getInstance(algorithm, provider, null);
+        return new Mac((MacSpi) spi, provider, algorithm);
     }
 
     /**
@@ -269,7 +265,9 @@ public class Mac implements Cloneable {
             return;
         }
         if ((offset < 0) || (len < 0) || ((offset + len) > input.length)) {
-            throw new IllegalArgumentException("Incorrect arguments");
+            throw new IllegalArgumentException("Incorrect arguments."
+                                               + " input.length=" + input.length
+                                               + " offset=" + offset + ", len=" + len);
         }
         spiImpl.engineUpdate(input, offset, len);
     }

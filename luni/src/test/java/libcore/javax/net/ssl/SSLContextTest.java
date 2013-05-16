@@ -216,7 +216,8 @@ public class SSLContextTest extends TestCase {
             SSLSessionContext sessionContext = sslContext.getServerSessionContext();
             assertNotNull(sessionContext);
 
-            if (protocol.equals(StandardNames.SSL_CONTEXT_PROTOCOLS_DEFAULT)) {
+            if (!StandardNames.IS_RI &&
+                    protocol.equals(StandardNames.SSL_CONTEXT_PROTOCOLS_DEFAULT)) {
                 assertSame(SSLContext.getInstance(protocol).getServerSessionContext(),
                            sessionContext);
             } else {
@@ -232,7 +233,8 @@ public class SSLContextTest extends TestCase {
             SSLSessionContext sessionContext = sslContext.getClientSessionContext();
             assertNotNull(sessionContext);
 
-            if (protocol.equals(StandardNames.SSL_CONTEXT_PROTOCOLS_DEFAULT)) {
+            if (!StandardNames.IS_RI &&
+                    protocol.equals(StandardNames.SSL_CONTEXT_PROTOCOLS_DEFAULT)) {
                 assertSame(SSLContext.getInstance(protocol).getClientSessionContext(),
                            sessionContext);
             } else {
@@ -295,7 +297,7 @@ public class SSLContextTest extends TestCase {
         assertNotNull(testContext.clientKeyStore);
         assertNull(testContext.clientStorePassword);
         assertNotNull(testContext.serverKeyStore);
-        assertNull(testContext.serverStorePassword);
+        assertEquals(StandardNames.IS_RI, testContext.serverStorePassword != null);
         assertNotNull(testContext.clientKeyManager);
         assertNotNull(testContext.serverKeyManager);
         assertNotNull(testContext.clientTrustManager);
@@ -305,5 +307,6 @@ public class SSLContextTest extends TestCase {
         assertNotNull(testContext.serverSocket);
         assertNotNull(testContext.host);
         assertTrue(testContext.port != 0);
+        testContext.close();
     }
 }

@@ -15,26 +15,15 @@
  *  limitations under the License.
  */
 
-/**
- * @author Vera Y. Petrashkova
- * @version $Revision$
- */
-
 package org.apache.harmony.security.tests.java.security;
-
-import dalvik.annotation.TestLevel;
-import dalvik.annotation.TestTargetClass;
-import dalvik.annotation.TestTargetNew;
-import dalvik.annotation.TestTargets;
-
-import junit.framework.TestCase;
-
-import org.apache.harmony.security.tests.support.MyKeyStoreSpi;
-import org.apache.harmony.security.tests.support.MyLoadStoreParams;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.InvalidKeyException;
+import java.security.Key;
+import java.security.KeyStore.LoadStoreParameter;
+import java.security.KeyStore.Entry;
+import java.security.KeyStore.ProtectionParameter;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.KeyStoreSpi;
@@ -44,130 +33,18 @@ import java.security.PublicKey;
 import java.security.SignatureException;
 import java.security.UnrecoverableEntryException;
 import java.security.UnrecoverableKeyException;
-import java.security.KeyStore.LoadStoreParameter;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.util.Date;
-
-@TestTargetClass(value=KeyStoreSpi.class,
-        untestedMethods={
-            @TestTargetNew(
-                level = TestLevel.NOT_NECESSARY,
-                notes = "",
-                method = "engineAliases",
-                args = {}
-            ),
-            @TestTargetNew(
-                level = TestLevel.NOT_NECESSARY,
-                notes = "",
-                method = "engineContainsAlias",
-                args = {java.lang.String.class}
-            ),
-            @TestTargetNew(
-                level = TestLevel.NOT_NECESSARY,
-                notes = "",
-                method = "engineDeleteEntry",
-                args = {java.lang.String.class}
-            ),
-            @TestTargetNew(
-                level = TestLevel.NOT_NECESSARY,
-                notes = "",
-                method = "engineGetCertificate",
-                args = {java.lang.String.class}
-            ),
-            @TestTargetNew(
-                level = TestLevel.NOT_NECESSARY,
-                notes = "",
-                method = "engineGetCertificateAlias",
-                args = {java.security.cert.Certificate.class}
-            ),
-            @TestTargetNew(
-                level = TestLevel.NOT_NECESSARY,
-                notes = "",
-                method = "engineGetCertificateChain",
-                args = {java.lang.String.class}
-            ),
-            @TestTargetNew(
-                level = TestLevel.NOT_NECESSARY,
-                notes = "",
-                method = "engineGetCreationDate",
-                args = {java.lang.String.class}
-            ),
-            @TestTargetNew(
-                level = TestLevel.NOT_NECESSARY,
-                notes = "",
-                method = "engineGetKey",
-                args = {java.lang.String.class, char[].class}
-            ),
-            @TestTargetNew(
-                level = TestLevel.NOT_NECESSARY,
-                notes = "",
-                method = "engineIsCertificateEntry",
-                args = {java.lang.String.class}
-            ),
-            @TestTargetNew(
-                level = TestLevel.NOT_NECESSARY,
-                notes = "",
-                method = "engineIsKeyEntry",
-                args = {java.lang.String.class}
-            ),
-            @TestTargetNew(
-                level = TestLevel.NOT_NECESSARY,
-                notes = "",
-                method = "engineLoad",
-                args = {java.io.InputStream.class, char[].class}
-            ),
-            @TestTargetNew(
-                level = TestLevel.NOT_NECESSARY,
-                notes = "",
-                method = "engineSetCertificateEntry",
-                args = {
-                java.lang.String.class, java.security.cert.Certificate.class}
-            ),
-            @TestTargetNew(
-                level = TestLevel.NOT_NECESSARY,
-                notes = "",
-                method = "engineSetKeyEntry",
-                args = {
-                java.lang.String.class, byte[].class,
-                java.security.cert.Certificate[].class}
-            ),
-            @TestTargetNew(
-                level = TestLevel.NOT_NECESSARY,
-                notes = "",
-                method = "engineSetKeyEntry",
-                args = {
-                java.lang.String.class, java.security.Key.class, char[].class,
-                java.security.cert.Certificate[].class}
-            ),
-            @TestTargetNew(
-                level = TestLevel.NOT_NECESSARY,
-                notes = "",
-                method = "engineSize",
-                args = {}
-            ),
-            @TestTargetNew(
-                level = TestLevel.NOT_NECESSARY,
-                notes = "",
-                method = "engineStore",
-                args = {java.io.OutputStream.class, char[].class}
-            )}
-        )
-/**
- * Tests for <code>KeyStoreSpi</code> constructor and methods
- *
- */
+import javax.crypto.SecretKey;
+import junit.framework.TestCase;
+import org.apache.harmony.security.tests.support.MyKeyStoreSpi;
+import org.apache.harmony.security.tests.support.MyLoadStoreParams;
 
 public class KeyStoreSpiTest extends TestCase {
 
     @SuppressWarnings("cast")
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "KeyStoreSpi",
-        args = {}
-    )
     public void test_KeyStoreSpi() {
 
         try {
@@ -180,15 +57,9 @@ public class KeyStoreSpiTest extends TestCase {
     }
 
     /*
-     * @tests java.security.KeyStore.engineEntryInstanceOf(String, Class<?
+     * java.security.KeyStore.engineEntryInstanceOf(String, Class<?
      * extends Entry>)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "engineEntryInstanceOf",
-        args = {java.lang.String.class, java.lang.Class.class}
-    )
     public void test_engineEntryInstanceOf() throws Exception {
 
         KeyStoreSpi ksSpi = new MyKeyStoreSpi();
@@ -208,129 +79,73 @@ public class KeyStoreSpiTest extends TestCase {
         try {
             assertFalse(ksSpi.engineEntryInstanceOf(null,
                     KeyStore.TrustedCertificateEntry.class));
-        } catch (NullPointerException e) {
-            // ok
+        } catch (NullPointerException expected) {
         }
 
         try {
             assertFalse(ksSpi.engineEntryInstanceOf(
                     "test_engineEntryInstanceOf_Alias1", null));
-        } catch (NullPointerException e) {
-            // ok
+        } catch (NullPointerException expected) {
         }
 
 
     }
 
-    @TestTargets({
-        @TestTargetNew(
-            level = TestLevel.COMPLETE,
-            notes = "",
-            method = "engineLoad",
-            args = {java.security.KeyStore.LoadStoreParameter.class}
-        ),
-        @TestTargetNew(
-            level = TestLevel.COMPLETE,
-            notes = "",
-            method = "engineStore",
-            args = {java.security.KeyStore.LoadStoreParameter.class}
-        ),
-        @TestTargetNew(
-            level = TestLevel.COMPLETE,
-            notes = "",
-            method = "engineGetEntry",
-            args = {
-                    java.lang.String.class,
-                    java.security.KeyStore.ProtectionParameter.class}
-        ),
-        @TestTargetNew(
-            level = TestLevel.COMPLETE,
-            notes = "",
-            method = "engineSetEntry",
-            args = {
-                    java.lang.String.class, java.security.KeyStore.Entry.class,
-                    java.security.KeyStore.ProtectionParameter.class}
-        )
-    })
-    public void testKeyStoteSpi01() throws IOException,
+    public void testKeyStoreSpi01() throws IOException,
             NoSuchAlgorithmException, CertificateException,
             UnrecoverableEntryException, KeyStoreException {
-        KeyStoreSpi ksSpi = new MyKeyStoreSpi();
+        final boolean[] keyEntryWasSet = new boolean[1];
+        KeyStoreSpi ksSpi = new MyKeyStoreSpi() {
+            @Override public void engineSetKeyEntry(String alias, Key key, char[] password,
+                Certificate[] chain) throws KeyStoreException { keyEntryWasSet[0] = true; }
+        };
 
-        tmpEntry entry = new tmpEntry();
-        tmpProtection pPar = new tmpProtection();
+        BadKeyStoreEntry badEntry = new BadKeyStoreEntry();
+        BadKeyStoreProtectionParameter badParameter = new BadKeyStoreProtectionParameter();
+
+        KeyStore.SecretKeyEntry dummyEntry = new KeyStore.SecretKeyEntry(new SecretKey() {
+            @Override public String getAlgorithm() { return null; }
+            @Override public String getFormat() { return null; }
+            @Override public byte[] getEncoded() { return null; }
+        });
 
         try {
             ksSpi.engineStore(null);
-        } catch (UnsupportedOperationException e) {
+        } catch (UnsupportedOperationException expected) {
         }
         assertNull("Not null entry", ksSpi.engineGetEntry("aaa", null));
-        assertNull("Not null entry", ksSpi.engineGetEntry(null, pPar));
-        assertNull("Not null entry", ksSpi.engineGetEntry("aaa", pPar));
+        assertNull("Not null entry", ksSpi.engineGetEntry(null, badParameter));
+        assertNull("Not null entry", ksSpi.engineGetEntry("aaa", badParameter));
 
         try {
             ksSpi.engineSetEntry("", null, null);
             fail("KeyStoreException or NullPointerException must be thrown");
-        } catch (KeyStoreException e) {
-        } catch (NullPointerException e) {
+        } catch (KeyStoreException expected) {
+        } catch (NullPointerException expected) {
         }
 
         try {
             ksSpi.engineSetEntry("", new KeyStore.TrustedCertificateEntry(
                     new MyCertificate("type", new byte[0])), null);
             fail("KeyStoreException must be thrown");
-        } catch (KeyStoreException e) {
+        } catch (KeyStoreException expected) {
         }
 
         try {
-            ksSpi.engineSetEntry("aaa", entry, null);
+            ksSpi.engineSetEntry("aaa", badEntry, null);
             fail("KeyStoreException must be thrown");
-        } catch (KeyStoreException e) {
+        } catch (KeyStoreException expected) {
         }
+
+        ksSpi.engineSetEntry("aaa", dummyEntry, null);
+        assertTrue(keyEntryWasSet[0]);
     }
 
     /**
      * Test for <code>KeyStoreSpi()</code> constructor and abstract engine
      * methods. Assertion: creates new KeyStoreSpi object.
      */
-    @TestTargets({
-        @TestTargetNew(
-            level = TestLevel.COMPLETE,
-            notes = "",
-            method = "engineSetKeyEntry",
-            args = {
-                    java.lang.String.class, java.security.Key.class,
-                    char[].class, java.security.cert.Certificate[].class}),
-        @TestTargetNew(
-            level = TestLevel.COMPLETE,
-            notes = "",
-            method = "engineSetKeyEntry",
-            args = {
-                    java.lang.String.class, byte[].class,
-                    java.security.cert.Certificate[].class}
-        ),
-        @TestTargetNew(
-            level = TestLevel.COMPLETE,
-            notes = "",
-            method = "engineSetCertificateEntry",
-            args = {
-                    java.lang.String.class,
-                    java.security.cert.Certificate.class}
-        ),
-        @TestTargetNew(
-            level = TestLevel.COMPLETE,
-            notes = "",
-            method = "engineDeleteEntry",
-            args = {java.lang.String.class}
-        ),
-        @TestTargetNew(
-            level = TestLevel.COMPLETE,
-            notes = "",
-            method = "engineStore",
-            args = {java.io.OutputStream.class, char[].class}
-        )
-    })
-    public void testKeyStoteSpi02() throws NoSuchAlgorithmException,
+    public void testKeyStoreSpi02() throws NoSuchAlgorithmException,
             UnrecoverableKeyException, CertificateException {
         KeyStoreSpi ksSpi = new MyKeyStoreSpi();
         assertNull("engineGetKey(..) must return null", ksSpi.engineGetKey("",
@@ -344,23 +159,23 @@ public class KeyStoreSpiTest extends TestCase {
         try {
             ksSpi.engineSetKeyEntry("", null, new char[0], new Certificate[0]);
             fail("KeyStoreException must be thrown from engineSetKeyEntry(..)");
-        } catch (KeyStoreException e) {
+        } catch (KeyStoreException expected) {
         }
         try {
             ksSpi.engineSetKeyEntry("", new byte[0], new Certificate[0]);
             fail("KeyStoreException must be thrown from engineSetKeyEntry(..)");
-        } catch (KeyStoreException e) {
+        } catch (KeyStoreException expected) {
         }
         try {
             ksSpi.engineSetCertificateEntry("", null);
             fail("KeyStoreException must be thrown "
                     + "from engineSetCertificateEntry(..)");
-        } catch (KeyStoreException e) {
+        } catch (KeyStoreException expected) {
         }
         try {
             ksSpi.engineDeleteEntry("");
             fail("KeyStoreException must be thrown from engineDeleteEntry(..)");
-        } catch (KeyStoreException e) {
+        } catch (KeyStoreException expected) {
         }
         assertNull("engineAliases() must return null", ksSpi.engineAliases());
         assertFalse("engineContainsAlias(..) must return false", ksSpi
@@ -369,27 +184,13 @@ public class KeyStoreSpiTest extends TestCase {
         try {
             ksSpi.engineStore(null, null);
             fail("IOException must be thrown");
-        } catch (IOException e) {
+        } catch (IOException expected) {
         }
     }
 
     /**
-     * @tests java.security.KeyStoreSpi#engineLoad(KeyStore.LoadStoreParameter)
+     * java.security.KeyStoreSpi#engineLoad(KeyStore.LoadStoreParameter)
      */
-    @TestTargets({
-        @TestTargetNew(
-            level = TestLevel.PARTIAL,
-            notes = "IllegalArgumentException, NoSuchAlgorithmException, "
-                    + "CertificateException checking missed",
-            method = "engineLoad",
-            args = {java.security.KeyStore.LoadStoreParameter.class}
-        ),
-        @TestTargetNew(
-            level=TestLevel.NOT_NECESSARY,
-            clazz=LoadStoreParameter.class,
-            method="getProtectionParameter"
-        )
-    })
     public void test_engineLoadLjava_security_KeyStore_LoadStoreParameter()
             throws Exception {
 
@@ -405,35 +206,30 @@ public class KeyStoreSpiTest extends TestCase {
         try {
             ksSpi.engineLoad(null);
             fail("Should throw exception");
-        } catch (RuntimeException e) {
-            assertSame(msg, e.getMessage());
+        } catch (RuntimeException expected) {
+            assertSame(msg, expected.getMessage());
         }
 
         // test: protection parameter is null
         try {
             ksSpi.engineLoad(new MyLoadStoreParams(null));
             fail("No expected UnsupportedOperationException");
-        } catch (UnsupportedOperationException e) {
+        } catch (UnsupportedOperationException expected) {
         }
 
         // test: protection parameter is not instanceof
         // PasswordProtection or CallbackHandlerProtection
         try {
-            ksSpi.engineLoad(new MyLoadStoreParams(new tmpProtection()));
+            ksSpi.engineLoad(new MyLoadStoreParams(new BadKeyStoreProtectionParameter()));
             fail("No expected UnsupportedOperationException");
-        } catch (UnsupportedOperationException e) {
+        } catch (UnsupportedOperationException expected) {
         }
     }
 }
 
-/**
- * Additional class implements KeyStore.Entry interface
- */
-class tmpEntry implements KeyStore.Entry {
-}
-
-class tmpProtection implements KeyStore.ProtectionParameter {
-}
+// These are "Bad" because they are not expected inner subclasses of the KeyStore class.
+class BadKeyStoreEntry implements Entry {}
+class BadKeyStoreProtectionParameter implements ProtectionParameter {}
 
 @SuppressWarnings("unused")
 class MyCertificate extends Certificate {

@@ -32,13 +32,13 @@ public final class NativePluralRules {
     public static final int MANY  = 4;
     public static final int OTHER = 5;
 
-    private final int address;
+    private final long address;
 
-    private NativePluralRules(int address) {
+    private NativePluralRules(long address) {
         this.address = address;
     }
 
-    @Override public void finalize() throws Throwable {
+    @Override protected void finalize() throws Throwable {
         try {
             finalizeImpl(address);
         } finally {
@@ -58,7 +58,7 @@ public final class NativePluralRules {
         return quantityForIntImpl(address, value);
     }
 
-    private static native void finalizeImpl(int address);
-    private static native int forLocaleImpl(String localeName);
-    private static native int quantityForIntImpl(int address, int value);
+    private static native void finalizeImpl(long address);
+    private static native long forLocaleImpl(String localeName);
+    private static native int quantityForIntImpl(long address, int value);
 }

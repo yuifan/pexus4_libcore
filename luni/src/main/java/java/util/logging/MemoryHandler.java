@@ -17,9 +17,6 @@
 
 package java.util.logging;
 
-import java.security.AccessController;
-import java.security.PrivilegedExceptionAction;
-
 /**
  * A {@code Handler} put the description of log events into a cycled memory
  * buffer.
@@ -87,29 +84,22 @@ public class MemoryHandler extends Handler {
      *             used.
      */
     public MemoryHandler() {
-        super();
         String className = this.getClass().getName();
         // init target
         final String targetName = manager.getProperty(className + ".target");
         try {
-            Class<?> targetClass = AccessController
-                    .doPrivileged(new PrivilegedExceptionAction<Class<?>>() {
-                        public Class<?> run() throws Exception {
-                            ClassLoader loader = Thread.currentThread()
-                                    .getContextClassLoader();
-                            if (loader == null) {
-                                loader = ClassLoader.getSystemClassLoader();
-                            }
-                            return loader.loadClass(targetName);
-                        }
-                    });
+            ClassLoader loader = Thread.currentThread().getContextClassLoader();
+            if (loader == null) {
+                loader = ClassLoader.getSystemClassLoader();
+            }
+            Class<?> targetClass = loader.loadClass(targetName);
             target = (Handler) targetClass.newInstance();
         } catch (Exception e) {
             throw new RuntimeException("Cannot load target handler '" + targetName + "'");
         }
         // init size
         String sizeString = manager.getProperty(className + ".size");
-        if (null != sizeString) {
+        if (sizeString != null) {
             try {
                 size = Integer.parseInt(sizeString);
                 if (size <= 0) {
@@ -121,7 +111,7 @@ public class MemoryHandler extends Handler {
         }
         // init push level
         String pushName = manager.getProperty(className + ".push");
-        if (null != pushName) {
+        if (pushName != null) {
             try {
                 push = Level.parse(pushName);
             } catch (Exception e) {
@@ -166,10 +156,6 @@ public class MemoryHandler extends Handler {
 
     /**
      * Close this handler and target handler, free all associated resources.
-     *
-     * @throws SecurityException
-     *             if security manager exists and it determines that caller does
-     *             not have the required permissions to control this handler.
      */
     @Override
     public void close() {
@@ -197,8 +183,7 @@ public class MemoryHandler extends Handler {
      * @param record
      *            the log record
      */
-    @Override
-    public synchronized void publish(LogRecord record) {
+    @Override public synchronized void publish(LogRecord record) {
         if (!isLoggable(record)) {
             return;
         }
@@ -209,7 +194,6 @@ public class MemoryHandler extends Handler {
         if (record.getLevel().intValue() >= push.intValue()) {
             push();
         }
-        return;
     }
 
     /**
@@ -246,13 +230,13 @@ public class MemoryHandler extends Handler {
      */
     public void push() {
         for (int i = cursor; i < size; i++) {
-            if (null != buffer[i]) {
+            if (buffer[i] != null) {
                 target.publish(buffer[i]);
             }
             buffer[i] = null;
         }
         for (int i = 0; i < cursor; i++) {
-            if (null != buffer[i]) {
+            if (buffer[i] != null) {
                 target.publish(buffer[i]);
             }
             buffer[i] = null;
@@ -268,9 +252,6 @@ public class MemoryHandler extends Handler {
      *
      * @param newLevel
      *                 the new level to set.
-     * @throws SecurityException
-     *                 if security manager exists and it determines that caller
-     *                 does not have the required permissions to control this handler.
      */
     public void setPushLevel(Level newLevel) {
         manager.checkAccess();

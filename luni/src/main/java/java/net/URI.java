@@ -21,25 +21,161 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.io.UnsupportedEncodingException;
-import java.util.StringTokenizer;
-import org.apache.harmony.luni.platform.INetworkSystem;
-import org.apache.harmony.luni.platform.Platform;
+import java.util.Locale;
+import libcore.net.UriCodec;
+import libcore.net.url.UrlUtils;
 
 /**
- * This class represents an instance of a URI as defined by RFC 2396.
+ * A Uniform Resource Identifier that identifies an abstract or physical
+ * resource, as specified by <a href="http://www.ietf.org/rfc/rfc2396.txt">RFC
+ * 2396</a>.
+ *
+ * <h3>Parts of a URI</h3>
+ * A URI is composed of many parts. This class can both parse URI strings into
+ * parts and compose URI strings from parts. For example, consider the parts of
+ * this URI:
+ * {@code http://username:password@host:8080/directory/file?query#fragment}
+ * <table>
+ * <tr><th>Component                                            </th><th>Example value                                                      </th><th>Also known as</th></tr>
+ * <tr><td>{@link #getScheme() Scheme}                          </td><td>{@code http}                                                       </td><td>protocol</td></tr>
+ * <tr><td>{@link #getSchemeSpecificPart() Scheme-specific part}</td><td>{@code //username:password@host:8080/directory/file?query#fragment}</td><td></td></tr>
+ * <tr><td>{@link #getAuthority() Authority}                    </td><td>{@code username:password@host:8080}                                </td><td></td></tr>
+ * <tr><td>{@link #getUserInfo() User Info}                     </td><td>{@code username:password}                                          </td><td></td></tr>
+ * <tr><td>{@link #getHost() Host}                              </td><td>{@code host}                                                       </td><td></td></tr>
+ * <tr><td>{@link #getPort() Port}                              </td><td>{@code 8080}                                                       </td><td></td></tr>
+ * <tr><td>{@link #getPath() Path}                              </td><td>{@code /directory/file}                                            </td><td></td></tr>
+ * <tr><td>{@link #getQuery() Query}                            </td><td>{@code query}                                                      </td><td></td></tr>
+ * <tr><td>{@link #getFragment() Fragment}                      </td><td>{@code fragment}                                                   </td><td>ref</td></tr>
+ * </table>
+ *
+ * <h3>Absolute vs. Relative URIs</h3>
+ * URIs are either {@link #isAbsolute() absolute or relative}.
+ * <ul>
+ *     <li><strong>Absolute:</strong> {@code http://android.com/robots.txt}
+ *     <li><strong>Relative:</strong> {@code robots.txt}
+ * </ul>
+ *
+ * <p>Absolute URIs always have a scheme. If its scheme is supported by {@link
+ * URL}, you can use {@link #toURL} to convert an absolute URI to a URL.
+ *
+ * <p>Relative URIs do not have a scheme and cannot be converted to URLs. If you
+ * have the absolute URI that a relative URI is relative to, you can use {@link
+ * #resolve} to compute the referenced absolute URI. Symmetrically, you can use
+ * {@link #relativize} to compute the relative URI from one URI to another.
+ * <pre>   {@code
+ *   URI absolute = new URI("http://android.com/");
+ *   URI relative = new URI("robots.txt");
+ *   URI resolved = new URI("http://android.com/robots.txt");
+ *
+ *   // print "http://android.com/robots.txt"
+ *   System.out.println(absolute.resolve(relative));
+ *
+ *   // print "robots.txt"
+ *   System.out.println(absolute.relativize(resolved));
+ * }</pre>
+ *
+ * <h3>Opaque vs. Hierarchical URIs</h3>
+ * Absolute URIs are either {@link #isOpaque() opaque or hierarchical}. Relative
+ * URIs are always hierarchical.
+ * <ul>
+ *     <li><strong>Hierarchical:</strong> {@code http://android.com/robots.txt}
+ *     <li><strong>Opaque:</strong> {@code mailto:robots@example.com}
+ * </ul>
+ *
+ * <p>Opaque URIs have both a scheme and a scheme-specific part that does not
+ * begin with the slash character: {@code /}. The contents of the
+ * scheme-specific part of an opaque URI is not parsed so an opaque URI never
+ * has an authority, user info, host, port, path or query. An opaque URIs may
+ * have a fragment, however. A typical opaque URI is
+ * {@code mailto:robots@example.com}.
+ * <table>
+ * <tr><th>Component           </th><th>Example value             </th></tr>
+ * <tr><td>Scheme              </td><td>{@code mailto}            </td></tr>
+ * <tr><td>Scheme-specific part</td><td>{@code robots@example.com}</td></tr>
+ * <tr><td>Fragment            </td><td>                          </td></tr>
+ * </table>
+ * <p>Hierarchical URIs may have values for any URL component. They always
+ * have a non-null path, though that path may be the empty string.
+ *
+ * <h3>Encoding and Decoding URI Components</h3>
+ * Each component of a URI permits a limited set of legal characters. Other
+ * characters must first be <i>encoded</i> before they can be embedded in a URI.
+ * To recover the original characters from a URI, they may be <i>decoded</i>.
+ * <strong>Contrary to what you might expect,</strong> this class uses the
+ * term <i>raw</i> to refer to encoded strings. The non-<i>raw</i> accessors
+ * return decoded strings. For example, consider how this URI is decoded:
+ * {@code http://user:pa55w%3Frd@host:80/doc%7Csearch?q=green%20robots#over%206%22}
+ * <table>
+ * <tr><th>Component           </th><th>Legal Characters                                                    </th><th>Other Constraints                                  </th><th>Raw Value                                                      </th><th>Value</th></tr>
+ * <tr><td>Scheme              </td><td>{@code 0-9}, {@code a-z}, {@code A-Z}, {@code +-.}                  </td><td>First character must be in {@code a-z}, {@code A-Z}</td><td>                                                               </td><td>{@code http}</td></tr>
+ * <tr><td>Scheme-specific part</td><td>{@code 0-9}, {@code a-z}, {@code A-Z}, {@code _-!.~'()*,;:$&+=?/[]@}</td><td>Non-ASCII characters okay                          </td><td>{@code //user:pa55w%3Frd@host:80/doc%7Csearch?q=green%20robots}</td><td>{@code //user:pa55w?rd@host:80/doc|search?q=green robots}</td></tr>
+ * <tr><td>Authority           </td><td>{@code 0-9}, {@code a-z}, {@code A-Z}, {@code _-!.~'()*,;:$&+=@[]}  </td><td>Non-ASCII characters okay                          </td><td>{@code user:pa55w%3Frd@host:80}                                </td><td>{@code user:pa55w?rd@host:80}</td></tr>
+ * <tr><td>User Info           </td><td>{@code 0-9}, {@code a-z}, {@code A-Z}, {@code _-!.~'()*,;:$&+=}     </td><td>Non-ASCII characters okay                          </td><td>{@code user:pa55w%3Frd}                                        </td><td>{@code user:pa55w?rd}</td></tr>
+ * <tr><td>Host                </td><td>{@code 0-9}, {@code a-z}, {@code A-Z}, {@code -.[]}                 </td><td>Domain name, IPv4 address or [IPv6 address]        </td><td>                                                               </td><td>host</td></tr>
+ * <tr><td>Port                </td><td>{@code 0-9}                                                         </td><td>                                                   </td><td>                                                               </td><td>{@code 80}</td></tr>
+ * <tr><td>Path                </td><td>{@code 0-9}, {@code a-z}, {@code A-Z}, {@code _-!.~'()*,;:$&+=/@}   </td><td>Non-ASCII characters okay                          </td><td>{@code /doc%7Csearch}                                          </td><td>{@code /doc|search}</td></tr>
+ * <tr><td>Query               </td><td>{@code 0-9}, {@code a-z}, {@code A-Z}, {@code _-!.~'()*,;:$&+=?/[]@}</td><td>Non-ASCII characters okay                          </td><td>{@code q=green%20robots}                                       </td><td>{@code q=green robots}</td></tr>
+ * <tr><td>Fragment            </td><td>{@code 0-9}, {@code a-z}, {@code A-Z}, {@code _-!.~'()*,;:$&+=?/[]@}</td><td>Non-ASCII characters okay                          </td><td>{@code over%206%22}                                            </td><td>{@code over 6"}</td></tr>
+ * </table>
+ * A URI's host, port and scheme are not eligible for encoding and must not
+ * contain illegal characters.
+ *
+ * <p>To encode a URI, invoke any of the multiple-parameter constructors of this
+ * class. These constructors accept your original strings and encode them into
+ * their raw form.
+ *
+ * <p>To decode a URI, invoke the single-string constructor, and then use the
+ * appropriate accessor methods to get the decoded components.
+ *
+ * <p>The {@link URL} class can be used to retrieve resources by their URI.
  */
 public final class URI implements Comparable<URI>, Serializable {
-
-    private final static INetworkSystem NETWORK_SYSTEM = Platform.getNetworkSystem();
 
     private static final long serialVersionUID = -6052424284110960213l;
 
     static final String UNRESERVED = "_-!.~\'()*";
     static final String PUNCTUATION = ",;:$&+=";
-    static final String RESERVED = PUNCTUATION + "?/[]@";
-    static final String SOME_LEGAL = UNRESERVED + PUNCTUATION;
-    static final String ALL_LEGAL = UNRESERVED + RESERVED;
+
+    static final UriCodec USER_INFO_ENCODER = new PartEncoder("");
+    static final UriCodec PATH_ENCODER = new PartEncoder("/@");
+    static final UriCodec AUTHORITY_ENCODER = new PartEncoder("@[]");
+
+    /** for java.net.URL, which foolishly combines these two parts */
+    static final UriCodec FILE_AND_QUERY_ENCODER = new PartEncoder("/@?");
+
+    /** for query, fragment, and scheme-specific part */
+    static final UriCodec ALL_LEGAL_ENCODER = new PartEncoder("?/[]@");
+
+    /** Retains all ASCII chars including delimiters. */
+    private static final UriCodec ASCII_ONLY = new UriCodec() {
+        @Override protected boolean isRetained(char c) {
+            return c <= 127;
+        }
+    };
+
+    /**
+     * Encodes the unescaped characters of {@code s} that are not permitted.
+     * Permitted characters are:
+     * <ul>
+     *   <li>Unreserved characters in <a href="http://www.ietf.org/rfc/rfc2396.txt">RFC 2396</a>.
+     *   <li>{@code extraOkayChars},
+     *   <li>non-ASCII, non-control, non-whitespace characters
+     * </ul>
+     */
+    private static class PartEncoder extends UriCodec {
+        private final String extraLegalCharacters;
+
+        PartEncoder(String extraLegalCharacters) {
+            this.extraLegalCharacters = extraLegalCharacters;
+        }
+
+        @Override protected boolean isRetained(char c) {
+            return UNRESERVED.indexOf(c) != -1
+                    || PUNCTUATION.indexOf(c) != -1
+                    || extraLegalCharacters.indexOf(c) != -1
+                    || (c > 127 && !Character.isSpaceChar(c) && !Character.isISOControl(c));
+        }
+    }
 
     private String string;
     private transient String scheme;
@@ -60,94 +196,51 @@ public final class URI implements Comparable<URI>, Serializable {
     private URI() {}
 
     /**
-     * Creates a new URI instance according to the given string {@code uri}.
+     * Creates a new URI instance by parsing {@code spec}.
      *
-     * @param uri
-     *            the textual URI representation to be parsed into a URI object.
-     * @throws URISyntaxException
-     *             if the given string {@code uri} doesn't fit to the
-     *             specification RFC2396 or could not be parsed correctly.
+     * @param spec a URI whose illegal characters have all been encoded.
      */
-    public URI(String uri) throws URISyntaxException {
-        parseURI(uri, false);
+    public URI(String spec) throws URISyntaxException {
+        parseURI(spec, false);
     }
 
     /**
-     * Creates a new URI instance using the given arguments. This constructor
-     * first creates a temporary URI string from the given components. This
-     * string will be parsed later on to create the URI instance.
-     * <p>
-     * {@code [scheme:]scheme-specific-part[#fragment]}
+     * Creates a new URI instance of the given unencoded component parts.
      *
-     * @param scheme
-     *            the scheme part of the URI.
-     * @param ssp
-     *            the scheme-specific-part of the URI.
-     * @param frag
-     *            the fragment part of the URI.
-     * @throws URISyntaxException
-     *             if the temporary created string doesn't fit to the
-     *             specification RFC2396 or could not be parsed correctly.
+     * @param scheme the URI scheme, or null for a non-absolute URI.
      */
-    public URI(String scheme, String ssp, String frag)
+    public URI(String scheme, String schemeSpecificPart, String fragment)
             throws URISyntaxException {
         StringBuilder uri = new StringBuilder();
         if (scheme != null) {
             uri.append(scheme);
             uri.append(':');
         }
-        if (ssp != null) {
-            // QUOTE ILLEGAL CHARACTERS
-            uri.append(quoteComponent(ssp, ALL_LEGAL));
+        if (schemeSpecificPart != null) {
+            ALL_LEGAL_ENCODER.appendEncoded(uri, schemeSpecificPart);
         }
-        if (frag != null) {
+        if (fragment != null) {
             uri.append('#');
-            // QUOTE ILLEGAL CHARACTERS
-            uri.append(quoteComponent(frag, ALL_LEGAL));
+            ALL_LEGAL_ENCODER.appendEncoded(uri, fragment);
         }
 
         parseURI(uri.toString(), false);
     }
 
     /**
-     * Creates a new URI instance using the given arguments. This constructor
-     * first creates a temporary URI string from the given components. This
-     * string will be parsed later on to create the URI instance.
-     * <p>
-     * {@code [scheme:][user-info@]host[:port][path][?query][#fragment]}
+     * Creates a new URI instance of the given unencoded component parts.
      *
-     * @param scheme
-     *            the scheme part of the URI.
-     * @param userInfo
-     *            the user information of the URI for authentication and
-     *            authorization.
-     * @param host
-     *            the host name of the URI.
-     * @param port
-     *            the port number of the URI.
-     * @param path
-     *            the path to the resource on the host.
-     * @param query
-     *            the query part of the URI to specify parameters for the
-     *            resource.
-     * @param fragment
-     *            the fragment part of the URI.
-     * @throws URISyntaxException
-     *             if the temporary created string doesn't fit to the
-     *             specification RFC2396 or could not be parsed correctly.
+     * @param scheme the URI scheme, or null for a non-absolute URI.
      */
-    public URI(String scheme, String userInfo, String host, int port,
-            String path, String query, String fragment)
-            throws URISyntaxException {
-
+    public URI(String scheme, String userInfo, String host, int port, String path, String query,
+            String fragment) throws URISyntaxException {
         if (scheme == null && userInfo == null && host == null && path == null
                 && query == null && fragment == null) {
             this.path = "";
             return;
         }
 
-        if (scheme != null && path != null && path.length() > 0
-                && path.charAt(0) != '/') {
+        if (scheme != null && path != null && !path.isEmpty() && path.charAt(0) != '/') {
             throw new URISyntaxException(path, "Relative path");
         }
 
@@ -162,16 +255,13 @@ public final class URI implements Comparable<URI>, Serializable {
         }
 
         if (userInfo != null) {
-            // QUOTE ILLEGAL CHARACTERS in userInfo
-            uri.append(quoteComponent(userInfo, SOME_LEGAL));
+            USER_INFO_ENCODER.appendEncoded(uri, userInfo);
             uri.append('@');
         }
 
         if (host != null) {
-            // check for IPv6 addresses that hasn't been enclosed
-            // in square brackets
-            if (host.indexOf(':') != -1 && host.indexOf(']') == -1
-                    && host.indexOf('[') == -1) {
+            // check for IPv6 addresses that hasn't been enclosed in square brackets
+            if (host.indexOf(':') != -1 && host.indexOf(']') == -1 && host.indexOf('[') == -1) {
                 host = "[" + host + "]";
             }
             uri.append(host);
@@ -183,75 +273,39 @@ public final class URI implements Comparable<URI>, Serializable {
         }
 
         if (path != null) {
-            // QUOTE ILLEGAL CHARS
-            uri.append(quoteComponent(path, "/@" + SOME_LEGAL));
+            PATH_ENCODER.appendEncoded(uri, path);
         }
 
         if (query != null) {
             uri.append('?');
-            // QUOTE ILLEGAL CHARS
-            uri.append(quoteComponent(query, ALL_LEGAL));
+            ALL_LEGAL_ENCODER.appendEncoded(uri, query);
         }
 
         if (fragment != null) {
-            // QUOTE ILLEGAL CHARS
             uri.append('#');
-            uri.append(quoteComponent(fragment, ALL_LEGAL));
+            ALL_LEGAL_ENCODER.appendEncoded(uri, fragment);
         }
 
         parseURI(uri.toString(), true);
     }
 
     /**
-     * Creates a new URI instance using the given arguments. This constructor
-     * first creates a temporary URI string from the given components. This
-     * string will be parsed later on to create the URI instance.
-     * <p>
-     * {@code [scheme:]host[path][#fragment]}
+     * Creates a new URI instance of the given unencoded component parts.
      *
-     * @param scheme
-     *            the scheme part of the URI.
-     * @param host
-     *            the host name of the URI.
-     * @param path
-     *            the path to the resource on the host.
-     * @param fragment
-     *            the fragment part of the URI.
-     * @throws URISyntaxException
-     *             if the temporary created string doesn't fit to the
-     *             specification RFC2396 or could not be parsed correctly.
+     * @param scheme the URI scheme, or null for a non-absolute URI.
      */
-    public URI(String scheme, String host, String path, String fragment)
-            throws URISyntaxException {
+    public URI(String scheme, String host, String path, String fragment) throws URISyntaxException {
         this(scheme, null, host, -1, path, null, fragment);
     }
 
     /**
-     * Creates a new URI instance using the given arguments. This constructor
-     * first creates a temporary URI string from the given components. This
-     * string will be parsed later on to create the URI instance.
-     * <p>
-     * {@code [scheme:][//authority][path][?query][#fragment]}
+     * Creates a new URI instance of the given unencoded component parts.
      *
-     * @param scheme
-     *            the scheme part of the URI.
-     * @param authority
-     *            the authority part of the URI.
-     * @param path
-     *            the path to the resource on the host.
-     * @param query
-     *            the query part of the URI to specify parameters for the
-     *            resource.
-     * @param fragment
-     *            the fragment part of the URI.
-     * @throws URISyntaxException
-     *             if the temporary created string doesn't fit to the
-     *             specification RFC2396 or could not be parsed correctly.
+     * @param scheme the URI scheme, or null for a non-absolute URI.
      */
     public URI(String scheme, String authority, String path, String query,
             String fragment) throws URISyntaxException {
-        if (scheme != null && path != null && path.length() > 0
-                && path.charAt(0) != '/') {
+        if (scheme != null && path != null && !path.isEmpty() && path.charAt(0) != '/') {
             throw new URISyntaxException(path, "Relative path");
         }
 
@@ -262,197 +316,122 @@ public final class URI implements Comparable<URI>, Serializable {
         }
         if (authority != null) {
             uri.append("//");
-            // QUOTE ILLEGAL CHARS
-            uri.append(quoteComponent(authority, "@[]" + SOME_LEGAL));
+            AUTHORITY_ENCODER.appendEncoded(uri, authority);
         }
 
         if (path != null) {
-            // QUOTE ILLEGAL CHARS
-            uri.append(quoteComponent(path, "/@" + SOME_LEGAL));
+            PATH_ENCODER.appendEncoded(uri, path);
         }
         if (query != null) {
-            // QUOTE ILLEGAL CHARS
             uri.append('?');
-            uri.append(quoteComponent(query, ALL_LEGAL));
+            ALL_LEGAL_ENCODER.appendEncoded(uri, query);
         }
         if (fragment != null) {
-            // QUOTE ILLEGAL CHARS
             uri.append('#');
-            uri.append(quoteComponent(fragment, ALL_LEGAL));
+            ALL_LEGAL_ENCODER.appendEncoded(uri, fragment);
         }
 
         parseURI(uri.toString(), false);
     }
 
+    /**
+     * Breaks uri into its component parts. This first splits URI into scheme,
+     * scheme-specific part and fragment:
+     *   [scheme:][scheme-specific part][#fragment]
+     *
+     * Then it breaks the scheme-specific part into authority, path and query:
+     *   [//authority][path][?query]
+     *
+     * Finally it delegates to parseAuthority to break the authority into user
+     * info, host and port:
+     *   [user-info@][host][:port]
+     */
     private void parseURI(String uri, boolean forceServer) throws URISyntaxException {
-        String temp = uri;
-        // assign uri string to the input value per spec
         string = uri;
-        int index, index1, index2, index3;
-        // parse into Fragment, Scheme, and SchemeSpecificPart
-        // then parse SchemeSpecificPart if necessary
 
-        // Fragment
-        index = temp.indexOf('#');
-        if (index != -1) {
-            // remove the fragment from the end
-            fragment = temp.substring(index + 1);
-            validateFragment(uri, fragment, index + 1);
-            temp = temp.substring(0, index);
+        // "#fragment"
+        int fragmentStart = UrlUtils.findFirstOf(uri, "#", 0, uri.length());
+        if (fragmentStart < uri.length()) {
+            fragment = ALL_LEGAL_ENCODER.validate(uri, fragmentStart + 1, uri.length(), "fragment");
         }
 
-        // Scheme and SchemeSpecificPart
-        index = index1 = temp.indexOf(':');
-        index2 = temp.indexOf('/');
-        index3 = temp.indexOf('?');
-
-        // if a '/' or '?' occurs before the first ':' the uri has no
-        // specified scheme, and is therefore not absolute
-        if (index != -1 && (index2 >= index || index2 == -1)
-                && (index3 >= index || index3 == -1)) {
-            // the characters up to the first ':' comprise the scheme
+        // scheme:
+        int start;
+        int colon = UrlUtils.findFirstOf(uri, ":", 0, fragmentStart);
+        if (colon < UrlUtils.findFirstOf(uri, "/?#", 0, fragmentStart)) {
             absolute = true;
-            scheme = temp.substring(0, index);
-            if (scheme.length() == 0) {
-                throw new URISyntaxException(uri, "Scheme expected", index);
+            scheme = validateScheme(uri, colon);
+            start = colon + 1;
+
+            if (start == fragmentStart) {
+                throw new URISyntaxException(uri, "Scheme-specific part expected", start);
             }
-            validateScheme(uri, scheme, 0);
-            schemeSpecificPart = temp.substring(index + 1);
-            if (schemeSpecificPart.length() == 0) {
-                throw new URISyntaxException(uri, "Scheme-specific part expected", index + 1);
+
+            // URIs with schemes followed by a non-/ char are opaque and need no further parsing.
+            if (!uri.regionMatches(start, "/", 0, 1)) {
+                opaque = true;
+                schemeSpecificPart = ALL_LEGAL_ENCODER.validate(
+                        uri, start, fragmentStart, "scheme specific part");
+                return;
             }
         } else {
             absolute = false;
-            schemeSpecificPart = temp;
+            start = 0;
         }
 
-        if (scheme == null || schemeSpecificPart.length() > 0
-                && schemeSpecificPart.charAt(0) == '/') {
-            opaque = false;
-            // the URI is hierarchical
+        opaque = false;
+        schemeSpecificPart = uri.substring(start, fragmentStart);
 
-            // Query
-            temp = schemeSpecificPart;
-            index = temp.indexOf('?');
-            if (index != -1) {
-                query = temp.substring(index + 1);
-                temp = temp.substring(0, index);
-                validateQuery(uri, query, index2 + 1 + index);
+        // "//authority"
+        int fileStart;
+        if (uri.regionMatches(start, "//", 0, 2)) {
+            int authorityStart = start + 2;
+            fileStart = UrlUtils.findFirstOf(uri, "/?", authorityStart, fragmentStart);
+            if (authorityStart == uri.length()) {
+                throw new URISyntaxException(uri, "Authority expected", uri.length());
             }
-
-            // Authority and Path
-            if (temp.startsWith("//")) {
-                index = temp.indexOf('/', 2);
-                if (index != -1) {
-                    authority = temp.substring(2, index);
-                    path = temp.substring(index);
-                } else {
-                    authority = temp.substring(2);
-                    if (authority.length() == 0 && query == null
-                            && fragment == null) {
-                        throw new URISyntaxException(uri, "Authority expected", uri.length());
-                    }
-
-                    path = "";
-                    // nothing left, so path is empty (not null, path should
-                    // never be null)
-                }
-
-                if (authority.length() == 0) {
-                    authority = null;
-                } else {
-                    validateAuthority(uri, authority, index1 + 3);
-                }
-            } else { // no authority specified
-                path = temp;
+            if (authorityStart < fileStart) {
+                authority = AUTHORITY_ENCODER.validate(uri, authorityStart, fileStart, "authority");
             }
+        } else {
+            fileStart = start;
+        }
 
-            int pathIndex = 0;
-            if (index2 > -1) {
-                pathIndex += index2;
-            }
-            if (index > -1) {
-                pathIndex += index;
-            }
-            validatePath(uri, path, pathIndex);
-        } else { // if not hierarchical, URI is opaque
-            opaque = true;
-            validateSsp(uri, schemeSpecificPart, index2 + 2 + index);
+        // "path"
+        int queryStart = UrlUtils.findFirstOf(uri, "?", fileStart, fragmentStart);
+        path = PATH_ENCODER.validate(uri, fileStart, queryStart, "path");
+
+        // "?query"
+        if (queryStart < fragmentStart) {
+            query = ALL_LEGAL_ENCODER.validate(uri, queryStart + 1, fragmentStart, "query");
         }
 
         parseAuthority(forceServer);
     }
 
-    private void validateScheme(String uri, String scheme, int index)
-            throws URISyntaxException {
-        // first char needs to be an alpha char
-        char ch = scheme.charAt(0);
-        if (!((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z'))) {
-            throw new URISyntaxException(uri, "Illegal character in scheme", 0);
+    private String validateScheme(String uri, int end) throws URISyntaxException {
+        if (end == 0) {
+            throw new URISyntaxException(uri, "Scheme expected", 0);
         }
 
-        try {
-            URIEncoderDecoder.validateSimple(scheme, "+-.");
-        } catch (URISyntaxException e) {
-            throw new URISyntaxException(uri, "Illegal character in scheme", index + e.getIndex());
+        for (int i = 0; i < end; i++) {
+            if (!UrlUtils.isValidSchemeChar(i, uri.charAt(i))) {
+                throw new URISyntaxException(uri, "Illegal character in scheme", 0);
+            }
         }
-    }
 
-    private void validateSsp(String uri, String ssp, int index)
-            throws URISyntaxException {
-        try {
-            URIEncoderDecoder.validate(ssp, ALL_LEGAL);
-        } catch (URISyntaxException e) {
-            throw new URISyntaxException(uri,
-                    e.getReason() + " in schemeSpecificPart", index + e.getIndex());
-        }
-    }
-
-    private void validateAuthority(String uri, String authority, int index)
-            throws URISyntaxException {
-        try {
-            URIEncoderDecoder.validate(authority, "@[]" + SOME_LEGAL);
-        } catch (URISyntaxException e) {
-            throw new URISyntaxException(uri, e.getReason() + " in authority", index + e.getIndex());
-        }
-    }
-
-    private void validatePath(String uri, String path, int index)
-            throws URISyntaxException {
-        try {
-            URIEncoderDecoder.validate(path, "/@" + SOME_LEGAL);
-        } catch (URISyntaxException e) {
-            throw new URISyntaxException(uri, e.getReason() + " in path", index + e.getIndex());
-        }
-    }
-
-    private void validateQuery(String uri, String query, int index)
-            throws URISyntaxException {
-        try {
-            URIEncoderDecoder.validate(query, ALL_LEGAL);
-        } catch (URISyntaxException e) {
-            throw new URISyntaxException(uri, e.getReason() + " in query", index + e.getIndex());
-
-        }
-    }
-
-    private void validateFragment(String uri, String fragment, int index)
-            throws URISyntaxException {
-        try {
-            URIEncoderDecoder.validate(fragment, ALL_LEGAL);
-        } catch (URISyntaxException e) {
-            throw new URISyntaxException(uri, e.getReason() + " in fragment", index + e.getIndex());
-        }
+        return uri.substring(0, end);
     }
 
     /**
-     * Parse the authority string into its component parts: user info,
-     * host, and port. This operation doesn't apply to registry URIs, and
-     * calling it on such <i>may</i> result in a syntax exception.
+     * Breaks this URI's authority into user info, host and port parts.
+     *   [user-info@][host][:port]
+     * If any part of this fails this method will give up and potentially leave
+     * these fields with their default values.
      *
      * @param forceServer true to always throw if the authority cannot be
      *     parsed. If false, this method may still throw for some kinds of
-     *     errors; this unpredictable behaviour is consistent with the RI.
+     *     errors; this unpredictable behavior is consistent with the RI.
      */
     private void parseAuthority(boolean forceServer) throws URISyntaxException {
         if (authority == null) {
@@ -536,7 +515,7 @@ public final class URI implements Comparable<URI>, Serializable {
      *
      * @param forceServer true to always throw if the host cannot be parsed. If
      *     false, this method may still throw for some kinds of errors; this
-     *     unpredictable behaviour is consistent with the RI.
+     *     unpredictable behavior is consistent with the RI.
      */
     private boolean isValidHost(boolean forceServer, String host) throws URISyntaxException {
         if (host.startsWith("[")) {
@@ -545,17 +524,10 @@ public final class URI implements Comparable<URI>, Serializable {
                 throw new URISyntaxException(host,
                         "Expected a closing square bracket for IPv6 address", 0);
             }
-            try {
-                byte[] bytes = InetAddress.ipStringToByteArray(host);
-                /*
-                 * The native IP parser may return 4 bytes for addresses like
-                 * "[::FFFF:127.0.0.1]". This is allowed, but we must not accept
-                 * IPv4-formatted addresses in square braces like "[127.0.0.1]".
-                 */
-                if (bytes.length == 16 || bytes.length == 4 && host.contains(":")) {
-                    return true;
-                }
-            } catch (UnknownHostException e) {
+            if (InetAddress.isNumeric(host)) {
+                // If it's numeric, the presence of square brackets guarantees
+                // that it's a numeric IPv6 address.
+                return true;
             }
             throw new URISyntaxException(host, "Malformed IPv6 address");
         }
@@ -579,12 +551,13 @@ public final class URI implements Comparable<URI>, Serializable {
             return false;
         }
 
-        // IPv4 address
+        // IPv4 address?
         try {
-            if (InetAddress.ipStringToByteArray(host).length == 4) {
+            InetAddress ia = InetAddress.parseNumericAddress(host);
+            if (ia instanceof Inet4Address) {
                 return true;
             }
-        } catch (UnknownHostException e) {
+        } catch (IllegalArgumentException ignored) {
         }
 
         if (forceServer) {
@@ -595,15 +568,14 @@ public final class URI implements Comparable<URI>, Serializable {
 
     private boolean isValidDomainName(String host) {
         try {
-            URIEncoderDecoder.validateSimple(host, "-.");
+            UriCodec.validateSimple(host, "-.");
         } catch (URISyntaxException e) {
             return false;
         }
 
         String lastLabel = null;
-        StringTokenizer st = new StringTokenizer(host, ".");
-        while (st.hasMoreTokens()) {
-            lastLabel = st.nextToken();
+        for (String token : host.split("\\.")) {
+            lastLabel = token;
             if (lastLabel.startsWith("-") || lastLabel.endsWith("-")) {
                 return false;
             }
@@ -620,27 +592,6 @@ public final class URI implements Comparable<URI>, Serializable {
             }
         }
         return true;
-    }
-
-    /**
-     * Quote illegal chars for each component, but not the others
-     *
-     * @param component java.lang.String the component to be converted
-     * @param legalSet the legal character set allowed in the component
-     * @return java.lang.String the converted string
-     */
-    private String quoteComponent(String component, String legalSet) {
-        try {
-            /*
-             * Use a different encoder than URLEncoder since: 1. chars like "/",
-             * "#", "@" etc needs to be preserved instead of being encoded, 2.
-             * UTF-8 char set needs to be used for encoding instead of default
-             * platform one
-             */
-            return URIEncoderDecoder.quoteIllegal(component, legalSet);
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e.toString());
-        }
     }
 
     /**
@@ -807,7 +758,7 @@ public final class URI implements Comparable<URI>, Serializable {
         int index, prevIndex = 0;
         while ((index = s.indexOf('%', prevIndex)) != -1) {
             result.append(s.substring(prevIndex, index + 1));
-            result.append(s.substring(index + 1, index + 3).toLowerCase());
+            result.append(s.substring(index + 1, index + 3).toLowerCase(Locale.US));
             index += 3;
             prevIndex = index;
         }
@@ -844,18 +795,7 @@ public final class URI implements Comparable<URI>, Serializable {
         return first.substring(prevIndex).equals(second.substring(prevIndex));
     }
 
-    /**
-     * Compares this URI instance with the given argument {@code o} and
-     * determines if both are equal. Two URI instances are equal if all single
-     * parts are identical in their meaning.
-     *
-     * @param o
-     *            the URI this instance has to be compared with.
-     * @return {@code true} if both URI instances point to the same resource,
-     *         {@code false} otherwise.
-     */
-    @Override
-    public boolean equals(Object o) {
+    @Override public boolean equals(Object o) {
         if (!(o instanceof URI)) {
             return false;
         }
@@ -936,45 +876,71 @@ public final class URI implements Comparable<URI>, Serializable {
     }
 
     /**
-     * Gets the decoded authority part of this URI.
-     *
-     * @return the decoded authority part or {@code null} if undefined.
+     * Returns the scheme of this URI, or null if this URI has no scheme. This
+     * is also known as the protocol.
+     */
+    public String getScheme() {
+        return scheme;
+    }
+
+    /**
+     * Returns the decoded scheme-specific part of this URI, or null if this URI
+     * has no scheme-specific part.
+     */
+    public String getSchemeSpecificPart() {
+        return decode(schemeSpecificPart);
+    }
+
+    /**
+     * Returns the encoded scheme-specific part of this URI, or null if this URI
+     * has no scheme-specific part.
+     */
+    public String getRawSchemeSpecificPart() {
+        return schemeSpecificPart;
+    }
+
+    /**
+     * Returns the decoded authority part of this URI, or null if this URI has
+     * no authority.
      */
     public String getAuthority() {
         return decode(authority);
     }
 
     /**
-     * Gets the decoded fragment part of this URI.
-     *
-     * @return the decoded fragment part or {@code null} if undefined.
+     * Returns the encoded authority of this URI, or null if this URI has no
+     * authority.
      */
-    public String getFragment() {
-        return decode(fragment);
+    public String getRawAuthority() {
+        return authority;
     }
 
     /**
-     * Gets the host part of this URI.
-     *
-     * @return the host part or {@code null} if undefined.
+     * Returns the decoded user info of this URI, or null if this URI has no
+     * user info.
+     */
+    public String getUserInfo() {
+        return decode(userInfo);
+    }
+
+    /**
+     * Returns the encoded user info of this URI, or null if this URI has no
+     * user info.
+     */
+    public String getRawUserInfo() {
+        return userInfo;
+    }
+
+    /**
+     * Returns the host of this URI, or null if this URI has no host.
      */
     public String getHost() {
         return host;
     }
 
     /**
-     * Gets the decoded path part of this URI.
-     *
-     * @return the decoded path part or {@code null} if undefined.
-     */
-    public String getPath() {
-        return decode(path);
-    }
-
-    /**
-     * Gets the port number of this URI.
-     *
-     * @return the port number or {@code -1} if undefined.
+     * Returns the port number of this URI, or {@code -1} if this URI has no
+     * explicit port.
      */
     public int getPort() {
         return port;
@@ -1006,102 +972,50 @@ public final class URI implements Comparable<URI>, Serializable {
     }
 
     /**
-     * Gets the decoded query part of this URI.
-     *
-     * @return the decoded query part or {@code null} if undefined.
+     * Returns the decoded path of this URI, or null if this URI has no path.
      */
-    public String getQuery() {
-        return decode(query);
+    public String getPath() {
+        return decode(path);
     }
 
     /**
-     * Gets the authority part of this URI in raw form.
-     *
-     * @return the encoded authority part or {@code null} if undefined.
-     */
-    public String getRawAuthority() {
-        return authority;
-    }
-
-    /**
-     * Gets the fragment part of this URI in raw form.
-     *
-     * @return the encoded fragment part or {@code null} if undefined.
-     */
-    public String getRawFragment() {
-        return fragment;
-    }
-
-    /**
-     * Gets the path part of this URI in raw form.
-     *
-     * @return the encoded path part or {@code null} if undefined.
+     * Returns the encoded path of this URI, or null if this URI has no path.
      */
     public String getRawPath() {
         return path;
     }
 
     /**
-     * Gets the query part of this URI in raw form.
-     *
-     * @return the encoded query part or {@code null} if undefined.
+     * Returns the decoded query of this URI, or null if this URI has no query.
+     */
+    public String getQuery() {
+        return decode(query);
+    }
+
+    /**
+     * Returns the encoded query of this URI, or null if this URI has no query.
      */
     public String getRawQuery() {
         return query;
     }
 
     /**
-     * Gets the scheme-specific part of this URI in raw form.
-     *
-     * @return the encoded scheme-specific part or {@code null} if undefined.
+     * Returns the decoded fragment of this URI, or null if this URI has no
+     * fragment.
      */
-    public String getRawSchemeSpecificPart() {
-        return schemeSpecificPart;
+    public String getFragment() {
+        return decode(fragment);
     }
 
     /**
-     * Gets the user-info part of this URI in raw form.
-     *
-     * @return the encoded user-info part or {@code null} if undefined.
+     * Gets the encoded fragment of this URI, or null if this URI has no
+     * fragment.
      */
-    public String getRawUserInfo() {
-        return userInfo;
+    public String getRawFragment() {
+        return fragment;
     }
 
-    /**
-     * Gets the scheme part of this URI.
-     *
-     * @return the scheme part or {@code null} if undefined.
-     */
-    public String getScheme() {
-        return scheme;
-    }
-
-    /**
-     * Gets the decoded scheme-specific part of this URI.
-     *
-     * @return the decoded scheme-specific part or {@code null} if undefined.
-     */
-    public String getSchemeSpecificPart() {
-        return decode(schemeSpecificPart);
-    }
-
-    /**
-     * Gets the decoded user-info part of this URI.
-     *
-     * @return the decoded user-info part or {@code null} if undefined.
-     */
-    public String getUserInfo() {
-        return decode(userInfo);
-    }
-
-    /**
-     * Gets the hashcode value of this URI instance.
-     *
-     * @return the appropriate hashcode value.
-     */
-    @Override
-    public int hashCode() {
+    @Override public int hashCode() {
         if (hash == -1) {
             hash = getHashString().hashCode();
         }
@@ -1109,114 +1023,42 @@ public final class URI implements Comparable<URI>, Serializable {
     }
 
     /**
-     * Indicates whether this URI is absolute, which means that a scheme part is
-     * defined in this URI.
-     *
-     * @return {@code true} if this URI is absolute, {@code false} otherwise.
+     * Returns true if this URI is absolute, which means that a scheme is
+     * defined.
      */
     public boolean isAbsolute() {
+        // TODO: simplify to 'scheme != null' ?
         return absolute;
     }
 
     /**
-     * Indicates whether this URI is opaque or not. An opaque URI is absolute
-     * and has a scheme-specific part which does not start with a slash
-     * character. All parts except scheme, scheme-specific and fragment are
-     * undefined.
-     *
-     * @return {@code true} if the URI is opaque, {@code false} otherwise.
+     * Returns true if this URI is opaque. Opaque URIs are absolute and have a
+     * scheme-specific part that does not start with a slash character. All
+     * parts except scheme, scheme-specific and fragment are undefined.
      */
     public boolean isOpaque() {
         return opaque;
     }
 
-    /*
-     * normalize path, and return the resulting string
+    /**
+     * Returns the normalized path.
      */
-    private String normalize(String path) {
-        // count the number of '/'s, to determine number of segments
-        int index = -1;
-        int pathLength = path.length();
-        int size = 0;
-        if (pathLength > 0 && path.charAt(0) != '/') {
-            size++;
-        }
-        while ((index = path.indexOf('/', index + 1)) != -1) {
-            if (index + 1 < pathLength && path.charAt(index + 1) != '/') {
-                size++;
+    private String normalize(String path, boolean discardRelativePrefix) {
+        path = UrlUtils.canonicalizePath(path, discardRelativePrefix);
+
+        /*
+         * If the path contains a colon before the first colon, prepend
+         * "./" to differentiate the path from a scheme prefix.
+         */
+        int colon = path.indexOf(':');
+        if (colon != -1) {
+            int slash = path.indexOf('/');
+            if (slash == -1 || colon < slash) {
+                path = "./" + path;
             }
         }
 
-        String[] segList = new String[size];
-        boolean[] include = new boolean[size];
-
-        // break the path into segments and store in the list
-        int current = 0;
-        int index2;
-        index = (pathLength > 0 && path.charAt(0) == '/') ? 1 : 0;
-        while ((index2 = path.indexOf('/', index + 1)) != -1) {
-            segList[current++] = path.substring(index, index2);
-            index = index2 + 1;
-        }
-
-        // if current==size, then the last character was a slash
-        // and there are no more segments
-        if (current < size) {
-            segList[current] = path.substring(index);
-        }
-
-        // determine which segments get included in the normalized path
-        for (int i = 0; i < size; i++) {
-            include[i] = true;
-            if (segList[i].equals("..")) {
-                int remove = i - 1;
-                // search back to find a segment to remove, if possible
-                while (remove > -1 && !include[remove]) {
-                    remove--;
-                }
-                // if we find a segment to remove, remove it and the ".."
-                // segment
-                if (remove > -1 && !segList[remove].equals("..")) {
-                    include[remove] = false;
-                    include[i] = false;
-                }
-            } else if (segList[i].equals(".")) {
-                include[i] = false;
-            }
-        }
-
-        // put the path back together
-        StringBuilder newPath = new StringBuilder();
-        if (path.startsWith("/")) {
-            newPath.append('/');
-        }
-
-        for (int i = 0; i < segList.length; i++) {
-            if (include[i]) {
-                newPath.append(segList[i]);
-                newPath.append('/');
-            }
-        }
-
-        // if we used at least one segment and the path previously ended with
-        // a slash and the last segment is still used, then delete the extra
-        // trailing '/'
-        if (!path.endsWith("/") && segList.length > 0
-                && include[segList.length - 1]) {
-            newPath.deleteCharAt(newPath.length() - 1);
-        }
-
-        String result = newPath.toString();
-
-        // check for a ':' in the first segment if one exists,
-        // prepend "./" to normalize
-        index = result.indexOf(':');
-        index2 = result.indexOf('/');
-        if (index != -1 && (index < index2 || index2 == -1)) {
-            newPath.insert(0, "./");
-            result = newPath.toString();
-        }
-        return result;
+        return path;
     }
 
     /**
@@ -1229,7 +1071,7 @@ public final class URI implements Comparable<URI>, Serializable {
         if (opaque) {
             return this;
         }
-        String normalizedPath = normalize(path);
+        String normalizedPath = normalize(path, false);
         // if the path is already normalized, return this
         if (path.equals(normalizedPath)) {
             return this;
@@ -1283,18 +1125,17 @@ public final class URI implements Comparable<URI>, Serializable {
         }
 
         // normalize both paths
-        String thisPath = normalize(path);
-        String relativePath = normalize(relative.path);
+        String thisPath = normalize(path, false);
+        String relativePath = normalize(relative.path, false);
 
         /*
          * if the paths aren't equal, then we need to determine if this URI's
          * path is a parent path (begins with) the relative URI's path
          */
         if (!thisPath.equals(relativePath)) {
-            // if this URI's path doesn't end in a '/', add one
-            if (!thisPath.endsWith("/")) {
-                thisPath = thisPath + '/';
-            }
+            // drop everything after the last slash in this path
+            thisPath = thisPath.substring(0, thisPath.lastIndexOf('/') + 1);
+
             /*
              * if the relative URI's path doesn't start with this URI's path,
              * then just return the relative URI; the URIs have nothing in
@@ -1327,47 +1168,39 @@ public final class URI implements Comparable<URI>, Serializable {
             return relative;
         }
 
-        URI result;
-        if (relative.path.isEmpty() && relative.scheme == null
-                && relative.authority == null && relative.query == null
-                && relative.fragment != null) {
-            // if the relative URI only consists of fragment,
-            // the resolved URI is very similar to this URI,
-            // except that it has the fragment from the relative URI.
-            result = duplicate();
-            result.fragment = relative.fragment;
-            // no need to re-calculate the scheme specific part,
-            // since fragment is not part of scheme specific part.
+        if (relative.authority != null) {
+            // If the relative URI has an authority, the result is the relative
+            // with this URI's scheme.
+            URI result = relative.duplicate();
+            result.scheme = scheme;
+            result.absolute = absolute;
             return result;
         }
 
-        if (relative.authority != null) {
-            // if the relative URI has authority,
-            // the resolved URI is almost the same as the relative URI,
-            // except that it has the scheme of this URI.
-            result = relative.duplicate();
-            result.scheme = scheme;
-            result.absolute = absolute;
-        } else {
-            // since relative URI has no authority,
-            // the resolved URI is very similar to this URI,
-            // except that it has the query and fragment of the relative URI,
-            // and the path is different.
-            result = duplicate();
+        if (relative.path.isEmpty() && relative.scheme == null && relative.query == null) {
+            // if the relative URI only consists of at most a fragment,
+            URI result = duplicate();
             result.fragment = relative.fragment;
-            result.query = relative.query;
-            if (relative.path.startsWith("/")) {
-                result.path = relative.path;
-            } else {
-                // resolve a relative reference
-                int endIndex = path.lastIndexOf('/') + 1;
-                result.path = normalize(path.substring(0, endIndex)
-                        + relative.path);
-            }
-            // re-calculate the scheme specific part since
-            // query and path of the resolved URI is different from this URI.
-            result.setSchemeSpecificPart();
+            return result;
         }
+
+        URI result = duplicate();
+        result.fragment = relative.fragment;
+        result.query = relative.query;
+        String resolvedPath;
+        if (relative.path.startsWith("/")) {
+            // The relative URI has an absolute path; use it.
+            resolvedPath = relative.path;
+        } else if (relative.path.isEmpty()) {
+            // The relative URI has no path; use the base path.
+            resolvedPath = path;
+        } else {
+            // The relative URI has a relative path; combine the paths.
+            int endIndex = path.lastIndexOf('/') + 1;
+            resolvedPath = path.substring(0, endIndex) + relative.path;
+        }
+        result.path = UrlUtils.authoritySafePath(result.authority, normalize(resolvedPath, true));
+        result.setSchemeSpecificPart();
         return result;
     }
 
@@ -1406,36 +1239,8 @@ public final class URI implements Comparable<URI>, Serializable {
         return resolve(create(relative));
     }
 
-    /**
-     * Encode unicode chars that are not part of US-ASCII char set into the
-     * escaped form
-     *
-     * i.e. The Euro currency symbol is encoded as "%E2%82%AC".
-     */
-    private String encodeNonAscii(String s) {
-        try {
-            /*
-             * Use a different encoder than URLEncoder since: 1. chars like "/",
-             * "#", "@" etc needs to be preserved instead of being encoded, 2.
-             * UTF-8 char set needs to be used for encoding instead of default
-             * platform one 3. Only other chars need to be converted
-             */
-            return URIEncoderDecoder.encodeOthers(s);
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e.toString());
-        }
-    }
-
     private String decode(String s) {
-        if (s == null) {
-            return s;
-        }
-
-        try {
-            return URIEncoderDecoder.decode(s);
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e.toString());
-        }
+        return s != null ? UriCodec.decode(s) : null;
     }
 
     /**
@@ -1445,47 +1250,48 @@ public final class URI implements Comparable<URI>, Serializable {
      * @return the US-ASCII string representation of this URI.
      */
     public String toASCIIString() {
-        return encodeNonAscii(toString());
+        StringBuilder result = new StringBuilder();
+        ASCII_ONLY.appendEncoded(result, toString());
+        return result.toString();
     }
 
     /**
-     * Returns the textual string representation of this URI instance.
-     *
-     * @return the textual string representation of this URI.
+     * Returns the encoded URI.
      */
-    @Override
-    public String toString() {
-        if (string == null) {
-            StringBuilder result = new StringBuilder();
-            if (scheme != null) {
-                result.append(scheme);
-                result.append(':');
-            }
-            if (opaque) {
-                result.append(schemeSpecificPart);
-            } else {
-                if (authority != null) {
-                    result.append("//");
-                    result.append(authority);
-                }
-
-                if (path != null) {
-                    result.append(path);
-                }
-
-                if (query != null) {
-                    result.append('?');
-                    result.append(query);
-                }
-            }
-
-            if (fragment != null) {
-                result.append('#');
-                result.append(fragment);
-            }
-
-            string = result.toString();
+    @Override public String toString() {
+        if (string != null) {
+            return string;
         }
+
+        StringBuilder result = new StringBuilder();
+        if (scheme != null) {
+            result.append(scheme);
+            result.append(':');
+        }
+        if (opaque) {
+            result.append(schemeSpecificPart);
+        } else {
+            if (authority != null) {
+                result.append("//");
+                result.append(authority);
+            }
+
+            if (path != null) {
+                result.append(path);
+            }
+
+            if (query != null) {
+                result.append('?');
+                result.append(query);
+            }
+        }
+
+        if (fragment != null) {
+            result.append('#');
+            result.append(fragment);
+        }
+
+        string = result.toString();
         return string;
     }
 
@@ -1497,7 +1303,7 @@ public final class URI implements Comparable<URI>, Serializable {
     private String getHashString() {
         StringBuilder result = new StringBuilder();
         if (scheme != null) {
-            result.append(scheme.toLowerCase());
+            result.append(scheme.toLowerCase(Locale.US));
             result.append(':');
         }
         if (opaque) {
@@ -1511,7 +1317,7 @@ public final class URI implements Comparable<URI>, Serializable {
                     if (userInfo != null) {
                         result.append(userInfo + "@");
                     }
-                    result.append(host.toLowerCase());
+                    result.append(host.toLowerCase(Locale.US));
                     if (port != -1) {
                         result.append(":" + port);
                     }
@@ -1551,8 +1357,7 @@ public final class URI implements Comparable<URI>, Serializable {
         return new URL(toString());
     }
 
-    private void readObject(ObjectInputStream in) throws IOException,
-            ClassNotFoundException {
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
         in.defaultReadObject();
         try {
             parseURI(string, false);
@@ -1561,8 +1366,7 @@ public final class URI implements Comparable<URI>, Serializable {
         }
     }
 
-    private void writeObject(ObjectOutputStream out) throws IOException,
-            ClassNotFoundException {
+    private void writeObject(ObjectOutputStream out) throws IOException, ClassNotFoundException {
         // call toString() to ensure the value of string field is calculated
         toString();
         out.defaultWriteObject();

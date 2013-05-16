@@ -17,18 +17,9 @@
 
 package java.io;
 
-// BEGIN android-note
-// Harmony uses ObjectAccessors to access fields through JNI. Android has not
-// yet migrated that API.
-// END android-note
-
 import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.Comparator;
-
-// BEGIN android-removed
-// import org.apache.harmony.misc.accessors.ObjectAccessor;
-// END android-removed
 
 /**
  * Describes a field for the purpose of serialization. Classes can define the
@@ -39,9 +30,6 @@ import java.util.Comparator;
  * @see ObjectInputStream#readFields()
  */
 public class ObjectStreamField implements Comparable<Object> {
-
-    static final int FIELD_IS_NOT_RESOLVED = -1;
-    static final int FIELD_IS_ABSENT = -2;
 
     // Declared name of the field
     private String name;
@@ -59,23 +47,6 @@ public class ObjectStreamField implements Comparable<Object> {
 
     private boolean isDeserialized;
 
-    private long assocFieldID = FIELD_IS_NOT_RESOLVED;
-
-    // BEGIN android-removed
-    // long getFieldID(ObjectAccessor accessor, Class<?> declaringClass) {
-    //     if (assocFieldID != FIELD_IS_NOT_RESOLVED) {
-    //         return assocFieldID;
-    //     } else {
-    //         try {
-    //             assocFieldID = accessor.getFieldID(declaringClass, name);
-    //         } catch(NoSuchFieldError e) {
-    //             assocFieldID = FIELD_IS_ABSENT;
-    //         }
-    //         return assocFieldID;
-    //     }
-    // }
-    // END android-removed
-
     /**
      * Constructs an ObjectStreamField with the specified name and type.
      *
@@ -87,8 +58,10 @@ public class ObjectStreamField implements Comparable<Object> {
      *             if {@code name} or {@code cl} is {@code null}.
      */
     public ObjectStreamField(String name, Class<?> cl) {
-        if (name == null || cl == null) {
-            throw new NullPointerException();
+        if (name == null) {
+            throw new NullPointerException("name == null");
+        } else if (cl == null) {
+            throw new NullPointerException("cl == null");
         }
         this.name = name;
         this.type = new WeakReference<Class<?>>(cl);
@@ -110,12 +83,13 @@ public class ObjectStreamField implements Comparable<Object> {
      * @see ObjectOutputStream#writeUnshared(Object)
      */
     public ObjectStreamField(String name, Class<?> cl, boolean unshared) {
-        if (name == null || cl == null) {
-            throw new NullPointerException();
+        if (name == null) {
+            throw new NullPointerException("name == null");
+        } else if (cl == null) {
+            throw new NullPointerException("cl == null");
         }
         this.name = name;
-        this.type = (cl.getClassLoader() == null) ? cl
-                : new WeakReference<Class<?>>(cl);
+        this.type = (cl.getClassLoader() == null) ? cl : new WeakReference<Class<?>>(cl);
         this.unshared = unshared;
     }
 
@@ -130,7 +104,7 @@ public class ObjectStreamField implements Comparable<Object> {
      */
     ObjectStreamField(String signature, String name) {
         if (name == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("name == null");
         }
         this.name = name;
         this.typeString = signature.replace('.', '/').intern();
@@ -165,19 +139,6 @@ public class ObjectStreamField implements Comparable<Object> {
         return this.getName().compareTo(f.getName());
     }
 
-    // BEGIN android-removed
-    // There shouldn't be an implementation of these methods.
-    // @Override
-    // public boolean equals(Object arg0) {
-    //     return (arg0 instanceof ObjectStreamField) && (compareTo(arg0) == 0);
-    // }
-    //
-    // @Override
-    // public int hashCode() {
-    //     return getName().hashCode();
-    // }
-    // END android-removed
-
     /**
      * Gets the name of this field.
      *
@@ -202,9 +163,7 @@ public class ObjectStreamField implements Comparable<Object> {
      *
      * @return A Class object representing the type of the field
      */
-    // BEGIN android-note
     // Changed from private to default visibility for usage in ObjectStreamClass
-    // END android-note
     /* package */ Class<?> getTypeInternal() {
         if (type instanceof WeakReference) {
             return (Class<?>) ((WeakReference<?>) type).get();
@@ -245,35 +204,31 @@ public class ObjectStreamField implements Comparable<Object> {
      * @return the field's type code.
      */
     public char getTypeCode() {
-        Class<?> t = getTypeInternal();
-        if (t == Integer.TYPE) {
+        return typeCodeOf(getTypeInternal());
+    }
+
+    private char typeCodeOf(Class<?> type) {
+        if (type == int.class) {
             return 'I';
-        }
-        if (t == Byte.TYPE) {
+        } else if (type == byte.class) {
             return 'B';
-        }
-        if (t == Character.TYPE) {
+        } else if (type == char.class) {
             return 'C';
-        }
-        if (t == Short.TYPE) {
+        } else if (type == short.class) {
             return 'S';
-        }
-        if (t == Boolean.TYPE) {
+        } else if (type == boolean.class) {
             return 'Z';
-        }
-        if (t == Long.TYPE) {
+        } else if (type == long.class) {
             return 'J';
-        }
-        if (t == Float.TYPE) {
+        } else if (type == float.class) {
             return 'F';
-        }
-        if (t == Double.TYPE) {
+        } else if (type == double.class) {
             return 'D';
-        }
-        if (t.isArray()) {
+        } else if (type.isArray()) {
             return '[';
+        } else {
+            return 'L';
         }
-        return 'L';
     }
 
     /**
@@ -307,6 +262,13 @@ public class ObjectStreamField implements Comparable<Object> {
         return t != null && t.isPrimitive();
     }
 
+    boolean writeField(DataOutputStream out) throws IOException {
+        Class<?> t = getTypeInternal();
+        out.writeByte(typeCodeOf(t));
+        out.writeUTF(name);
+        return (t != null && t.isPrimitive());
+    }
+
     /**
      * Sets this field's offset in the object.
      *
@@ -325,31 +287,11 @@ public class ObjectStreamField implements Comparable<Object> {
      */
     @Override
     public String toString() {
-        return this.getClass().getName() + '(' + getName() + ':'
-                + getTypeInternal() + ')';
-    }
-
-    /**
-     * Sorts the fields for dumping. Primitive types come first, then regular
-     * types.
-     *
-     * @param fields
-     *            ObjectStreamField[] fields to be sorted
-     */
-    static void sortFields(ObjectStreamField[] fields) {
-        // Sort if necessary
-        if (fields.length > 1) {
-            Comparator<ObjectStreamField> fieldDescComparator = new Comparator<ObjectStreamField>() {
-                public int compare(ObjectStreamField f1, ObjectStreamField f2) {
-                    return f1.compareTo(f2);
-                }
-            };
-            Arrays.sort(fields, fieldDescComparator);
-        }
+        return this.getClass().getName() + '(' + getName() + ':' + getTypeInternal() + ')';
     }
 
     void resolve(ClassLoader loader) {
-        if (typeString == null && isPrimitive()){
+        if (typeString == null && isPrimitive()) {
             // primitive type declared in a serializable class
             typeString = String.valueOf(getTypeCode());
         }
@@ -393,28 +335,28 @@ public class ObjectStreamField implements Comparable<Object> {
     private boolean defaultResolve() {
         switch (typeString.charAt(0)) {
         case 'I':
-            type = Integer.TYPE;
+            type = int.class;
             return true;
         case 'B':
-            type = Byte.TYPE;
+            type = byte.class;
             return true;
         case 'C':
-            type = Character.TYPE;
+            type = char.class;
             return true;
         case 'S':
-            type = Short.TYPE;
+            type = short.class;
             return true;
         case 'Z':
-            type = Boolean.TYPE;
+            type = boolean.class;
             return true;
         case 'J':
-            type = Long.TYPE;
+            type = long.class;
             return true;
         case 'F':
-            type = Float.TYPE;
+            type = float.class;
             return true;
         case 'D':
-            type = Double.TYPE;
+            type = double.class;
             return true;
         default:
             type = Object.class;

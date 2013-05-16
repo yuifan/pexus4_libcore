@@ -18,45 +18,31 @@
 package tests.api.java.util;
 
 import dalvik.annotation.KnownFailure;
-import dalvik.annotation.TestTargetNew;
-import dalvik.annotation.TestTargets;
-import dalvik.annotation.TestLevel;
-import dalvik.annotation.TestTargetClass;
-
 import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.security.Permission;
 import java.util.Enumeration;
 import java.util.Locale;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.StringTokenizer;
 import java.util.Vector;
-
 import tests.api.java.util.support.B;
 import tests.support.resource.Support_Resources;
 
-@TestTargetClass(ResourceBundle.class)
 public class ResourceBundleTest extends junit.framework.TestCase {
-    SecurityManager sm = new SecurityManager() {
 
-        @Override
-        public void checkPermission(Permission perm) {
-        }
-    };
+    public void test_getCandidateLocales() throws Exception {
+        ResourceBundle.Control c = ResourceBundle.Control.getControl(ResourceBundle.Control.FORMAT_DEFAULT);
+        assertEquals("[en_US, en, ]", c.getCandidateLocales("base", Locale.US).toString());
+        assertEquals("[de_CH, de, ]", c.getCandidateLocales("base", new Locale("de", "CH")).toString());
+    }
 
     /**
-     * @tests java.util.ResourceBundle#getBundle(java.lang.String,
+     * java.util.ResourceBundle#getBundle(java.lang.String,
      *        java.util.Locale)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getBundle",
-        args = {java.lang.String.class, java.util.Locale.class}
-    )
     public void test_getBundleLjava_lang_StringLjava_util_Locale() {
         ResourceBundle bundle;
         String name = "tests.support.Support_TestResource";
@@ -64,37 +50,39 @@ public class ResourceBundleTest extends junit.framework.TestCase {
 
         Locale.setDefault(new Locale("en", "US"));
         bundle = ResourceBundle.getBundle(name, new Locale("fr", "FR", "VAR"));
-        assertEquals("Wrong bundle fr_FR_VAR", "frFRVARValue4", bundle.getString("parent4")
-                );
+        assertEquals("Wrong bundle fr_FR_VAR", "frFRVARValue4", bundle.getString("parent4"));
+
         bundle = ResourceBundle.getBundle(name, new Locale("fr", "FR", "v1"));
-        assertEquals("Wrong bundle fr_FR_v1",
-                "frFRValue4", bundle.getString("parent4"));
+        assertEquals("Wrong bundle fr_FR_v1", "frFRValue4", bundle.getString("parent4"));
+
         bundle = ResourceBundle.getBundle(name, new Locale("fr", "US", "VAR"));
-        assertEquals("Wrong bundle fr_US_var", "frValue4", bundle.getString("parent4")
-                );
+        assertEquals("Wrong bundle fr_US_var", "frValue4", bundle.getString("parent4"));
+
         bundle = ResourceBundle.getBundle(name, new Locale("de", "FR", "VAR"));
-        assertEquals("Wrong bundle de_FR_var", "enUSValue4", bundle.getString("parent4")
-                );
+        assertEquals("Wrong bundle de_FR_var", "enUSValue4", bundle.getString("parent4"));
 
         Locale.setDefault(new Locale("fr", "FR", "VAR"));
         bundle = ResourceBundle.getBundle(name, new Locale("de", "FR", "v1"));
-        assertEquals("Wrong bundle de_FR_var 2", "frFRVARValue4", bundle.getString("parent4")
-                );
+        assertEquals("Wrong bundle de_FR_var 2", "frFRVARValue4", bundle.getString("parent4"));
 
         Locale.setDefault(new Locale("de", "US"));
         bundle = ResourceBundle.getBundle(name, new Locale("de", "FR", "var"));
         assertEquals("Wrong bundle de_FR_var 2", "parentValue4", bundle.getString("parent4")
                 );
 
-        // Test with a security manager
-        Locale.setDefault(new Locale("en", "US"));
-
         try {
-            ResourceBundle.getBundle(null, Locale.getDefault());
+            ResourceBundle.getBundle(null, Locale.US);
             fail("NullPointerException expected");
         } catch (NullPointerException ee) {
             //expected
         }
+        try {
+            ResourceBundle.getBundle("blah", (Locale) null);
+            fail("NullPointerException expected");
+        } catch (NullPointerException ee) {
+            //expected
+        }
+
 
         try {
             ResourceBundle.getBundle("", new Locale("xx", "yy"));
@@ -102,20 +90,12 @@ public class ResourceBundleTest extends junit.framework.TestCase {
         } catch (MissingResourceException ee) {
             //expected
         }
-
-        Locale.setDefault(defLocale);
     }
 
     /**
-     * @tests java.util.ResourceBundle#getBundle(java.lang.String,
+     * java.util.ResourceBundle#getBundle(java.lang.String,
      *        java.util.Locale, java.lang.ClassLoader)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getBundle",
-        args = {java.lang.String.class, java.util.Locale.class, java.lang.ClassLoader.class}
-    )
     @KnownFailure("It's not allowed to pass null as parent class loader to"
             + " a new ClassLoader anymore. Maybe we need to change"
             + " URLClassLoader to allow this? It's not specified.")
@@ -186,14 +166,8 @@ public class ResourceBundleTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.util.ResourceBundle#getString(java.lang.String)
+     * java.util.ResourceBundle#getString(java.lang.String)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getString",
-        args = {java.lang.String.class}
-    )
     public void test_getStringLjava_lang_String() {
         ResourceBundle bundle;
         String name = "tests.support.Support_TestResource";
@@ -235,12 +209,6 @@ public class ResourceBundleTest extends junit.framework.TestCase {
             //expected
         }
     }
-    @TestTargetNew(
-        level = TestLevel.PARTIAL_COMPLETE,
-        notes = "Regression test. Doesn't verify NullPointerException.",
-        method = "getBundle",
-        args = {java.lang.String.class}
-    )
     public void test_getBundle_getClassName() {
         // Regression test for Harmony-1759
         Locale locale = Locale.GERMAN;
@@ -281,22 +249,10 @@ public class ResourceBundleTest extends junit.framework.TestCase {
         }
     }
 
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "ResourceBundle",
-        args = {}
-    )
     public void test_constructor() {
         assertNotNull(new Mock_ResourceBundle());
     }
 
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getLocale",
-        args = {}
-    )
     public void test_getLocale() {
         ResourceBundle bundle;
         String name = "tests.support.Support_TestResource";
@@ -324,12 +280,6 @@ public class ResourceBundleTest extends junit.framework.TestCase {
         Locale.setDefault(loc);
     }
 
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getObject",
-        args = {java.lang.String.class}
-    )
     public void test_getObjectLjava_lang_String() {
         ResourceBundle bundle;
         String name = "tests.support.Support_TestResource";
@@ -340,13 +290,13 @@ public class ResourceBundleTest extends junit.framework.TestCase {
         assertEquals("Wrong value parent3",
                 "frFRValue3", (String)bundle.getObject("parent3"));
         assertEquals("Wrong value parent2",
-                "frValue2", (String)bundle.getObject("parent2"));
+                "frValue2", (String) bundle.getObject("parent2"));
         assertEquals("Wrong value parent1",
                 "parentValue1", (String)bundle.getObject("parent1"));
         assertEquals("Wrong value child3",
                 "frFRVARChildValue3", (String)bundle.getObject("child3"));
         assertEquals("Wrong value child2",
-                "frFRVARChildValue2", (String)bundle.getObject("child2"));
+                "frFRVARChildValue2", (String) bundle.getObject("child2"));
         assertEquals("Wrong value child1",
                 "frFRVARChildValue1", (String)bundle.getObject("child1"));
         assertEquals("Wrong value IntegerVal",
@@ -367,20 +317,6 @@ public class ResourceBundleTest extends junit.framework.TestCase {
         }
     }
 
-    @TestTargets({
-        @TestTargetNew(
-            level = TestLevel.COMPLETE,
-            notes = "",
-            method = "getStringArray",
-            args = {java.lang.String.class}
-        ),
-        @TestTargetNew(
-            level = TestLevel.COMPLETE,
-            notes = "",
-            method = "setParent",
-            args = {java.util.ResourceBundle.class}
-        )
-    })
     public void test_getStringArrayLjava_lang_String() {
         ResourceBundle bundle;
         String name = "tests.support.Support_TestResource";
@@ -414,12 +350,6 @@ public class ResourceBundleTest extends junit.framework.TestCase {
         }
     }
 
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getBundle",
-        args = {java.lang.String.class}
-    )
     public void test_getBundleLjava_lang_String() {
         ResourceBundle bundle;
         String name = "tests.support.Support_TestResource";
@@ -427,28 +357,27 @@ public class ResourceBundleTest extends junit.framework.TestCase {
 
         Locale.setDefault(new Locale("en", "US"));
         bundle = ResourceBundle.getBundle(name);
-        assertEquals("enUSValue4", bundle.getString("parent4")
-                );
+        assertEquals("enUSValue4", bundle.getString("parent4"));
+
         Locale.setDefault(new Locale("fr", "FR", "v1"));
         bundle = ResourceBundle.getBundle(name);
-        assertEquals("Wrong bundle fr_FR_v1",
-                "frFRValue4", bundle.getString("parent4"));
+        assertEquals("Wrong bundle fr_FR_v1", "frFRValue4", bundle.getString("parent4"));
+
         Locale.setDefault(new Locale("fr", "US", "VAR"));
         bundle = ResourceBundle.getBundle(name);
-        assertEquals("Wrong bundle fr_US_var", "frValue4", bundle.getString("parent4")
-                );
+        assertEquals("Wrong bundle fr_US_var", "frValue4", bundle.getString("parent4"));
+
         Locale.setDefault(new Locale("de", "FR", "VAR"));
         bundle = ResourceBundle.getBundle(name);
-        assertEquals("Wrong bundle de_FR_var", "parentValue4", bundle.getString("parent4")
-                );
+        assertEquals("Wrong bundle de_FR_var", "parentValue4", bundle.getString("parent4"));
+
         Locale.setDefault(new Locale("de", "FR", "v1"));
         bundle = ResourceBundle.getBundle(name);
-        assertEquals("Wrong bundle de_FR_var 2", "parentValue4", bundle.getString("parent4")
-                );
+        assertEquals("Wrong bundle de_FR_var 2", "parentValue4", bundle.getString("parent4"));
+
         Locale.setDefault(new Locale("de", "FR", "var"));
         bundle = ResourceBundle.getBundle(name);
-        assertEquals("Wrong bundle de_FR_var 2", "parentValue4", bundle.getString("parent4")
-                );
+        assertEquals("Wrong bundle de_FR_var 2", "parentValue4", bundle.getString("parent4"));
 
         try {
             ResourceBundle.getBundle(null);
@@ -463,11 +392,7 @@ public class ResourceBundleTest extends junit.framework.TestCase {
         } catch (MissingResourceException ee) {
             //expected
         }
-    }
 
-    protected void setUp() {
-    }
-
-    protected void tearDown() {
+        Locale.setDefault(defLocale);
     }
 }

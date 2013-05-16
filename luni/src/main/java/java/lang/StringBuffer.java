@@ -39,7 +39,7 @@ import java.io.Serializable;
  * @see Appendable
  * @see StringBuilder
  * @see String
- * @see String.format
+ * @see String#format
  * @since 1.0
  */
 public final class StringBuffer extends AbstractStringBuilder implements
@@ -47,16 +47,16 @@ public final class StringBuffer extends AbstractStringBuilder implements
 
     private static final long serialVersionUID = 3388685877147921107L;
 
-    private static final ObjectStreamField serialPersistentFields[] = {
-            new ObjectStreamField("count", int.class),
-            new ObjectStreamField("shared", boolean.class),
-            new ObjectStreamField("value", char[].class), };
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField("count", int.class),
+        new ObjectStreamField("shared", boolean.class),
+        new ObjectStreamField("value", char[].class),
+    };
 
     /**
      * Constructs a new StringBuffer using the default capacity which is 16.
      */
     public StringBuffer() {
-        super();
     }
 
     /**
@@ -597,8 +597,7 @@ public final class StringBuffer extends AbstractStringBuilder implements
      *             length > chars.length}, {@code index < 0} or {@code index >
      *             length()}
      */
-    public synchronized StringBuffer insert(int index, char[] chars, int start,
-            int length) {
+    public synchronized StringBuffer insert(int index, char[] chars, int start, int length) {
         insert0(index, chars, start, length);
         return this;
     }

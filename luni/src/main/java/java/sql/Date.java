@@ -32,6 +32,7 @@ package java.sql;
  * java.sql.Date} class are "normalized" to the time 00:00:00.000 GMT on the
  * date implied by the time value.
  */
+@FindBugsSuppressWarnings("NM_SAME_SIMPLE_NAME_AS_SUPERCLASS")
 public class Date extends java.util.Date {
 
     private static final long serialVersionUID = 1511598038487230103L;
@@ -80,7 +81,7 @@ public class Date extends java.util.Date {
     @Deprecated
     @Override
     public int getHours() {
-        throw new IllegalArgumentException();
+        throw new IllegalArgumentException("unimplemented");
     }
 
     /**
@@ -93,7 +94,7 @@ public class Date extends java.util.Date {
     @Deprecated
     @Override
     public int getMinutes() {
-        throw new IllegalArgumentException();
+        throw new IllegalArgumentException("unimplemented");
     }
 
     /**
@@ -106,7 +107,7 @@ public class Date extends java.util.Date {
     @Deprecated
     @Override
     public int getSeconds() {
-        throw new IllegalArgumentException();
+        throw new IllegalArgumentException("unimplemented");
     }
 
     /**
@@ -120,7 +121,7 @@ public class Date extends java.util.Date {
     @Deprecated
     @Override
     public void setHours(int theHours) {
-        throw new IllegalArgumentException();
+        throw new IllegalArgumentException("unimplemented");
     }
 
     /**
@@ -134,7 +135,7 @@ public class Date extends java.util.Date {
     @Deprecated
     @Override
     public void setMinutes(int theMinutes) {
-        throw new IllegalArgumentException();
+        throw new IllegalArgumentException("unimplemented");
     }
 
     /**
@@ -148,7 +149,7 @@ public class Date extends java.util.Date {
     @Deprecated
     @Override
     public void setSeconds(int theSeconds) {
-        throw new IllegalArgumentException();
+        throw new IllegalArgumentException("unimplemented");
     }
 
     /**
@@ -211,7 +212,7 @@ public class Date extends java.util.Date {
      */
     public static Date valueOf(String dateString) {
         if (dateString == null) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("dateString == null");
         }
         int firstIndex = dateString.indexOf('-');
         int secondIndex = dateString.indexOf('-', firstIndex + 1);

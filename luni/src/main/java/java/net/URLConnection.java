@@ -20,15 +20,12 @@ package java.net;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.StringTokenizer;
-import org.apache.harmony.luni.util.PriviAction;
 
 /**
  * A connection to a URL for reading or writing. For HTTP connections, see
@@ -61,8 +58,8 @@ import org.apache.harmony.luni.util.PriviAction;
  *      Resources from the local file system can be loaded using {@code file:}
  *      URIs. File connections can only be used for input.
  *   <li><strong>FTP</strong><br>
- *      File Transfer Protocol (<a href="http://www.ietf.org/rfc/rfc959.txt">RFC
- *      959</a>) is supported, but with no public subclass. FTP connections can
+ *      File Transfer Protocol (<a href="http://www.ietf.org/rfc/rfc959.txt">RFC 959</a>)
+ *      is supported, but with no public subclass. FTP connections can
  *      be used for input or output but not both.
  *      <p>By default, FTP connections will be made using {@code anonymous} as
  *      the username and the empty string as the password. Specify alternate
@@ -126,8 +123,8 @@ public abstract class URLConnection {
     protected boolean doInput = true;
 
     /**
-     * Specifies whether this {@code URLConnection} allows user interaction as
-     * it is needed for authentication purposes.
+     * Unused by Android. This field can be accessed via {@link #getAllowUserInteraction}
+     * and {@link #setAllowUserInteraction}.
      */
     protected boolean allowUserInteraction = defaultAllowUserInteraction;
 
@@ -170,11 +167,7 @@ public abstract class URLConnection {
     public abstract void connect() throws IOException;
 
     /**
-     * Returns the option value which indicates whether user interaction is allowed
-     * on this {@code URLConnection}.
-     *
-     * @return the value of the option {@code allowUserInteraction}.
-     * @see #allowUserInteraction
+     * Returns {@code allowUserInteraction}. Unused by Android.
      */
     public boolean getAllowUserInteraction() {
         return allowUserInteraction;
@@ -276,19 +269,14 @@ public abstract class URLConnection {
             return (ContentHandler) cHandler;
         }
 
-        // search through the package list for the right class for the Content
-        // Type
-        String packageList = AccessController
-                .doPrivileged(new PriviAction<String>(
-                        "java.content.handler.pkgs"));
+        // search through the package list for the right class for the Content Type
+        String packageList = System.getProperty("java.content.handler.pkgs");
         if (packageList != null) {
-            final StringTokenizer st = new StringTokenizer(packageList, "|");
-            while (st.countTokens() > 0) {
+            for (String packageName : packageList.split("\\|")) {
+                String className = packageName + "." + typeString;
                 try {
-                    Class<?> cl = Class.forName(st.nextToken() + "."
-                            + typeString, true, ClassLoader
-                            .getSystemClassLoader());
-                    cHandler = cl.newInstance();
+                    Class<?> klass = Class.forName(className, true, ClassLoader.getSystemClassLoader());
+                    cHandler = klass.newInstance();
                 } catch (ClassNotFoundException e) {
                 } catch (IllegalAccessException e) {
                 } catch (InstantiationException e) {
@@ -297,21 +285,14 @@ public abstract class URLConnection {
         }
 
         if (cHandler == null) {
-            cHandler = AccessController
-                    .doPrivileged(new PrivilegedAction<Object>() {
-                        public Object run() {
-                            try {
-                                // Try looking up AWT image content handlers
-                                String className = "org.apache.harmony.awt.www.content."
-                                        + typeString;
-                                return Class.forName(className).newInstance();
-                            } catch (ClassNotFoundException e) {
-                            } catch (IllegalAccessException e) {
-                            } catch (InstantiationException e) {
-                            }
-                            return null;
-                        }
-                    });
+            try {
+                // Try looking up AWT image content handlers
+                String className = "org.apache.harmony.awt.www.content." + typeString;
+                cHandler = Class.forName(className).newInstance();
+            } catch (ClassNotFoundException e) {
+            } catch (IllegalAccessException e) {
+            } catch (InstantiationException e) {
+            }
         }
         if (cHandler != null) {
             if (!(cHandler instanceof ContentHandler)) {
@@ -357,24 +338,15 @@ public abstract class URLConnection {
     }
 
     /**
-     * Returns the default setting whether this connection allows user interaction.
-     *
-     * @return the value of the default setting {@code
-     *         defaultAllowUserInteraction}.
-     * @see #allowUserInteraction
+     * Returns the default value of {@code allowUserInteraction}. Unused by Android.
      */
     public static boolean getDefaultAllowUserInteraction() {
         return defaultAllowUserInteraction;
     }
 
     /**
-     * Returns the default value for the specified request {@code field} or {@code
-     * null} if the field could not be found. The base implementation of this
-     * method returns always {@code null}.
+     * Returns null.
      *
-     * @param field
-     *            the request field whose default value shall be returned.
-     * @return the default value for the given field.
      * @deprecated Use {@link #getRequestProperty}
      */
     @Deprecated
@@ -459,7 +431,7 @@ public abstract class URLConnection {
     }
 
     /**
-     * Returns an unchangeable map of the response-header fields and values. The
+     * Returns an unmodifiable map of the response-header fields and values. The
      * response-header field names are the key values of the map. The map values
      * are lists of header field values associated with a particular key name.
      *
@@ -475,7 +447,7 @@ public abstract class URLConnection {
     }
 
     /**
-     * Returns an unchangeable map of general request properties used by this
+     * Returns an unmodifiable map of general request properties used by this
      * connection. The request property names are the key values of the map. The
      * map values are lists of property values of the corresponding key name.
      *
@@ -550,7 +522,7 @@ public abstract class URLConnection {
             return defaultValue;
         }
         try {
-            return Date.parse(date);
+            return Date.parse(date); // TODO: use HttpDate.parse()
         } catch (Exception e) {
             return defaultValue;
         }
@@ -721,10 +693,7 @@ public abstract class URLConnection {
      * @throws IOException
      *             if an I/O error occurs while reading from the input stream.
      */
-    @SuppressWarnings("nls")
-    public static String guessContentTypeFromStream(InputStream is)
-            throws IOException {
-
+    public static String guessContentTypeFromStream(InputStream is) throws IOException {
         if (!is.markSupported()) {
             return null;
         }
@@ -789,7 +758,7 @@ public abstract class URLConnection {
         }
 
         // Check text types
-        String textHeader = header.trim().toUpperCase();
+        String textHeader = header.trim().toUpperCase(Locale.US);
         if (textHeader.startsWith("<!DOCTYPE HTML") ||
                 textHeader.startsWith("<HTML") ||
                 textHeader.startsWith("<HEAD") ||
@@ -815,28 +784,19 @@ public abstract class URLConnection {
      * @return the string to be parsed
      */
     private String parseTypeString(String typeString) {
-        StringBuilder typeStringBuffer = new StringBuilder(typeString);
-        for (int i = 0; i < typeStringBuffer.length(); i++) {
+        StringBuilder result = new StringBuilder(typeString);
+        for (int i = 0; i < result.length(); i++) {
             // if non-alphanumeric, replace it with '_'
-            char c = typeStringBuffer.charAt(i);
+            char c = result.charAt(i);
             if (!(Character.isLetter(c) || Character.isDigit(c) || c == '.')) {
-                typeStringBuffer.setCharAt(i, '_');
+                result.setCharAt(i, '_');
             }
         }
-        return typeStringBuffer.toString();
+        return result.toString();
     }
 
     /**
-     * Sets the flag indicating whether this connection allows user interaction
-     * or not. This method can only be called prior to the connection
-     * establishment.
-     *
-     * @param newValue
-     *            the value of the flag to be set.
-     * @throws IllegalStateException
-     *             if this method attempts to change the flag after the
-     *             connection has been established.
-     * @see #allowUserInteraction
+     * Sets {@code allowUserInteraction}. Unused by Android.
      */
     public void setAllowUserInteraction(boolean newValue) {
         checkNotConnected();
@@ -845,52 +805,31 @@ public abstract class URLConnection {
 
     /**
      * Sets the internally used content handler factory. The content factory can
-     * only be set if it is allowed by the security manager and only once during
-     * the lifetime of the application.
+     * only be set once during the lifetime of the application.
      *
      * @param contentFactory
      *            the content factory to be set.
      * @throws Error
-     *             if the security manager does not allow to set the content
-     *             factory or it has been already set earlier ago.
+     *             if the factory has been already set.
      */
-    public static synchronized void setContentHandlerFactory(
-            ContentHandlerFactory contentFactory) {
+    public static synchronized void setContentHandlerFactory(ContentHandlerFactory contentFactory) {
         if (contentHandlerFactory != null) {
             throw new Error("Factory already set");
-        }
-        SecurityManager sManager = System.getSecurityManager();
-        if (sManager != null) {
-            sManager.checkSetFactory();
         }
         contentHandlerFactory = contentFactory;
     }
 
     /**
-     * Sets the default value for the flag indicating whether this connection
-     * allows user interaction or not. Existing {@code URLConnection}s are
-     * unaffected.
-     *
-     * @param allows
-     *            the default value of the flag to be used for new connections.
-     * @see #defaultAllowUserInteraction
-     * @see #allowUserInteraction
+     * Sets the default value for {@code allowUserInteraction}. Unused by Android.
      */
     public static void setDefaultAllowUserInteraction(boolean allows) {
         defaultAllowUserInteraction = allows;
     }
 
     /**
-     * Sets the default value of the specified request header field. This value
-     * will be used for the specific field of every newly created connection.
-     * The base implementation of this method does nothing.
+     * Does nothing.
      *
-     * @param field
-     *            the request header field to be set.
-     * @param value
-     *            the default value to be used.
-     * @deprecated Use {@link #setRequestProperty} of an existing {@code
-     *             URLConnection} instance.
+     * @deprecated Use {@link URLConnection#setRequestProperty(String, String)}.
      */
     @Deprecated
     public static void setDefaultRequestProperty(String field, String value) {
@@ -902,7 +841,6 @@ public abstract class URLConnection {
      *
      * @param newValue
      *            the default value of the flag to be used for new connections.
-     * @see #defaultUseCaches
      * @see #useCaches
      */
     public void setDefaultUseCaches(boolean newValue) {
@@ -949,10 +887,6 @@ public abstract class URLConnection {
      *            the MIME table to be set.
      */
     public static void setFileNameMap(FileNameMap map) {
-        SecurityManager manager = System.getSecurityManager();
-        if (manager != null) {
-            manager.checkSetFactory();
-        }
         synchronized (URLConnection.class) {
             fileNameMap = map;
         }
@@ -1014,57 +948,54 @@ public abstract class URLConnection {
     }
 
     /**
-     * Sets the timeout value in milliseconds for establishing the connection to
-     * the resource pointed by this {@code URLConnection} instance. A {@code
-     * SocketTimeoutException} is thrown if the connection could not be
-     * established in this time. Default is {@code 0} which stands for an
-     * infinite timeout.
+     * Sets the maximum time in milliseconds to wait while connecting.
+     * Connecting to a server will fail with a {@link SocketTimeoutException} if
+     * the timeout elapses before a connection is established. The default value
+     * of {@code 0} causes us to do a blocking connect. This does not mean we
+     * will never time out, but it probably means you'll get a TCP timeout
+     * after several minutes.
      *
-     * @param timeout
-     *            the connecting timeout in milliseconds.
-     * @throws IllegalArgumentException
-     *             if the parameter {@code timeout} is less than zero.
+     * <p><strong>Warning:</strong> if the hostname resolves to multiple IP
+     * addresses, this client will try each in <a
+     * href="http://www.ietf.org/rfc/rfc3484.txt">RFC 3484</a> order. If
+     * connecting to each of these addresses fails, multiple timeouts will
+     * elapse before the connect attempt throws an exception. Host names that
+     * support both IPv6 and IPv4 always have at least 2 IP addresses.
+     *
+     * @throws IllegalArgumentException if {@code timeoutMillis &lt; 0}.
      */
-    public void setConnectTimeout(int timeout) {
-        if (timeout < 0) {
-            throw new IllegalArgumentException("timeout < 0");
+    public void setConnectTimeout(int timeoutMillis) {
+        if (timeoutMillis < 0) {
+            throw new IllegalArgumentException("timeoutMillis < 0");
         }
-        this.connectTimeout = timeout;
+        this.connectTimeout = timeoutMillis;
     }
 
     /**
-     * Returns the configured connecting timeout.
-     *
-     * @return the connecting timeout value in milliseconds.
+     * Returns the connect timeout in milliseconds. (See {#setConnectTimeout}.)
      */
     public int getConnectTimeout() {
         return connectTimeout;
     }
 
     /**
-     * Sets the timeout value in milliseconds for reading from the input stream
-     * of an established connection to the resource. A {@code
-     * SocketTimeoutException} is thrown if the connection could not be
-     * established in this time. Default is {@code 0} which stands for an
-     * infinite timeout.
+     * Sets the maximum time to wait for an input stream read to complete before
+     * giving up. Reading will fail with a {@link SocketTimeoutException} if the
+     * timeout elapses before data becomes available. The default value of
+     * {@code 0} disables read timeouts; read attempts will block indefinitely.
      *
-     * @param timeout
-     *            the reading timeout in milliseconds.
-     * @throws IllegalArgumentException
-     *             if the parameter {@code timeout} is less than zero.
+     * @param timeoutMillis the read timeout in milliseconds. Non-negative.
      */
-    public void setReadTimeout(int timeout) {
-        if (timeout < 0) {
-            throw new IllegalArgumentException("timeout < 0");
+    public void setReadTimeout(int timeoutMillis) {
+        if (timeoutMillis < 0) {
+            throw new IllegalArgumentException("timeoutMillis < 0");
         }
-        this.readTimeout = timeout;
+        this.readTimeout = timeoutMillis;
     }
 
     /**
-     * Returns the configured timeout for reading from the input stream of an
-     * established connection to the resource.
-     *
-     * @return the reading timeout value in milliseconds.
+     * Returns the read timeout in milliseconds, or {@code 0} if reads never
+     * timeout.
      */
     public int getReadTimeout() {
         return readTimeout;

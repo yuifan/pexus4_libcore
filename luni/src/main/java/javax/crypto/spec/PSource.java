@@ -17,6 +17,8 @@
 
 package javax.crypto.spec;
 
+import libcore.util.EmptyArray;
+
 /**
  * The source of the label <code>L</code> as specified in <a
  * href="http://www.ietf.org/rfc/rfc3447.txt"> PKCS #1</a>.
@@ -38,7 +40,7 @@ public class PSource {
      */
     protected PSource(String pSrcName) {
         if (pSrcName == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("pSrcName == null");
         }
         this.pSrcName = pSrcName;
     }
@@ -68,7 +70,7 @@ public class PSource {
 
         private PSpecified() {
             super("PSpecified");
-            p = new byte[0];
+            p = EmptyArray.BYTE;
         }
 
         /**
@@ -83,7 +85,7 @@ public class PSource {
         public PSpecified(byte[] p) {
             super("PSpecified");
             if (p == null) {
-                throw new NullPointerException();
+                throw new NullPointerException("p == null");
             }
             //TODO: It is unknown which name should be used!
             //super("");

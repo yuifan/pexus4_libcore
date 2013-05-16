@@ -17,6 +17,8 @@
 
 package java.io;
 
+import java.util.Arrays;
+
 /**
  * A specialized {@link InputStream} that reads bytes from a {@code String} in
  * a sequential manner.
@@ -52,7 +54,7 @@ public class StringBufferInputStream extends InputStream {
      */
     public StringBufferInputStream(String str) {
         if (str == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("str == null");
         }
         buffer = str;
         count = str.length();
@@ -98,25 +100,10 @@ public class StringBufferInputStream extends InputStream {
      */
     @Override
     public synchronized int read(byte[] buffer, int offset, int length) {
-        // BEGIN android-note
-        // changed array notation to be consistent with the rest of harmony
-        // END android-note
-        // According to 22.7.6 should return -1 before checking other
-        // parameters.
-        if (pos >= count) {
-            return -1;
-        }
         if (buffer == null) {
             throw new NullPointerException("buffer == null");
         }
-        // avoid int overflow
-        if (offset < 0 || offset > buffer.length) {
-            throw new ArrayIndexOutOfBoundsException("Offset out of bounds: " + offset);
-        }
-        if (length < 0 || length > buffer.length - offset) {
-            throw new ArrayIndexOutOfBoundsException("Length out of bounds: " + length);
-        }
-
+        Arrays.checkOffsetAndCount(buffer.length, offset, length);
         if (length == 0) {
             return 0;
         }
@@ -138,28 +125,26 @@ public class StringBufferInputStream extends InputStream {
     }
 
     /**
-     * Skips {@code n} characters in the source string. It does nothing and
-     * returns 0 if {@code n} is negative. Less than {@code n} characters are
+     * Skips {@code charCount} characters in the source string. It does nothing and
+     * returns 0 if {@code charCount} is negative. Less than {@code charCount} characters are
      * skipped if the end of the source string is reached before the operation
      * completes.
      *
-     * @param n
-     *            the number of characters to skip.
      * @return the number of characters actually skipped.
      */
     @Override
-    public synchronized long skip(long n) {
-        if (n <= 0) {
+    public synchronized long skip(long charCount) {
+        if (charCount <= 0) {
             return 0;
         }
 
         int numskipped;
-        if (this.count - pos < n) {
+        if (this.count - pos < charCount) {
             numskipped = this.count - pos;
             pos = this.count;
         } else {
-            numskipped = (int) n;
-            pos += n;
+            numskipped = (int) charCount;
+            pos += charCount;
         }
         return numskipped;
     }

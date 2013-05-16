@@ -17,188 +17,98 @@
 
 package java.text;
 
-import com.ibm.icu4jni.text.NativeBreakIterator;
+import libcore.icu.NativeBreakIterator;
 
 /*
- * Default implementation of BreakIterator. Wraps com.ibm.icu4jni.text.NativeBreakIterator.
+ * Default implementation of BreakIterator. Wraps libcore.icu.NativeBreakIterator.
  * We need this because BreakIterator.isBoundary and BreakIterator.preceding are non-abstract,
  * and we don't have Java implementations of those methods (other than the current ones, which
  * forward to the wrapped NativeBreakIterator).
  */
 class RuleBasedBreakIterator extends BreakIterator {
 
-    /*
-     * Wrapping constructor.
-     */
     RuleBasedBreakIterator(NativeBreakIterator iterator) {
         super(iterator);
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.text.BreakIterator#current()
-     */
-    @Override
-    public int current() {
+    @Override public int current() {
         return wrapped.current();
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.text.BreakIterator#first()
-     */
-    @Override
-    public int first() {
+    @Override public int first() {
         return wrapped.first();
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.text.BreakIterator#following(int)
-     */
-    @Override
-    public int following(int offset) {
-        validateOffset(offset);
+    @Override public int following(int offset) {
+        checkOffset(offset);
         return wrapped.following(offset);
     }
 
-    /*
-     * check the offset, throw exception if it is invalid
-     */
-    private void validateOffset(int offset) {
+    private void checkOffset(int offset) {
+        if (!wrapped.hasText()) {
+            throw new IllegalArgumentException("BreakIterator has no text");
+        }
         CharacterIterator it = wrapped.getText();
-        if (offset < it.getBeginIndex() || offset >= it.getEndIndex()) {
-            throw new IllegalArgumentException();
+        if (offset < it.getBeginIndex() || offset > it.getEndIndex()) {
+            String message = "Valid range is [" + it.getBeginIndex() + " " + it.getEndIndex() + "]";
+            throw new IllegalArgumentException(message);
         }
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.text.BreakIterator#getText()
-     */
-    @Override
-    public CharacterIterator getText() {
+    @Override public CharacterIterator getText() {
         return wrapped.getText();
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.text.BreakIterator#last()
-     */
-    @Override
-    public int last() {
+    @Override public int last() {
         return wrapped.last();
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.text.BreakIterator#next()
-     */
-    @Override
-    public int next() {
+    @Override public int next() {
         return wrapped.next();
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.text.BreakIterator#next(int)
-     */
-    @Override
-    public int next(int n) {
+    @Override public int next(int n) {
         return wrapped.next(n);
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.text.BreakIterator#previous()
-     */
-    @Override
-    public int previous() {
+    @Override public int previous() {
         return wrapped.previous();
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.text.BreakIterator#setText(java.text.CharacterIterator)
-     */
-    @Override
-    public void setText(CharacterIterator newText) {
-        // call a method to check if null pointer
+    @Override public void setText(CharacterIterator newText) {
+        if (newText == null) {
+            throw new NullPointerException("newText == null");
+        }
         newText.current();
         wrapped.setText(newText);
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.text.BreakIterator#isBoundary(int)
-     */
-    @Override
-    public boolean isBoundary(int offset) {
-        validateOffset(offset);
+    @Override public boolean isBoundary(int offset) {
+        checkOffset(offset);
         return wrapped.isBoundary(offset);
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.text.BreakIterator#preceding(int)
-     */
-    @Override
-    public int preceding(int offset) {
-        validateOffset(offset);
+    @Override public int preceding(int offset) {
+        checkOffset(offset);
         return wrapped.preceding(offset);
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#equals(java.lang.Object)
-     */
-    @Override
-    public boolean equals(Object o) {
+    @Override public boolean equals(Object o) {
         if (!(o instanceof RuleBasedBreakIterator)) {
             return false;
         }
         return wrapped.equals(((RuleBasedBreakIterator) o).wrapped);
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#toString()
-     */
-    @Override
-    public String toString() {
+    @Override public String toString() {
         return wrapped.toString();
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#hashCode()
-     */
-    @Override
-    public int hashCode() {
+    @Override public int hashCode() {
         return wrapped.hashCode();
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#clone()
-     */
-    @Override
-    public Object clone() {
+    @Override public Object clone() {
         RuleBasedBreakIterator cloned = (RuleBasedBreakIterator) super.clone();
         cloned.wrapped = (NativeBreakIterator) wrapped.clone();
         return cloned;

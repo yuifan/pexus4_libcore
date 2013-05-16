@@ -33,7 +33,6 @@ import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import javax.security.auth.x500.X500Principal;
@@ -43,7 +42,6 @@ import org.apache.harmony.security.pkcs7.SignedData;
 import org.apache.harmony.security.pkcs7.SignerInfo;
 import org.apache.harmony.security.provider.cert.X509CertImpl;
 import org.apache.harmony.security.x501.AttributeTypeAndValue;
-import org.apache.harmony.xnet.provider.jsse.OpenSSLSignature;
 
 public class JarUtils {
 
@@ -72,20 +70,21 @@ public class JarUtils {
         if (signedData == null) {
             throw new IOException("No SignedData found");
         }
-        Collection encCerts = signedData.getCertificates();
+        Collection<org.apache.harmony.security.x509.Certificate> encCerts
+                = signedData.getCertificates();
         if (encCerts.isEmpty()) {
             return null;
         }
         X509Certificate[] certs = new X509Certificate[encCerts.size()];
         int i = 0;
-        for (Iterator it = encCerts.iterator(); it.hasNext();) {
-            certs[i++]= new X509CertImpl((org.apache.harmony.security.x509.Certificate)it.next());
+        for (org.apache.harmony.security.x509.Certificate encCert : encCerts) {
+            certs[i++] = new X509CertImpl(encCert);
         }
 
-        List sigInfos = signedData.getSignerInfos();
+        List<SignerInfo> sigInfos = signedData.getSignerInfos();
         SignerInfo sigInfo;
         if (!sigInfos.isEmpty()) {
-            sigInfo = (SignerInfo)sigInfos.get(0);
+            sigInfo = sigInfos.get(0);
         } else {
             return null;
         }
@@ -114,43 +113,62 @@ public class JarUtils {
         }
 
         // Get Signature instance
-        Signature sig = null;
-        String da = sigInfo.getdigestAlgorithm();
-        String dea = sigInfo.getDigestEncryptionAlgorithm();
+        final String daOid = sigInfo.getDigestAlgorithm();
+        final String daName = sigInfo.getDigestAlgorithmName();
+        final String deaOid = sigInfo.getDigestEncryptionAlgorithm();
+
         String alg = null;
-        if (da != null && dea != null) {
-            alg = da + "with" +  dea;
-            try{
-                // BEGIN android-removed
-                // sig = OpenSSLSignature.getInstance(alg);
-                // END android-removed
-                // BEGIN android-added
-                sig = OpenSSLSignature.getInstance(alg);
-                // END android-removed
-            } catch (NoSuchAlgorithmException e) {}
-        }
-        if (sig == null) {
-            alg = da;
-            if (alg == null) {
-                return null;
-            }
-            try{
-                // BEGIN android-removed
-                // sig = OpenSSLSignature.getInstance(alg);
-                // END android-removed
-                // BEGIN android-added
-                sig = OpenSSLSignature.getInstance(alg);
-                // END android-removed
+        Signature sig = null;
+
+        if (daOid != null && deaOid != null) {
+            alg = daOid + "with" + deaOid;
+            try {
+                sig = Signature.getInstance(alg);
             } catch (NoSuchAlgorithmException e) {
-                return null;
+            }
+
+            // Try to convert to names instead of OID.
+            if (sig == null) {
+                final String deaName = sigInfo.getDigestEncryptionAlgorithmName();
+                alg = daName + "with" + deaName;
+                try {
+                    sig = Signature.getInstance(alg);
+                } catch (NoSuchAlgorithmException e) {
+                }
             }
         }
+
+        /*
+         * TODO figure out the case in which we'd only use digestAlgorithm and
+         * add a test for it.
+         */
+        if (sig == null && daOid != null) {
+            alg = daOid;
+            try {
+                sig = Signature.getInstance(alg);
+            } catch (NoSuchAlgorithmException e) {
+            }
+
+            if (sig == null && daName != null) {
+                alg = daName;
+                try {
+                    sig = Signature.getInstance(alg);
+                } catch (NoSuchAlgorithmException e) {
+                }
+            }
+        }
+
+        // We couldn't find a valid Signature type.
+        if (sig == null) {
+            return null;
+        }
+
         sig.initVerify(certs[issuerSertIndex]);
 
         // If the authenticatedAttributes field of SignerInfo contains more than zero attributes,
         // compute the message digest on the ASN.1 DER encoding of the Attributes value.
         // Otherwise, compute the message digest on the data.
-        List atr = sigInfo.getAuthenticatedAttributes();
+        List<AttributeTypeAndValue> atr = sigInfo.getAuthenticatedAttributes();
 
         byte[] sfBytes = new byte[signature.available()];
         signature.read(sfBytes);
@@ -163,9 +181,8 @@ public class JarUtils {
             // If the authenticatedAttributes field contains the message-digest attribute,
             // verify that it equals the computed digest of the signature file
             byte[] existingDigest = null;
-            for (Iterator it = atr.iterator(); it.hasNext();) {
-                AttributeTypeAndValue a = (AttributeTypeAndValue)it.next();
-                if (Arrays.equals(a.getType().getOid(), MESSAGE_DIGEST_OID) ){
+            for (AttributeTypeAndValue a : atr) {
+                if (Arrays.equals(a.getType().getOid(), MESSAGE_DIGEST_OID)) {
 //TODO value                    existingDigest = a.AttributeValue;
                 }
             }

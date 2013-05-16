@@ -17,9 +17,6 @@
 
 package libcore.java.nio.channels;
 
-import dalvik.annotation.TestLevel;
-import dalvik.annotation.TestTargetClass;
-import dalvik.annotation.TestTargetNew;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -28,17 +25,10 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.spi.SelectorProvider;
 import junit.framework.TestCase;
-import tests.support.Support_PortManager;
 
-/*
- * test for ServerSocketChannel
- */
-@TestTargetClass(ServerSocketChannel.class)
 public class OldServerSocketChannelTest extends TestCase {
 
     private static final int TIME_UNIT = 200;
-
-    private InetSocketAddress localAddr1;
 
     private ServerSocketChannel serverChannel;
 
@@ -46,9 +36,6 @@ public class OldServerSocketChannelTest extends TestCase {
 
     protected void setUp() throws Exception {
         super.setUp();
-        this.localAddr1 = new InetSocketAddress(
-                "127.0.0.1", Support_PortManager
-                        .getNextPort());
         this.serverChannel = ServerSocketChannel.open();
         this.clientChannel = SocketChannel.open();
     }
@@ -75,15 +62,6 @@ public class OldServerSocketChannelTest extends TestCase {
     // -------------------------------------------------------------------
     // Test for methods in abstract class.
     // -------------------------------------------------------------------
-    /*
-     * Test method for 'java.nio.channels.ServerSocketChannel()'
-     */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "ServerSocketChannel",
-        args = {java.nio.channels.spi.SelectorProvider.class}
-    )
     public void testConstructor() throws IOException {
         ServerSocketChannel channel =
                 SelectorProvider.provider().openServerSocketChannel();
@@ -91,28 +69,16 @@ public class OldServerSocketChannelTest extends TestCase {
         assertSame(SelectorProvider.provider(),channel.provider());
     }
 
-    @TestTargetNew(
-        level = TestLevel.PARTIAL_COMPLETE,
-        notes = "",
-        method = "isOpen",
-        args = {}
-    )
     public void testIsOpen() throws Exception {
         assertTrue(this.serverChannel.isOpen());
         this.serverChannel.close();
         assertFalse(this.serverChannel.isOpen());
     }
 
-    @TestTargetNew(
-        level = TestLevel.PARTIAL_COMPLETE,
-        notes = "Verifies ClosedByInterruptException.",
-        method = "accept",
-        args = {}
-    )
     public void test_accept_Block_NoConnect_interrupt() throws IOException {
         assertTrue(this.serverChannel.isBlocking());
         ServerSocket gotSocket = this.serverChannel.socket();
-        gotSocket.bind(localAddr1);
+        gotSocket.bind(null);
 
         class MyThread extends Thread {
             public String errMsg = null;

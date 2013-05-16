@@ -89,7 +89,6 @@ public final class Subject implements Serializable {
      * credentials and principals with the empty set.
      */
     public Subject() {
-        super();
         principals = new SecureSet<Principal>(_PRINCIPALS);
         publicCredentials = new SecureSet<Object>(_PUBLIC_CREDENTIALS);
         privateCredentials = new SecureSet<Object>(_PRIVATE_CREDENTIALS);
@@ -117,8 +116,12 @@ public final class Subject implements Serializable {
     public Subject(boolean readOnly, Set<? extends Principal> subjPrincipals,
             Set<?> pubCredentials, Set<?> privCredentials) {
 
-        if (subjPrincipals == null || pubCredentials == null || privCredentials == null) {
-            throw new NullPointerException();
+        if (subjPrincipals == null) {
+            throw new NullPointerException("subjPrincipals == null");
+        } else if (pubCredentials == null) {
+            throw new NullPointerException("pubCredentials == null");
+        } else if (privCredentials == null) {
+            throw new NullPointerException("privCredentials == null");
         }
 
         principals = new SecureSet<Principal>(_PRINCIPALS, subjPrincipals);
@@ -140,9 +143,6 @@ public final class Subject implements Serializable {
      */
     @SuppressWarnings("unchecked")
     public static <T> T doAs(Subject subject, PrivilegedAction<T> action) {
-
-        checkPermission(_AS);
-
         return doAs_PrivilegedAction(subject, action, AccessController.getContext());
     }
 
@@ -164,9 +164,6 @@ public final class Subject implements Serializable {
     @SuppressWarnings("unchecked")
     public static <T> T doAsPrivileged(Subject subject, PrivilegedAction<T> action,
             AccessControlContext context) {
-
-        checkPermission(_AS_PRIVILEGED);
-
         if (context == null) {
             return doAs_PrivilegedAction(subject, action, new AccessControlContext(
                     new ProtectionDomain[0]));
@@ -192,7 +189,6 @@ public final class Subject implements Serializable {
 
         PrivilegedAction dccAction = new PrivilegedAction() {
             public Object run() {
-
                 return new AccessControlContext(context, combiner);
             }
         };
@@ -217,9 +213,6 @@ public final class Subject implements Serializable {
     @SuppressWarnings("unchecked")
     public static <T> T doAs(Subject subject, PrivilegedExceptionAction<T> action)
             throws PrivilegedActionException {
-
-        checkPermission(_AS);
-
         return doAs_PrivilegedExceptionAction(subject, action, AccessController.getContext());
     }
 
@@ -244,9 +237,6 @@ public final class Subject implements Serializable {
     public static <T> T doAsPrivileged(Subject subject,
             PrivilegedExceptionAction<T> action, AccessControlContext context)
             throws PrivilegedActionException {
-
-        checkPermission(_AS_PRIVILEGED);
-
         if (context == null) {
             return doAs_PrivilegedExceptionAction(subject, action,
                     new AccessControlContext(new ProtectionDomain[0]));
@@ -406,8 +396,6 @@ public final class Subject implements Serializable {
      * works though.
      */
     public void setReadOnly() {
-        checkPermission(_READ_ONLY);
-
         readOnly = true;
     }
 
@@ -482,9 +470,8 @@ public final class Subject implements Serializable {
      *         context} provided as argument.
      */
     public static Subject getSubject(final AccessControlContext context) {
-        checkPermission(_SUBJECT);
         if (context == null) {
-            throw new NullPointerException("AccessControlContext cannot be null");
+            throw new NullPointerException("context == null");
         }
         PrivilegedAction<DomainCombiner> action = new PrivilegedAction<DomainCombiner>() {
             public DomainCombiner run() {
@@ -497,14 +484,6 @@ public final class Subject implements Serializable {
             return null;
         }
         return ((SubjectDomainCombiner) combiner).getSubject();
-    }
-
-    // checks passed permission
-    private static void checkPermission(Permission p) {
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            sm.checkPermission(p);
-        }
     }
 
     private void checkState() {
@@ -579,7 +558,7 @@ public final class Subject implements Serializable {
         private void verifyElement(Object o) {
 
             if (o == null) {
-                throw new NullPointerException();
+                throw new NullPointerException("o == null");
             }
             if (permission == _PRINCIPALS && !(Principal.class.isAssignableFrom(o.getClass()))) {
                 throw new IllegalArgumentException("Element is not instance of java.security.Principal");
@@ -596,7 +575,6 @@ public final class Subject implements Serializable {
             verifyElement(o);
 
             checkState();
-            checkPermission(permission);
 
             if (!elements.contains(o)) {
                 elements.add(o);
@@ -622,8 +600,6 @@ public final class Subject implements Serializable {
                     @Override
                     public SST next() {
                         SST obj = iterator.next();
-                        checkPermission(new PrivateCredentialPermission(obj
-                                .getClass().getName(), principals));
                         return obj;
                     }
                 };
@@ -635,7 +611,7 @@ public final class Subject implements Serializable {
         public boolean retainAll(Collection<?> c) {
 
             if (c == null) {
-                throw new NullPointerException();
+                throw new NullPointerException("c == null");
             }
             return super.retainAll(c);
         }
@@ -652,7 +628,7 @@ public final class Subject implements Serializable {
         protected final <E> Set<E> get(final Class<E> c) {
 
             if (c == null) {
-                throw new NullPointerException();
+                throw new NullPointerException("c == null");
             }
 
             AbstractSet<E> s = new AbstractSet<E>() {
@@ -680,7 +656,7 @@ public final class Subject implements Serializable {
                 public boolean retainAll(Collection<?> c) {
 
                     if (c == null) {
-                        throw new NullPointerException();
+                        throw new NullPointerException("c == null");
                     }
                     return super.retainAll(c);
                 }
@@ -727,8 +703,6 @@ public final class Subject implements Serializable {
         private void writeObject(ObjectOutputStream out) throws IOException {
 
             if (permission == _PRIVATE_CREDENTIALS) {
-                // iteration causes checkPermission to be called for each element
-                for (SST unused : this) {}
                 setType = SET_PrivCred;
             } else if (permission == _PRINCIPALS) {
                 setType = SET_Principal;
@@ -763,7 +737,6 @@ public final class Subject implements Serializable {
              */
             public void remove() {
                 checkState();
-                checkPermission(permission);
                 iterator.remove();
             }
         }

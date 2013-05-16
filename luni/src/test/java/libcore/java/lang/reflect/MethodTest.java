@@ -17,8 +17,45 @@
 package libcore.java.lang.reflect;
 
 import java.lang.reflect.Method;
+import junit.framework.TestCase;
 
-public class MethodTest extends junit.framework.TestCase {
+public final class MethodTest extends TestCase {
+    // Check that the VM gives useful detail messages.
+    public void test_invokeExceptions() throws Exception {
+        Method m = String.class.getMethod("charAt", int.class);
+        try {
+            m.invoke("hello"); // Wrong number of arguments.
+            fail();
+        } catch (IllegalArgumentException iae) {
+            assertEquals("wrong number of arguments; expected 1, got 0", iae.getMessage());
+        }
+        try {
+            m.invoke("hello", "world"); // Wrong type.
+            fail();
+        } catch (IllegalArgumentException iae) {
+            assertEquals("argument 1 should have type int, got java.lang.String", iae.getMessage());
+        }
+        try {
+            m.invoke("hello", (Object) null); // Null for a primitive argument.
+            fail();
+        } catch (IllegalArgumentException iae) {
+            assertEquals("argument 1 should have type int, got null", iae.getMessage());
+        }
+        try {
+            m.invoke(new Integer(5)); // Wrong type for 'this'.
+            fail();
+        } catch (IllegalArgumentException iae) {
+            assertEquals("expected receiver of type java.lang.String, but got java.lang.Integer", iae.getMessage());
+        }
+        try {
+            m.invoke(null); // Null for 'this'.
+            fail();
+        } catch (NullPointerException npe) {
+            assertEquals("expected receiver of type java.lang.String, but got null",
+                    npe.getMessage());
+        }
+    }
+
     public void test_getExceptionTypes() throws Exception {
         Method method = MethodTestHelper.class.getMethod("m1", new Class[0]);
         Class[] exceptions = method.getExceptionTypes();
@@ -44,8 +81,157 @@ public class MethodTest extends junit.framework.TestCase {
         assertEquals(expectedParameters[0], parameters[0]);
     }
 
-    static class MethodTestHelper {
+    public void testGetMethodWithPrivateMethodAndInterfaceMethod() throws Exception {
+        assertEquals(InterfaceA.class, Sub.class.getMethod("a").getDeclaringClass());
+    }
+
+    public void testGetMethodReturnsIndirectlyImplementedInterface() throws Exception {
+        assertEquals(InterfaceA.class, ImplementsC.class.getMethod("a").getDeclaringClass());
+        assertEquals(InterfaceA.class, ExtendsImplementsC.class.getMethod("a").getDeclaringClass());
+    }
+
+    public void testGetDeclaredMethodReturnsIndirectlyImplementedInterface() throws Exception {
+        try {
+            ImplementsC.class.getDeclaredMethod("a").getDeclaringClass();
+            fail();
+        } catch (NoSuchMethodException expected) {
+        }
+        try {
+            ExtendsImplementsC.class.getDeclaredMethod("a").getDeclaringClass();
+            fail();
+        } catch (NoSuchMethodException expected) {
+        }
+    }
+
+    public void testGetMethodWithConstructorName() throws Exception {
+        try {
+            MethodTestHelper.class.getMethod("<init>");
+            fail();
+        } catch (NoSuchMethodException expected) {
+        }
+    }
+
+    public void testGetMethodWithNullName() throws Exception {
+        try {
+            MethodTestHelper.class.getMethod(null);
+            fail();
+        } catch (NullPointerException expected) {
+        }
+    }
+
+    public void testGetMethodWithNullArgumentsArray() throws Exception {
+        Method m1 = MethodTestHelper.class.getMethod("m1", (Class[]) null);
+        assertEquals(0, m1.getParameterTypes().length);
+    }
+
+    public void testGetMethodWithNullArgument() throws Exception {
+        try {
+            MethodTestHelper.class.getMethod("m2", new Class[] { null });
+            fail();
+        } catch (NoSuchMethodException expected) {
+        }
+    }
+
+    public void testGetMethodReturnsInheritedStaticMethod() throws Exception {
+        Method b = Sub.class.getMethod("b");
+        assertEquals(void.class, b.getReturnType());
+    }
+
+    public void testGetDeclaredMethodReturnsPrivateMethods() throws Exception {
+        Method method = Super.class.getDeclaredMethod("a");
+        assertEquals(void.class, method.getReturnType());
+    }
+
+    public void testGetDeclaredMethodDoesNotReturnSuperclassMethods() throws Exception {
+        try {
+            Sub.class.getDeclaredMethod("a");
+            fail();
+        } catch (NoSuchMethodException expected) {
+        }
+    }
+
+    public void testGetDeclaredMethodDoesNotReturnImplementedInterfaceMethods() throws Exception {
+        try {
+            InterfaceB.class.getDeclaredMethod("a");
+            fail();
+        } catch (NoSuchMethodException expected) {
+        }
+    }
+
+    public void testImplementedInterfaceMethodOfAnonymousClass() throws Exception {
+        Object anonymous = new InterfaceA() {
+            @Override public void a() {
+            }
+        };
+        Method method = anonymous.getClass().getMethod("a");
+        assertEquals(anonymous.getClass(), method.getDeclaringClass());
+    }
+
+    public void testPublicMethodOfAnonymousClass() throws Exception {
+        Object anonymous = new Object() {
+            public void a() {
+            }
+        };
+        Method method = anonymous.getClass().getMethod("a");
+        assertEquals(anonymous.getClass(), method.getDeclaringClass());
+    }
+
+    public void testGetMethodDoesNotReturnPrivateMethodOfAnonymousClass() throws Exception {
+        Object anonymous = new Object() {
+            private void a() {
+            }
+        };
+        try {
+            anonymous.getClass().getMethod("a");
+            fail();
+        } catch (NoSuchMethodException expected) {
+        }
+    }
+
+    public void testGetDeclaredMethodReturnsPrivateMethodOfAnonymousClass() throws Exception {
+        Object anonymous = new Object() {
+            private void a() {
+            }
+        };
+        Method method = anonymous.getClass().getDeclaredMethod("a");
+        assertEquals(anonymous.getClass(), method.getDeclaringClass());
+    }
+
+    // http://b/1045939
+    public void testMethodToString() throws Exception {
+        assertEquals("public final native void java.lang.Object.notify()",
+                Object.class.getMethod("notify", new Class[] { }).toString());
+        assertEquals("public java.lang.String java.lang.Object.toString()",
+                Object.class.getMethod("toString", new Class[] { }).toString());
+        assertEquals("public final native void java.lang.Object.wait(long,int)"
+                + " throws java.lang.InterruptedException",
+                Object.class.getMethod("wait", new Class[] { long.class, int.class }).toString());
+        assertEquals("public boolean java.lang.Object.equals(java.lang.Object)",
+                Object.class.getMethod("equals", new Class[] { Object.class }).toString());
+        assertEquals("public static java.lang.String java.lang.String.valueOf(char[])",
+                String.class.getMethod("valueOf", new Class[] { char[].class }).toString());
+        assertEquals( "public java.lang.Process java.lang.Runtime.exec(java.lang.String[])"
+                + " throws java.io.IOException",
+                Runtime.class.getMethod("exec", new Class[] { String[].class }).toString());
+    }
+
+    public static class MethodTestHelper {
         public void m1() throws IndexOutOfBoundsException { }
         public void m2(Object o) { }
     }
+
+    public static class Super {
+        private void a() {}
+        public static void b() {}
+    }
+    public static interface InterfaceA {
+        void a();
+    }
+    public static abstract class Sub extends Super implements InterfaceA {
+    }
+
+    public static interface InterfaceB extends InterfaceA {}
+    public static interface InterfaceC extends InterfaceB {}
+    public static abstract class ImplementsC implements InterfaceC {}
+    public static abstract class ExtendsImplementsC extends ImplementsC {}
 }

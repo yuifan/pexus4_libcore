@@ -15,72 +15,114 @@
  */
 
 #include "JniConstants.h"
+#include "ScopedLocalRef.h"
 
 #include <stdlib.h>
 
 jclass JniConstants::bidiRunClass;
 jclass JniConstants::bigDecimalClass;
 jclass JniConstants::booleanClass;
-jclass JniConstants::byteClass;
 jclass JniConstants::byteArrayClass;
+jclass JniConstants::byteClass;
+jclass JniConstants::calendarClass;
 jclass JniConstants::charsetICUClass;
 jclass JniConstants::constructorClass;
-jclass JniConstants::datagramPacketClass;
 jclass JniConstants::deflaterClass;
 jclass JniConstants::doubleClass;
+jclass JniConstants::errnoExceptionClass;
 jclass JniConstants::fieldClass;
 jclass JniConstants::fieldPositionIteratorClass;
-jclass JniConstants::multicastGroupRequestClass;
+jclass JniConstants::fileDescriptorClass;
+jclass JniConstants::gaiExceptionClass;
+jclass JniConstants::inet6AddressClass;
 jclass JniConstants::inetAddressClass;
+jclass JniConstants::inetSocketAddressClass;
+jclass JniConstants::inetUnixAddressClass;
 jclass JniConstants::inflaterClass;
+jclass JniConstants::inputStreamClass;
 jclass JniConstants::integerClass;
-jclass JniConstants::interfaceAddressClass;
 jclass JniConstants::localeDataClass;
 jclass JniConstants::longClass;
 jclass JniConstants::methodClass;
+jclass JniConstants::mutableIntClass;
+jclass JniConstants::mutableLongClass;
+jclass JniConstants::objectClass;
+jclass JniConstants::objectArrayClass;
+jclass JniConstants::outputStreamClass;
 jclass JniConstants::parsePositionClass;
 jclass JniConstants::patternSyntaxExceptionClass;
 jclass JniConstants::realToStringClass;
 jclass JniConstants::socketClass;
 jclass JniConstants::socketImplClass;
 jclass JniConstants::stringClass;
-jclass JniConstants::vmRuntimeClass;
+jclass JniConstants::structAddrinfoClass;
+jclass JniConstants::structFlockClass;
+jclass JniConstants::structGroupReqClass;
+jclass JniConstants::structLingerClass;
+jclass JniConstants::structPasswdClass;
+jclass JniConstants::structPollfdClass;
+jclass JniConstants::structStatClass;
+jclass JniConstants::structStatFsClass;
+jclass JniConstants::structTimevalClass;
+jclass JniConstants::structUcredClass;
+jclass JniConstants::structUtsnameClass;
 
 static jclass findClass(JNIEnv* env, const char* name) {
-    jclass result = reinterpret_cast<jclass>(env->NewGlobalRef(env->FindClass(name)));
+    ScopedLocalRef<jclass> localClass(env, env->FindClass(name));
+    jclass result = reinterpret_cast<jclass>(env->NewGlobalRef(localClass.get()));
     if (result == NULL) {
-        LOGE("failed to find class '%s'", name);
+        ALOGE("failed to find class '%s'", name);
         abort();
     }
     return result;
 }
 
 void JniConstants::init(JNIEnv* env) {
-    bidiRunClass = findClass(env, "org/apache/harmony/text/BidiRun");
+    bidiRunClass = findClass(env, "java/text/Bidi$Run");
     bigDecimalClass = findClass(env, "java/math/BigDecimal");
     booleanClass = findClass(env, "java/lang/Boolean");
     byteClass = findClass(env, "java/lang/Byte");
     byteArrayClass = findClass(env, "[B");
-    charsetICUClass = findClass(env, "com/ibm/icu4jni/charset/CharsetICU");
+    calendarClass = findClass(env, "java/util/Calendar");
+    charsetICUClass = findClass(env, "java/nio/charset/CharsetICU");
     constructorClass = findClass(env, "java/lang/reflect/Constructor");
-    datagramPacketClass = findClass(env, "java/net/DatagramPacket");
     deflaterClass = findClass(env, "java/util/zip/Deflater");
     doubleClass = findClass(env, "java/lang/Double");
+    errnoExceptionClass = findClass(env, "libcore/io/ErrnoException");
     fieldClass = findClass(env, "java/lang/reflect/Field");
-    fieldPositionIteratorClass = findClass(env, "com/ibm/icu4jni/text/NativeDecimalFormat$FieldPositionIterator");
+    fieldPositionIteratorClass = findClass(env, "libcore/icu/NativeDecimalFormat$FieldPositionIterator");
+    fileDescriptorClass = findClass(env, "java/io/FileDescriptor");
+    gaiExceptionClass = findClass(env, "libcore/io/GaiException");
+    inet6AddressClass = findClass(env, "java/net/Inet6Address");
     inetAddressClass = findClass(env, "java/net/InetAddress");
+    inetSocketAddressClass = findClass(env, "java/net/InetSocketAddress");
+    inetUnixAddressClass = findClass(env, "java/net/InetUnixAddress");
     inflaterClass = findClass(env, "java/util/zip/Inflater");
+    inputStreamClass = findClass(env, "java/io/InputStream");
     integerClass = findClass(env, "java/lang/Integer");
-    interfaceAddressClass = findClass(env, "java/net/InterfaceAddress");
-    localeDataClass = findClass(env, "com/ibm/icu4jni/util/LocaleData");
+    localeDataClass = findClass(env, "libcore/icu/LocaleData");
     longClass = findClass(env, "java/lang/Long");
     methodClass = findClass(env, "java/lang/reflect/Method");
-    multicastGroupRequestClass = findClass(env, "java/net/MulticastGroupRequest");
+    mutableIntClass = findClass(env, "libcore/util/MutableInt");
+    mutableLongClass = findClass(env, "libcore/util/MutableLong");
+    objectClass = findClass(env, "java/lang/Object");
+    objectArrayClass = findClass(env, "[Ljava/lang/Object;");
+    outputStreamClass = findClass(env, "java/io/OutputStream");
     parsePositionClass = findClass(env, "java/text/ParsePosition");
     patternSyntaxExceptionClass = findClass(env, "java/util/regex/PatternSyntaxException");
     realToStringClass = findClass(env, "java/lang/RealToString");
     socketClass = findClass(env, "java/net/Socket");
     socketImplClass = findClass(env, "java/net/SocketImpl");
     stringClass = findClass(env, "java/lang/String");
-    vmRuntimeClass = findClass(env, "dalvik/system/VMRuntime");
+    structAddrinfoClass = findClass(env, "libcore/io/StructAddrinfo");
+    structFlockClass = findClass(env, "libcore/io/StructFlock");
+    structGroupReqClass = findClass(env, "libcore/io/StructGroupReq");
+    structLingerClass = findClass(env, "libcore/io/StructLinger");
+    structPasswdClass = findClass(env, "libcore/io/StructPasswd");
+    structPollfdClass = findClass(env, "libcore/io/StructPollfd");
+    structStatClass = findClass(env, "libcore/io/StructStat");
+    structStatFsClass = findClass(env, "libcore/io/StructStatFs");
+    structTimevalClass = findClass(env, "libcore/io/StructTimeval");
+    structUcredClass = findClass(env, "libcore/io/StructUcred");
+    structUtsnameClass = findClass(env, "libcore/io/StructUtsname");
 }

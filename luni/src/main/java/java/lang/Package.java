@@ -49,9 +49,15 @@ import java.net.URL;
  * @see java.lang.ClassLoader
  */
 public class Package implements AnnotatedElement {
+    private static final Annotation[] NO_ANNOTATIONS = new Annotation[0];
 
-    private final String name, specTitle, specVersion, specVendor, implTitle,
-            implVersion, implVendor;
+    private final String name;
+    private final String specTitle;
+    private final String specVersion;
+    private final String specVendor;
+    private final String implTitle;
+    private final String implVersion;
+    private final String implVendor;
     private final URL sealBase;
 
     Package(String name, String specTitle, String specVersion, String specVendor,
@@ -67,7 +73,7 @@ public class Package implements AnnotatedElement {
     }
 
     /**
-     * Gets the annotation associated with the specified annotation type and
+     * Returns the annotation associated with the specified annotation type and
      * this package, if present.
      *
      * @param annotationType
@@ -77,48 +83,33 @@ public class Package implements AnnotatedElement {
      */
     @SuppressWarnings("unchecked")
     public <A extends Annotation> A getAnnotation(Class<A> annotationType) {
-        Annotation[] list = getAnnotations();
-        for (int i = 0; i < list.length; i++) {
-            if (annotationType.isInstance(list[i])) {
-                return (A) list[i];
+        for (Annotation annotation : getAnnotations()) {
+            if (annotationType.isInstance(annotation)) {
+                return (A) annotation;
             }
         }
-
         return null;
     }
 
     /**
-     * Gets all annotations associated with this package, if any.
-     *
-     * @return an array of {@link Annotation} instances, which may be empty.
-     * @see java.lang.reflect.AnnotatedElement#getAnnotations()
+     * Returns an array of this package's annotations.
      */
     public Annotation[] getAnnotations() {
-        return getDeclaredAnnotations(this, true);
+        try {
+            Class<?> c = Class.forName(getName() + ".package-info");
+            return c.getAnnotations();
+        } catch (Exception ex) {
+            return NO_ANNOTATIONS;
+        }
     }
 
     /**
-     * Gets all annotations directly declared on this package, if any.
-     *
-     * @return an array of {@link Annotation} instances, which may be empty.
-     * @see java.lang.reflect.AnnotatedElement#getDeclaredAnnotations()
+     * Returns an array of this package's declared annotations. Package annotations aren't
+     * inherited, so this is equivalent to {@link #getAnnotations}.
      */
     public Annotation[] getDeclaredAnnotations() {
-        return getDeclaredAnnotations(this, false);
+        return getAnnotations();
     }
-
-    /*
-     * Returns the list of declared annotations of the given package.
-     * If no annotations exist, an empty array is returned.
-     *
-     * @param pkg the package of interest
-     * @param publicOnly reflects whether we want only public annotation or all
-     * of them.
-     * @return the list of annotations
-     */
-    // TODO(Google) Provide proper (native) implementation.
-    private static native Annotation[] getDeclaredAnnotations(Package pkg,
-            boolean publicOnly);
 
     /**
      * Indicates whether the specified annotation is present.
@@ -129,8 +120,7 @@ public class Package implements AnnotatedElement {
      *         otherwise.
      * @see java.lang.reflect.AnnotatedElement#isAnnotationPresent(java.lang.Class)
      */
-    public boolean isAnnotationPresent(
-            Class<? extends Annotation> annotationType) {
+    public boolean isAnnotationPresent(Class<? extends Annotation> annotationType) {
         return getAnnotation(annotationType) != null;
     }
 
@@ -186,6 +176,9 @@ public class Package implements AnnotatedElement {
      */
     public static Package getPackage(String packageName) {
         ClassLoader classloader = VMStack.getCallingClassLoader();
+        if (classloader == null) {
+            classloader = ClassLoader.getSystemClassLoader();
+        }
         return classloader.getPackage(packageName);
     }
 
@@ -197,6 +190,9 @@ public class Package implements AnnotatedElement {
      */
     public static Package[] getPackages() {
         ClassLoader classloader = VMStack.getCallingClassLoader();
+        if (classloader == null) {
+            classloader = ClassLoader.getSystemClassLoader();
+        }
         return classloader.getPackages();
     }
 
@@ -250,8 +246,7 @@ public class Package implements AnnotatedElement {
      *             if this package's version string or the one provided are not
      *             in the correct format.
      */
-    public boolean isCompatibleWith(String version)
-            throws NumberFormatException {
+    public boolean isCompatibleWith(String version) throws NumberFormatException {
         String[] requested = version.split("\\.");
         String[] provided = specVersion.split("\\.");
 

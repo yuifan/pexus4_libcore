@@ -32,25 +32,22 @@
 
 package java.lang;
 
+import dalvik.system.BaseDexClassLoader;
 import dalvik.system.VMDebug;
 import dalvik.system.VMStack;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
-import java.io.Reader;
-import java.io.UnsupportedEncodingException;
-import java.io.Writer;
-import java.nio.charset.Charsets;
+import java.lang.ref.FinalizerReference;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.StringTokenizer;
+import libcore.io.IoUtils;
+import libcore.io.Libcore;
+import static libcore.io.OsConstants._SC_NPROCESSORS_CONF;
 
 /**
  * Allows Java applications to interface with the environment in which they are
@@ -95,7 +92,7 @@ public class Runtime {
     /**
      * Prevent this class from being instantiated.
      */
-    private Runtime(){
+    private Runtime() {
         String pathList = System.getProperty("java.library.path", ".");
         String pathSep = System.getProperty("path.separator", ":");
         String fileSep = System.getProperty("file.separator", "/");
@@ -108,10 +105,6 @@ public class Runtime {
             if (!mLibPaths[i].endsWith(fileSep)) {
                 mLibPaths[i] += fileSep;
             }
-        }
-
-        if (false) {
-            System.out.println("Runtime paths: " + Arrays.toString(mLibPaths));
         }
     }
 
@@ -127,10 +120,6 @@ public class Runtime {
      *         process.
      * @throws IOException
      *             if the requested program can not be executed.
-     * @throws SecurityException
-     *             if the current {@code SecurityManager} disallows program
-     *             execution.
-     * @see SecurityManager#checkExec
      */
     public Process exec(String[] progArray) throws java.io.IOException {
         return exec(progArray, null, null);
@@ -152,10 +141,6 @@ public class Runtime {
      *         process.
      * @throws IOException
      *             if the requested program can not be executed.
-     * @throws SecurityException
-     *             if the current {@code SecurityManager} disallows program
-     *             execution.
-     * @see SecurityManager#checkExec
      */
     public Process exec(String[] progArray, String[] envp) throws java.io.IOException {
         return exec(progArray, envp, null);
@@ -179,15 +164,10 @@ public class Runtime {
      *         process.
      * @throws IOException
      *             if the requested program can not be executed.
-     * @throws SecurityException
-     *             if the current {@code SecurityManager} disallows program
-     *             execution.
-     * @see SecurityManager#checkExec
      */
     public Process exec(String[] progArray, String[] envp, File directory) throws IOException {
-        // BEGIN android-changed: push responsibility for argument checking into ProcessManager
+        // ProcessManager is responsible for all argument checking.
         return ProcessManager.getInstance().exec(progArray, envp, directory, false);
-        // END android-changed
     }
 
     /**
@@ -201,10 +181,6 @@ public class Runtime {
      *         process.
      * @throws IOException
      *             if the requested program can not be executed.
-     * @throws SecurityException
-     *             if the current {@code SecurityManager} disallows program
-     *             execution.
-     * @see SecurityManager#checkExec
      */
     public Process exec(String prog) throws java.io.IOException {
         return exec(prog, null, null);
@@ -224,10 +200,6 @@ public class Runtime {
      *         process.
      * @throws IOException
      *             if the requested program can not be executed.
-     * @throws SecurityException
-     *             if the current {@code SecurityManager} disallows program
-     *             execution.
-     * @see SecurityManager#checkExec
      */
     public Process exec(String prog, String[] envp) throws java.io.IOException {
         return exec(prog, envp, null);
@@ -250,17 +222,13 @@ public class Runtime {
      *         process.
      * @throws IOException
      *             if the requested program can not be executed.
-     * @throws SecurityException
-     *             if the current {@code SecurityManager} disallows program
-     *             execution.
-     * @see SecurityManager#checkExec
      */
     public Process exec(String prog, String[] envp, File directory) throws java.io.IOException {
         // Sanity checks
         if (prog == null) {
-            throw new NullPointerException();
-        } else if (prog.length() == 0) {
-            throw new IllegalArgumentException();
+            throw new NullPointerException("prog == null");
+        } else if (prog.isEmpty()) {
+            throw new IllegalArgumentException("prog is empty");
         }
 
         // Break down into tokens, as described in Java docs
@@ -276,26 +244,14 @@ public class Runtime {
     }
 
     /**
-     * Causes the virtual machine to stop running and the program to exit. If
-     * {@link #runFinalizersOnExit(boolean)} has been previously invoked with a
+     * Causes the VM to stop running and the program to exit.
+     * If {@link #runFinalizersOnExit(boolean)} has been previously invoked with a
      * {@code true} argument, then all objects will be properly
      * garbage-collected and finalized first.
-     *
-     * @param code
-     *            the return code. By convention, non-zero return codes indicate
-     *            abnormal terminations.
-     * @throws SecurityException
-     *             if the current {@code SecurityManager} does not allow the
-     *             running thread to terminate the virtual machine.
-     * @see SecurityManager#checkExit
+     * Use 0 to signal success to the calling process and 1 to signal failure.
+     * This method is unlikely to be useful to an Android application.
      */
     public void exit(int code) {
-        // Security checks
-        SecurityManager smgr = System.getSecurityManager();
-        if (smgr != null) {
-            smgr.checkExit(code);
-        }
-
         // Make sure we don't try this several times
         synchronized(this) {
             if (!shuttingDown) {
@@ -309,8 +265,8 @@ public class Runtime {
                 }
 
                 // Start all shutdown hooks concurrently
-                for (int i = 0; i < hooks.length; i++) {
-                    hooks[i].start();
+                for (Thread hook : hooks) {
+                    hook.start();
                 }
 
                 // Wait for all shutdown hooks to finish
@@ -324,34 +280,24 @@ public class Runtime {
 
                 // Ensure finalization on exit, if requested
                 if (finalizeOnExit) {
-                    runFinalization(true);
+                    runFinalization();
                 }
 
                 // Get out of here finally...
-                nativeExit(code, true);
+                nativeExit(code);
             }
         }
     }
 
     /**
-     * Returns the amount of free memory resources which are available to the
-     * running program.
-     *
-     * @return the approximate amount of free memory, measured in bytes.
-     */
-    public native long freeMemory();
-
-    /**
-     * Indicates to the virtual machine that it would be a good time to run the
+     * Indicates to the VM that it would be a good time to run the
      * garbage collector. Note that this is a hint only. There is no guarantee
      * that the garbage collector will actually be run.
      */
     public native void gc();
 
     /**
-     * Returns the single {@code Runtime} instance.
-     *
-     * @return the {@code Runtime} object for the current application.
+     * Returns the single {@code Runtime} instance for the current application.
      */
     public static Runtime getRuntime() {
         return mRuntime;
@@ -367,29 +313,19 @@ public class Runtime {
      *            the absolute (platform dependent) path to the library to load.
      * @throws UnsatisfiedLinkError
      *             if the library can not be loaded.
-     * @throws SecurityException
-     *             if the current {@code SecurityManager} does not allow to load
-     *             the library.
-     * @see SecurityManager#checkLink
      */
     public void load(String pathName) {
-        // Security checks
-        SecurityManager smgr = System.getSecurityManager();
-        if (smgr != null) {
-            smgr.checkLink(pathName);
-        }
-
         load(pathName, VMStack.getCallingClassLoader());
     }
 
     /*
-     * Loads and links a library without security checks.
+     * Loads and links the given library without security checks.
      */
-    void load(String filename, ClassLoader loader) {
-        if (filename == null) {
-            throw new NullPointerException("library path was null.");
+    void load(String pathName, ClassLoader loader) {
+        if (pathName == null) {
+            throw new NullPointerException("pathName == null");
         }
-        String error = nativeLoad(filename, loader);
+        String error = doLoad(pathName, loader);
         if (error != null) {
             throw new UnsatisfiedLinkError(error);
         }
@@ -404,32 +340,23 @@ public class Runtime {
      *            the name of the library to load.
      * @throws UnsatisfiedLinkError
      *             if the library can not be loaded.
-     * @throws SecurityException
-     *             if the current {@code SecurityManager} does not allow to load
-     *             the library.
-     * @see SecurityManager#checkLink
      */
     public void loadLibrary(String libName) {
-        // Security checks
-        SecurityManager smgr = System.getSecurityManager();
-        if (smgr != null) {
-            smgr.checkLink(libName);
-        }
-
         loadLibrary(libName, VMStack.getCallingClassLoader());
     }
 
     /*
-     * Loads and links a library without security checks.
+     * Searches for a library, then loads and links it without security checks.
      */
     void loadLibrary(String libraryName, ClassLoader loader) {
         if (loader != null) {
             String filename = loader.findLibrary(libraryName);
             if (filename == null) {
-                throw new UnsatisfiedLinkError("Couldn't load " + libraryName + ": " +
-                        "findLibrary returned null");
+                throw new UnsatisfiedLinkError("Couldn't load " + libraryName +
+                                               " from loader " + loader +
+                                               ": findLibrary returned null");
             }
-            String error = nativeLoad(filename, loader);
+            String error = doLoad(filename, loader);
             if (error != null) {
                 throw new UnsatisfiedLinkError(error);
             }
@@ -442,8 +369,9 @@ public class Runtime {
         for (String directory : mLibPaths) {
             String candidate = directory + filename;
             candidates.add(candidate);
-            if (new File(candidate).exists()) {
-                String error = nativeLoad(candidate, loader);
+
+            if (IoUtils.canOpenReadOnly(candidate)) {
+                String error = doLoad(candidate, loader);
                 if (error == null) {
                     return; // We successfully loaded the library. Job done.
                 }
@@ -457,31 +385,58 @@ public class Runtime {
         throw new UnsatisfiedLinkError("Library " + libraryName + " not found; tried " + candidates);
     }
 
-    private static native void nativeExit(int code, boolean isExit);
+    private static native void nativeExit(int code);
 
-    private static native String nativeLoad(String filename, ClassLoader loader);
+    private String doLoad(String name, ClassLoader loader) {
+        // Android apps are forked from the zygote, so they can't have a custom LD_LIBRARY_PATH,
+        // which means that by default an app's shared library directory isn't on LD_LIBRARY_PATH.
+
+        // The PathClassLoader set up by frameworks/base knows the appropriate path, so we can load
+        // libraries with no dependencies just fine, but an app that has multiple libraries that
+        // depend on each other needed to load them in most-dependent-first order.
+
+        // We added API to Android's dynamic linker so we can update the library path used for
+        // the currently-running process. We pull the desired path out of the ClassLoader here
+        // and pass it to nativeLoad so that it can call the private dynamic linker API.
+
+        // We didn't just change frameworks/base to update the LD_LIBRARY_PATH once at the
+        // beginning because multiple apks can run in the same process and third party code can
+        // use its own BaseDexClassLoader.
+
+        // We didn't just add a dlopen_with_custom_LD_LIBRARY_PATH call because we wanted any
+        // dlopen(3) calls made from a .so's JNI_OnLoad to work too.
+
+        // So, find out what the native library search path is for the ClassLoader in question...
+        String ldLibraryPath = null;
+        if (loader != null && loader instanceof BaseDexClassLoader) {
+            ldLibraryPath = ((BaseDexClassLoader) loader).getLdLibraryPath();
+        }
+        // nativeLoad should be synchronized so there's only one LD_LIBRARY_PATH in use regardless
+        // of how many ClassLoaders are in the system, but dalvik doesn't support synchronized
+        // internal natives.
+        synchronized (this) {
+            return nativeLoad(name, loader, ldLibraryPath);
+        }
+    }
+
+    // TODO: should be synchronized, but dalvik doesn't support synchronized internal natives.
+    private static native String nativeLoad(String filename, ClassLoader loader, String ldLibraryPath);
 
     /**
-     * Requests proper finalization for all Objects on the heap.
-     *
-     * @param forced Decides whether the VM really needs to do this (true)
-     *               or if this is just a suggestion that can safely be ignored
-     *               (false).
-     */
-    private native void runFinalization(boolean forced);
-
-    /**
-     * Provides a hint to the virtual machine that it would be useful to attempt
+     * Provides a hint to the VM that it would be useful to attempt
      * to perform any outstanding object finalization.
-     *
      */
     public void runFinalization() {
-        runFinalization(false);
+        try {
+            FinalizerReference.finalizeAllEnqueued();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     /**
      * Sets the flag that indicates whether all objects are finalized when the
-     * virtual machine is about to exit. Note that all finalization which occurs
+     * VM is about to exit. Note that all finalization which occurs
      * when the system is exiting is performed after all running threads have
      * been terminated.
      *
@@ -492,39 +447,18 @@ public class Runtime {
      */
     @Deprecated
     public static void runFinalizersOnExit(boolean run) {
-        SecurityManager smgr = System.getSecurityManager();
-        if (smgr != null) {
-            smgr.checkExit(0);
-        }
         finalizeOnExit = run;
     }
 
     /**
-     * Returns the total amount of memory which is available to the running
-     * program.
-     *
-     * @return the total amount of memory, measured in bytes.
-     */
-    public native long totalMemory();
-
-    /**
      * Switches the output of debug information for instructions on or off.
      * On Android, this method does nothing.
-     *
-     * @param enable
-     *            {@code true} to switch tracing on, {@code false} to switch it
-     *            off.
      */
     public void traceInstructions(boolean enable) {
-        return;
     }
 
     /**
      * Switches the output of debug information for methods on or off.
-     *
-     * @param enable
-     *            {@code true} to switch tracing on, {@code false} to switch it
-     *            off.
      */
     public void traceMethodCalls(boolean enable) {
         if (enable != tracingMethods) {
@@ -551,7 +485,10 @@ public class Runtime {
     @Deprecated
     public InputStream getLocalizedInputStream(InputStream stream) {
         String encoding = System.getProperty("file.encoding", "UTF-8");
-        return encoding.equals("UTF-8") ? stream : new ReaderInputStream(stream, encoding);
+        if (!encoding.equals("UTF-8")) {
+            throw new UnsupportedOperationException("Cannot localize " + encoding);
+        }
+        return stream;
     }
 
     /**
@@ -568,32 +505,33 @@ public class Runtime {
     @Deprecated
     public OutputStream getLocalizedOutputStream(OutputStream stream) {
         String encoding = System.getProperty("file.encoding", "UTF-8");
-        return encoding.equals("UTF-8") ? stream : new WriterOutputStream(stream, encoding);
+        if (!encoding.equals("UTF-8")) {
+            throw new UnsupportedOperationException("Cannot localize " + encoding);
+        }
+        return stream;
     }
 
     /**
-     * Registers a virtual-machine shutdown hook. A shutdown hook is a
+     * Registers a VM shutdown hook. A shutdown hook is a
      * {@code Thread} that is ready to run, but has not yet been started. All
-     * registered shutdown hooks will be executed once the virtual machine shuts
-     * down properly. A proper shutdown happens when either the
-     * {@link #exit(int)} method is called or the surrounding system decides to
-     * terminate the application, for example in response to a {@code CTRL-C} or
-     * a system-wide shutdown. A termination of the virtual machine due to the
-     * {@link #halt(int)} method, an {@link Error} or a {@code SIGKILL}, in
-     * contrast, is not considered a proper shutdown. In these cases the
-     * shutdown hooks will not be run.
-     * <p>
-     * Shutdown hooks are run concurrently and in an unspecified order. Hooks
+     * registered shutdown hooks will be executed when the VM
+     * terminates normally (typically when the {@link #exit(int)} method is called).
+     *
+     * <p><i>Note that on Android, the application lifecycle does not include VM termination,
+     * so calling this method will not ensure that your code is run</i>. Instead, you should
+     * use the most appropriate lifecycle notification ({@code Activity.onPause}, say).
+     *
+     * <p>Shutdown hooks are run concurrently and in an unspecified order. Hooks
      * failing due to an unhandled exception are not a problem, but the stack
      * trace might be printed to the console. Once initiated, the whole shutdown
      * process can only be terminated by calling {@code halt()}.
-     * <p>
-     * If {@link #runFinalizersOnExit(boolean)} has been called with a {@code
+     *
+     * <p>If {@link #runFinalizersOnExit(boolean)} has been called with a {@code
      * true} argument, garbage collection and finalization will take place after
-     * all hooks are either finished or have failed. Then the virtual machine
+     * all hooks are either finished or have failed. Then the VM
      * terminates.
-     * <p>
-     * It is recommended that shutdown hooks do not do any time-consuming
+     *
+     * <p>It is recommended that shutdown hooks do not do any time-consuming
      * activities, in order to not hold up the shutdown process longer than
      * necessary.
      *
@@ -603,15 +541,12 @@ public class Runtime {
      *             if the hook has already been started or if it has already
      *             been registered.
      * @throws IllegalStateException
-     *             if the virtual machine is already shutting down.
-     * @throws SecurityException
-     *             if a SecurityManager is registered and the calling code
-     *             doesn't have the RuntimePermission("shutdownHooks").
+     *             if the VM is already shutting down.
      */
     public void addShutdownHook(Thread hook) {
         // Sanity checks
         if (hook == null) {
-            throw new NullPointerException("Hook may not be null.");
+            throw new NullPointerException("hook == null");
         }
 
         if (shuttingDown) {
@@ -620,11 +555,6 @@ public class Runtime {
 
         if (hook.hasBeenStarted) {
             throw new IllegalArgumentException("Hook has already been started");
-        }
-
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            sm.checkPermission(new RuntimePermission("shutdownHooks"));
         }
 
         synchronized (shutdownHooks) {
@@ -637,31 +567,23 @@ public class Runtime {
     }
 
     /**
-     * Unregisters a previously registered virtual machine shutdown hook.
+     * Unregisters a previously registered VM shutdown hook.
      *
      * @param hook
      *            the shutdown hook to remove.
      * @return {@code true} if the hook has been removed successfully; {@code
      *         false} otherwise.
      * @throws IllegalStateException
-     *             if the virtual machine is already shutting down.
-     * @throws SecurityException
-     *             if a SecurityManager is registered and the calling code
-     *             doesn't have the RuntimePermission("shutdownHooks").
+     *             if the VM is already shutting down.
      */
     public boolean removeShutdownHook(Thread hook) {
         // Sanity checks
         if (hook == null) {
-            throw new NullPointerException("Hook may not be null.");
+            throw new NullPointerException("hook == null");
         }
 
         if (shuttingDown) {
             throw new IllegalStateException("VM already shutting down");
-        }
-
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            sm.checkPermission(new RuntimePermission("shutdownHooks"));
         }
 
         synchronized (shutdownHooks) {
@@ -670,166 +592,47 @@ public class Runtime {
     }
 
     /**
-     * Causes the virtual machine to stop running, and the program to exit.
-     * Neither shutdown hooks nor finalizers are run before.
-     *
-     * @param code
-     *            the return code. By convention, non-zero return codes indicate
-     *            abnormal terminations.
-     * @throws SecurityException
-     *             if the current {@code SecurityManager} does not allow the
-     *             running thread to terminate the virtual machine.
-     * @see SecurityManager#checkExit
-     * @see #addShutdownHook(Thread)
-     * @see #removeShutdownHook(Thread)
-     * @see #runFinalizersOnExit(boolean)
+     * Causes the VM to stop running, and the program to exit with the given return code.
+     * Use 0 to signal success to the calling process and 1 to signal failure.
+     * Neither shutdown hooks nor finalizers are run before exiting.
+     * This method is unlikely to be useful to an Android application.
      */
     public void halt(int code) {
-        // Security checks
-        SecurityManager smgr = System.getSecurityManager();
-        if (smgr != null) {
-            smgr.checkExit(code);
-        }
-
         // Get out of here...
-        nativeExit(code, false);
+        nativeExit(code);
     }
 
-
     /**
-     * Returns the number of processors available to the virtual machine.
-     *
-     * @return the number of available processors, at least 1.
+     * Returns the number of processor cores available to the VM, at least 1.
+     * Traditionally this returned the number currently online,
+     * but many mobile devices are able to take unused cores offline to
+     * save power, so releases newer than Android 4.2 (Jelly Bean) return the maximum number of
+     * cores that could be made available if there were no power or heat
+     * constraints.
      */
-    public native int availableProcessors();
+    public int availableProcessors() {
+        return (int) Libcore.os.sysconf(_SC_NPROCESSORS_CONF);
+    }
 
     /**
-     * Returns the maximum amount of memory that may be used by the virtual
-     * machine, or {@code Long.MAX_VALUE} if there is no such limit.
-     *
-     * @return the maximum amount of memory that the virtual machine will try to
-     *         allocate, measured in bytes.
+     * Returns the number of bytes currently available on the heap without expanding the heap. See
+     * {@link #totalMemory} for the heap's current size. When these bytes are exhausted, the heap
+     * may expand. See {@link #maxMemory} for that limit.
+     */
+    public native long freeMemory();
+
+    /**
+     * Returns the number of bytes taken by the heap at its current size. The heap may expand or
+     * contract over time, as the number of live objects increases or decreases. See
+     * {@link #maxMemory} for the maximum heap size, and {@link #freeMemory} for an idea of how much
+     * the heap could currently contract.
+     */
+    public native long totalMemory();
+
+    /**
+     * Returns the maximum number of bytes the heap can expand to. See {@link #totalMemory} for the
+     * current number of bytes taken by the heap, and {@link #freeMemory} for the current number of
+     * those bytes actually used by live objects.
      */
     public native long maxMemory();
-
-}
-
-/*
- * Internal helper class for creating a localized InputStream. A reader
- * wrapped in an InputStream.
- */
-class ReaderInputStream extends InputStream {
-
-    private Reader reader;
-
-    private Writer writer;
-
-    ByteArrayOutputStream out = new ByteArrayOutputStream(256);
-
-    private byte[] bytes;
-
-    private int nextByte;
-
-    private int numBytes;
-
-    public ReaderInputStream(InputStream stream, String encoding) {
-        try {
-            reader = new InputStreamReader(stream, Charsets.UTF_8);
-            writer = new OutputStreamWriter(out, encoding);
-        } catch (UnsupportedEncodingException e) {
-            // Should never happen, since UTF-8 and platform encoding must be
-            // supported.
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Override
-    public int read() throws IOException {
-        if (nextByte >= numBytes) {
-            readBuffer();
-        }
-
-        return (numBytes < 0) ? -1 : bytes[nextByte++];
-    }
-
-    private void readBuffer() throws IOException {
-        char[] chars = new char[128];
-        int read = reader.read(chars);
-        if (read < 0) {
-            numBytes = read;
-            return;
-        }
-
-        writer.write(chars, 0, read);
-        writer.flush();
-        bytes = out.toByteArray();
-        numBytes = bytes.length;
-        nextByte = 0;
-    }
-
-}
-
-/*
- * Internal helper class for creating a localized OutputStream. A writer
- * wrapped in an OutputStream. Bytes are written to characters in big-endian
- * fashion.
- */
-class WriterOutputStream extends OutputStream {
-
-    private Reader reader;
-
-    private Writer writer;
-
-    private PipedOutputStream out;
-
-    private PipedInputStream pipe;
-
-    private int numBytes;
-
-    public WriterOutputStream(OutputStream stream, String encoding) {
-        try {
-            // sink
-            this.writer = new OutputStreamWriter(stream, encoding);
-
-            // transcriber
-            out = new PipedOutputStream();
-            pipe = new PipedInputStream(out);
-            this.reader = new InputStreamReader(pipe, Charsets.UTF_8);
-
-        } catch (UnsupportedEncodingException e) {
-            // Should never happen, since platform encoding must be supported.
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Override
-    public void write(int b) throws IOException {
-        out.write(b);
-        if( ++numBytes > 256) {
-            flush();
-            numBytes = 0;
-        }
-    }
-
-    @Override
-    public void flush() throws IOException {
-        out.flush();
-        char[] chars = new char[128];
-        if (pipe.available() > 0) {
-            int read = reader.read(chars);
-            if (read > 0) {
-                writer.write(chars, 0, read);
-            }
-        }
-        writer.flush();
-    }
-
-    @Override
-    public void close() throws IOException {
-        out.close();
-        flush();
-        writer.close();
-    }
 }

@@ -15,8 +15,6 @@
  */
 package java.util;
 
-import com.ibm.icu4jni.text.NativeDecimalFormat;
-import com.ibm.icu4jni.util.LocaleData;
 import java.io.BufferedWriter;
 import java.io.Closeable;
 import java.io.File;
@@ -32,8 +30,9 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.MathContext;
 import java.nio.charset.Charset;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
+import libcore.icu.LocaleData;
+import libcore.icu.NativeDecimalFormat;
+import libcore.io.IoUtils;
 
 /**
  * Formats arguments according to a format string (like {@code printf} in C).
@@ -292,15 +291,15 @@ format("%6.0E", 123.456f);</td>
  * </tr>
  * <tr>
  * <td width="5%">{@code n}</td>
- * <td width="25%">Newline. (The value of the system property {@code "line.separator"}.)</td>
+ * <td width="25%">Newline. (The value of the "line.separator" system property}.)</td>
  * <td width="30%">{@code format("first%nsecond");}</td>
  * <td width="30%">{@code first\nsecond}</td>
  * </tr>
  * </table>
  * <p>
- * It's also possible to format dates and times with {@code Formatter}, though you should seriously
- * consider using {@link java.text.SimpleDateFormat} via the factory methods in
- * {@link java.text.DateFormat} instead.
+ * It's also possible to format dates and times with {@code Formatter}, though you should
+ * use {@link java.text.SimpleDateFormat} (probably via the factory methods in
+ * {@link java.text.DateFormat}) instead.
  * The facilities offered by {@code Formatter} are low-level and place the burden of localization
  * on the developer. Using {@link java.text.DateFormat#getDateInstance},
  * {@link java.text.DateFormat#getTimeInstance}, and
@@ -311,17 +310,15 @@ format("%6.0E", 123.456f);</td>
  * which you can get with {@code "%tF"} (2010-01-22), {@code "%tF %tR"} (2010-01-22 13:39),
  * {@code "%tF %tT"} (2010-01-22 13:39:15), or {@code "%tF %tT%z"} (2010-01-22 13:39:15-0800).
  * <p>
- * As with the other conversions, date/time conversion has an uppercase format. Replacing
- * {@code %t} with {@code %T} will uppercase the field according to the rules of the formatter's
- * locale.
- * <p>
- * This table shows the date/time conversions:
+ * This table shows the date/time conversions, but you should use {@link java.text.SimpleDateFormat}
+ * instead:
  * <table BORDER="1" WIDTH="100%" CELLPADDING="3" CELLSPACING="0" SUMMARY="">
  * <tr BGCOLOR="#CCCCFF" CLASS="TableHeadingColor">
  * <TD COLSPAN=4><B>Date/time conversions</B>
  * <br>
  * Calendar, Date, and Long (representing milliseconds past the epoch) are all acceptable
  * as date/time arguments. Any other type is an error. The epoch is 1970-01-01 00:00:00 UTC.
+ * <font color="red">Use {@link java.text.SimpleDateFormat} instead.</font>
  * </TD>
  * </tr>
  * <tr>
@@ -350,7 +347,7 @@ format("%6.0E", 123.456f);</td>
  * </tr>
  * <tr>
  * <td width="5%">{@code tc}</td>
- * <td width="25%">Locale-preferred date and time representation. (See {@link java.text.DateFormat} for more variations.)</td>
+ * <td width="25%">C library <i>asctime(3)</i>-like output. Do not use.</td>
  * <td width="30%">{@code format("%tc", cal);}</td>
  * <td width="30%">{@code Tue Apr 01 16:19:17 CEST 2008}</td>
  * </tr>
@@ -392,14 +389,14 @@ format("%6.0E", 123.456f);</td>
  * </tr>
  * <tr>
  * <td width="5%">{@code tH}</td>
- * <td width="25%">24-hour hour of day (00-23).</td>
+ * <td width="25%">2-digit 24-hour hour of day (00-23).</td>
  * <td width="30%">{@code format("%tH", cal);}</td>
  * <td width="30%">{@code 16}</td>
  * </tr>
  * <tr>
  * <td width="5%">{@code tI}</td>
- * <td width="25%">12-hour hour of day (01-12).</td>
- * <td width="30%">{@code format("%tH", cal);}</td>
+ * <td width="25%">2-digit 12-hour hour of day (01-12).</td>
+ * <td width="30%">{@code format("%tI", cal);}</td>
  * <td width="30%">{@code 04}</td>
  * </tr>
  * <tr>
@@ -411,13 +408,13 @@ format("%6.0E", 123.456f);</td>
  * <tr>
  * <td width="5%">{@code tk}</td>
  * <td width="25%">24-hour hour of day (0-23).</td>
- * <td width="30%">{@code format("%tH", cal);}</td>
+ * <td width="30%">{@code format("%tk", cal);}</td>
  * <td width="30%">{@code 16}</td>
  * </tr>
  * <tr>
  * <td width="5%">{@code tl}</td>
  * <td width="25%">12-hour hour of day (1-12).</td>
- * <td width="30%">{@code format("%tH", cal);}</td>
+ * <td width="30%">{@code format("%tl", cal);}</td>
  * <td width="30%">{@code 4}</td>
  * </tr>
  * <tr>
@@ -511,6 +508,10 @@ format("%6.0E", 123.456f);</td>
  * <td width="30%">{@code CEST}</td>
  * </tr>
  * </table>
+ * <p>
+ * As with the other conversions, date/time conversion has an uppercase format. Replacing
+ * {@code %t} with {@code %T} will uppercase the field according to the rules of the formatter's
+ * locale.
  * <p><i>Number localization</i>. Some conversions use localized decimal digits rather than the
  * usual ASCII digits. So formatting {@code 123} with {@code %d} will give 123 in English locales
  * but &#x0661;&#x0662;&#x0663; in appropriate Arabic locales, for example. This number localization
@@ -526,9 +527,6 @@ format("%6.0E", 123.456f);</td>
  */
 public final class Formatter implements Closeable, Flushable {
     private static final char[] ZEROS = new char[] { '0', '0', '0', '0', '0', '0', '0', '0', '0' };
-
-    // The cached line separator.
-    private static String lineSeparator;
 
     /**
      * The enumeration giving the available styles for formatting very large
@@ -676,9 +674,6 @@ public final class Formatter implements Closeable, Flushable {
      *             if the filename does not denote a normal and writable file,
      *             or if a new file cannot be created, or if any error arises when
      *             opening or creating the file.
-     * @throws SecurityException
-     *             if there is a {@code SecurityManager} in place which denies permission
-     *             to write to the file in {@code checkWrite(file.getPath())}.
      */
     public Formatter(String fileName) throws FileNotFoundException {
         this(new File(fileName));
@@ -702,9 +697,6 @@ public final class Formatter implements Closeable, Flushable {
      *             if the filename does not denote a normal and writable file,
      *             or if a new file cannot be created, or if any error arises when
      *             opening or creating the file.
-     * @throws SecurityException
-     *             if there is a {@code SecurityManager} in place which denies permission
-     *             to write to the file in {@code checkWrite(file.getPath())}.
      * @throws UnsupportedEncodingException
      *             if the charset with the specified name is not supported.
      */
@@ -731,9 +723,6 @@ public final class Formatter implements Closeable, Flushable {
      *             if the filename does not denote a normal and writable file,
      *             or if a new file cannot be created, or if any error arises when
      *             opening or creating the file.
-     * @throws SecurityException
-     *             if there is a {@code SecurityManager} in place which denies permission
-     *             to write to the file in {@code checkWrite(file.getPath())}.
      * @throws UnsupportedEncodingException
      *             if the charset with the specified name is not supported.
      */
@@ -760,9 +749,6 @@ public final class Formatter implements Closeable, Flushable {
      *             if the {@code File} is not a normal and writable {@code File}, or if a
      *             new {@code File} cannot be created, or if any error rises when opening or
      *             creating the {@code File}.
-     * @throws SecurityException
-     *             if there is a {@code SecurityManager} in place which denies permission
-     *             to write to the {@code File} in {@code checkWrite(file.getPath())}.
      */
     public Formatter(File file) throws FileNotFoundException {
         this(new FileOutputStream(file));
@@ -786,9 +772,6 @@ public final class Formatter implements Closeable, Flushable {
      *             if the {@code File} is not a normal and writable {@code File}, or if a
      *             new {@code File} cannot be created, or if any error rises when opening or
      *             creating the {@code File}.
-     * @throws SecurityException
-     *             if there is a {@code SecurityManager} in place which denies permission
-     *             to write to the {@code File} in {@code checkWrite(file.getPath())}.
      * @throws UnsupportedEncodingException
      *             if the charset with the specified name is not supported.
      */
@@ -815,9 +798,6 @@ public final class Formatter implements Closeable, Flushable {
      *             if the {@code File} is not a normal and writable {@code File}, or if a
      *             new {@code File} cannot be created, or if any error rises when opening or
      *             creating the {@code File}.
-     * @throws SecurityException
-     *             if there is a {@code SecurityManager} in place which denies permission
-     *             to write to the {@code File} in {@code checkWrite(file.getPath())}.
      * @throws UnsupportedEncodingException
      *             if the charset with the specified name is not supported.
      */
@@ -828,10 +808,10 @@ public final class Formatter implements Closeable, Flushable {
             fout = new FileOutputStream(file);
             out = new BufferedWriter(new OutputStreamWriter(fout, csn));
         } catch (RuntimeException e) {
-            closeOutputStream(fout);
+            IoUtils.closeQuietly(fout);
             throw e;
         } catch (UnsupportedEncodingException e) {
-            closeOutputStream(fout);
+            IoUtils.closeQuietly(fout);
             throw e;
         }
 
@@ -906,7 +886,7 @@ public final class Formatter implements Closeable, Flushable {
      */
     public Formatter(PrintStream ps) {
         if (ps == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("ps == null");
         }
         out = ps;
         locale = Locale.getDefault();
@@ -1136,17 +1116,6 @@ public final class Formatter implements Closeable, Flushable {
         }
 
         return args[index];
-    }
-
-    private static void closeOutputStream(OutputStream os) {
-        if (os == null) {
-            return;
-        }
-        try {
-            os.close();
-        } catch (IOException e) {
-            // silently
-        }
     }
 
     /*
@@ -1499,7 +1468,7 @@ public final class Formatter implements Closeable, Flushable {
             result = transformFromPercent();
             break;
         case 'n':
-            result = transformFromLineSeparator();
+            result = System.lineSeparator();
             break;
         case 't': case 'T':
             result = transformFromDateTime();
@@ -1638,17 +1607,6 @@ public final class Formatter implements Closeable, Flushable {
 
     private CharSequence transformFromPercent() {
         return padding("%", 0);
-    }
-
-    private CharSequence transformFromLineSeparator() {
-        if (lineSeparator == null) {
-            lineSeparator = AccessController.doPrivileged(new PrivilegedAction<String>() {
-                public String run() {
-                    return System.getProperty("line.separator");
-                }
-            });
-        }
-        return lineSeparator;
     }
 
     private CharSequence padding(CharSequence source, int startIndex) {
@@ -2088,17 +2046,17 @@ public final class Formatter implements Closeable, Flushable {
         StringBuilder result = new StringBuilder();
         switch (conversionType) {
         case 'a': case 'A':
-            transform_a(result);
+            transformA(result);
             break;
         case 'e': case 'E':
-            transform_e(result);
+            transformE(result);
             break;
         case 'f':
-            transform_f(result);
+            transformF(result);
             break;
         case 'g':
         case 'G':
-            transform_g(result);
+            transformG(result);
             break;
         default:
             throw formatToken.unknownFormatConversionException();
@@ -2133,7 +2091,7 @@ public final class Formatter implements Closeable, Flushable {
         return padding(result, startIndex);
     }
 
-    private void transform_e(StringBuilder result) {
+    private void transformE(StringBuilder result) {
         // All zeros in this method are *pattern* characters, so no localization.
         final int precision = formatToken.getPrecision();
         String pattern = "0E+00";
@@ -2167,16 +2125,18 @@ public final class Formatter implements Closeable, Flushable {
         }
     }
 
-    private void transform_g(StringBuilder result) {
+    private void transformG(StringBuilder result) {
         int precision = formatToken.getPrecision();
-        precision = (0 == precision ? 1 : precision);
+        if (precision == 0) {
+            precision = 1;
+        }
         formatToken.setPrecision(precision);
 
         double d = ((Number) arg).doubleValue();
         if (d == 0.0) {
             precision--;
             formatToken.setPrecision(precision);
-            transform_f(result);
+            transformF(result);
             return;
         }
 
@@ -2186,7 +2146,7 @@ public final class Formatter implements Closeable, Flushable {
             precision = formatToken.getPrecision();
             precision--;
             formatToken.setPrecision(precision);
-            transform_e(result);
+            transformE(result);
             return;
         }
         BigDecimal b = new BigDecimal(d, new MathContext(precision));
@@ -2223,13 +2183,13 @@ public final class Formatter implements Closeable, Flushable {
             precision = formatToken.getPrecision();
             precision--;
             formatToken.setPrecision(precision);
-            transform_e(result);
+            transformE(result);
         } else {
-            transform_f(result);
+            transformF(result);
         }
     }
 
-    private void transform_f(StringBuilder result) {
+    private void transformF(StringBuilder result) {
         // All zeros in this method are *pattern* characters, so no localization.
         String pattern = "0.000000";
         final int precision = formatToken.getPrecision();
@@ -2264,7 +2224,7 @@ public final class Formatter implements Closeable, Flushable {
         }
     }
 
-    private void transform_a(StringBuilder result) {
+    private void transformA(StringBuilder result) {
         if (arg instanceof Float) {
             result.append(Float.toHexString(((Float) arg).floatValue()));
         } else if (arg instanceof Double) {
@@ -2278,7 +2238,9 @@ public final class Formatter implements Closeable, Flushable {
         }
 
         int precision = formatToken.getPrecision();
-        precision = (0 == precision ? 1 : precision);
+        if (precision == 0) {
+            precision = 1;
+        }
         int indexOfFirstFractionalDigit = result.indexOf(".") + 1;
         int indexOfP = result.indexOf("p");
         int fractionalLength = indexOfP - indexOfFirstFractionalDigit;

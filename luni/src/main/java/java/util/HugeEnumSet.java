@@ -31,12 +31,11 @@ final class HugeEnumSet<E extends Enum<E>> extends EnumSet<E> {
 
     private int size;
 
-    // BEGIN android-changed
     /**
      * Constructs an instance.
      *
      * @param elementType non-null; type of the elements
-     * @param enums non-null; prepopulated array of constants in ordinal
+     * @param enums non-null; pre-populated array of constants in ordinal
      * order
      */
     HugeEnumSet(Class<E> elementType, E[] enums) {
@@ -44,7 +43,6 @@ final class HugeEnumSet<E extends Enum<E>> extends EnumSet<E> {
         this.enums = enums;
         bits = new long[(enums.length + BIT_IN_LONG - 1) / BIT_IN_LONG];
     }
-    // END android-changed
 
     private class HugeEnumSetIterator implements Iterator<E> {
 
@@ -121,10 +119,7 @@ final class HugeEnumSet<E extends Enum<E>> extends EnumSet<E> {
 
     @Override
     public boolean add(E element) {
-        if (!isValidType(element.getDeclaringClass())) {
-            throw new ClassCastException();
-        }
-
+        elementClass.cast(element); // Called to throw ClassCastException.
         int ordinal = element.ordinal();
         int index = ordinal / BIT_IN_LONG;
         int inBits = ordinal % BIT_IN_LONG;
@@ -146,9 +141,7 @@ final class HugeEnumSet<E extends Enum<E>> extends EnumSet<E> {
 
         if (collection instanceof EnumSet) {
             EnumSet<?> set = (EnumSet) collection; // raw type due to javac bug 6548436
-            if (!isValidType(set.elementClass)) {
-                throw new ClassCastException();
-            }
+            set.elementClass.asSubclass(elementClass); // Called to throw ClassCastException.
 
             HugeEnumSet<E> hugeSet = (HugeEnumSet<E>) set;
             boolean changed = false;

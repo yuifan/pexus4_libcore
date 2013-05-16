@@ -17,9 +17,10 @@
 package java.nio;
 
 import java.nio.channels.FileChannel.MapMode;
-import org.apache.harmony.luni.platform.MappedPlatformAddress;
-import org.apache.harmony.luni.platform.PlatformAddress;
-import org.apache.harmony.nio.internal.DirectBuffer;
+import libcore.io.ErrnoException;
+import libcore.io.Libcore;
+import libcore.io.Memory;
+import static libcore.io.OsConstants.*;
 
 /**
  * {@code MappedByteBuffer} is a special kind of direct byte buffer which maps a
@@ -36,66 +37,88 @@ import org.apache.harmony.nio.internal.DirectBuffer;
  * {@code MappedByteBuffer} is undefined.
  */
 public abstract class MappedByteBuffer extends ByteBuffer {
+  final MapMode mapMode;
 
-    final DirectByteBuffer wrapped;
+  MappedByteBuffer(MemoryBlock block, int capacity, MapMode mapMode) {
+    super(capacity, block);
+    this.mapMode = mapMode;
+  }
 
-    private final MapMode mapMode;
+  /**
+   * Returns true if there is a high probability that every page of this buffer is currently
+   * loaded in RAM, meaning that accesses will not cause a page fault. It is impossible to give
+   * a strong guarantee since this is only a snapshot of a dynamic situation.
+   */
+  public final boolean isLoaded() {
+    checkIsMapped();
 
-    MappedByteBuffer(ByteBuffer directBuffer) {
-        super(directBuffer.capacity);
-        if (!directBuffer.isDirect()) {
-            throw new IllegalArgumentException();
+    long address = block.toLong();
+    long size = block.getSize();
+    if (size == 0) {
+      return true;
+    }
+
+    try {
+      int pageSize = (int) Libcore.os.sysconf(_SC_PAGE_SIZE);
+      int pageOffset = (int) (address % pageSize);
+      address -= pageOffset;
+      size += pageOffset;
+      int pageCount = (int) ((size + pageSize - 1) / pageSize);
+      byte[] vector = new byte[pageCount];
+      Libcore.os.mincore(address, size, vector);
+      for (int i = 0; i < vector.length; ++i) {
+        if ((vector[i] & 1) != 1) {
+          return false;
         }
-        this.wrapped = (DirectByteBuffer) directBuffer;
-        this.mapMode = null;
+      }
+      return true;
+    } catch (ErrnoException errnoException) {
+      return false;
     }
+  }
 
-    MappedByteBuffer(PlatformAddress addr, int capacity, int offset, MapMode mapMode) {
-        super(capacity);
-        this.mapMode = mapMode;
-        if (mapMode == MapMode.READ_ONLY) {
-            wrapped = new ReadOnlyDirectByteBuffer(addr, capacity, offset);
-        } else {
-            wrapped = new ReadWriteDirectByteBuffer(addr, capacity, offset);
-        }
-        addr.autoFree();
-    }
+  /**
+   * Attempts to load every page of this buffer into RAM. See {@link #isLoaded}.
+   * @return this buffer.
+   */
+  public final MappedByteBuffer load() {
+    checkIsMapped();
 
-    /**
-     * Indicates whether this buffer's content is loaded. If the result is true
-     * there is a high probability that the whole buffer memory is currently
-     * loaded in RAM. If it is false it is unsure if it is loaded or not.
-     *
-     * @return {@code true} if this buffer's content is loaded, {@code false}
-     *         otherwise.
-     */
-    public final boolean isLoaded() {
-        return ((MappedPlatformAddress) ((DirectBuffer) wrapped).getBaseAddress()).mmapIsLoaded();
+    try {
+      Libcore.os.mlock(block.toLong(), block.getSize());
+      Libcore.os.munlock(block.toLong(), block.getSize());
+    } catch (ErrnoException ignored) {
     }
+    return this;
+  }
 
-    /**
-     * Loads this buffer's content into memory but it is not guaranteed to
-     * succeed.
-     *
-     * @return this buffer.
-     */
-    public final MappedByteBuffer load() {
-        ((MappedPlatformAddress) ((DirectBuffer) wrapped).getBaseAddress()).mmapLoad();
-        return this;
-    }
+  /**
+   * Flushes changes made to the in-memory buffer back to the mapped file.
+   * Unless you call this, changes may not be written back until the finalizer
+   * runs. This method waits for the write to complete before returning.
+   *
+   * @return this buffer.
+   */
+  public final MappedByteBuffer force() {
+    checkIsMapped();
 
-    /**
-     * Writes all changes of the buffer to the mapped file. If the mapped file
-     * is stored on a local device, it is guaranteed that the changes are
-     * written to the file. No such guarantee is given if the file is located on
-     * a remote device.
-     *
-     * @return this buffer.
-     */
-    public final MappedByteBuffer force() {
-        if (mapMode == MapMode.READ_WRITE) {
-            ((MappedPlatformAddress) ((DirectBuffer) wrapped).getBaseAddress()).mmapFlush();
-        }
-        return this;
+    if (mapMode == MapMode.READ_WRITE) {
+      try {
+        Libcore.os.msync(block.toLong(), block.getSize(), MS_SYNC);
+      } catch (ErrnoException errnoException) {
+        // The RI doesn't throw, presumably on the assumption that you can't get into
+        // a state where msync(2) could return an error.
+        throw new AssertionError(errnoException);
+      }
     }
+    return this;
+  }
+
+  // DirectByteBuffer is a subclass of MappedByteBuffer, but not all DirectByteBuffers
+  // actually correspond to an mmap(2)ed region.
+  private void checkIsMapped() {
+    if (mapMode == null) {
+      throw new UnsupportedOperationException();
+    }
+  }
 }

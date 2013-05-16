@@ -17,14 +17,20 @@
 package libcore.java.security;
 
 import java.security.Provider;
+import java.security.SecureRandom;
+import java.security.SecureRandomSpi;
+import java.security.Security;
+import java.security.Provider;
+import java.security.SecureRandom;
+import java.security.SecureRandomSpi;
 import java.security.Security;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -81,7 +87,7 @@ public class ProviderTest extends TestCase {
                     // original source before giving error
                     if (!(StandardNames.PROVIDER_ALGORITHMS.containsKey(type)
                             && StandardNames.PROVIDER_ALGORITHMS.get(type).contains(algorithm))) {
-                        extra.add("Unknown " + type + " " + algorithm + "\n");
+                        extra.add("Unknown " + type + " " + algorithm + " " + providerName + "\n");
                     }
                 }
                 if (algorithms != null && algorithms.isEmpty()) {
@@ -94,21 +100,24 @@ public class ProviderTest extends TestCase {
                                                 true,
                                                 provider.getClass().getClassLoader()));
                 } catch (ClassNotFoundException e) {
-                    missing.add(className);
+                    // Sun forgot their own class
+                    if (!className.equals("sun.security.pkcs11.P11MAC")) {
+                        missing.add(className);
+                    }
                 }
             }
         }
 
         // assert that we don't have any extra in the implementation
         Collections.sort(extra); // sort so that its grouped by type
-        assertEquals(Collections.EMPTY_LIST, extra);
+        assertEquals("Extra algorithms", Collections.EMPTY_LIST, extra);
 
         // assert that we don't have any missing in the implementation
-        assertEquals(Collections.EMPTY_MAP, remaining);
+        assertEquals("Missing algorithms", Collections.EMPTY_MAP, remaining);
 
         // assert that we don't have any missing classes
         Collections.sort(missing); // sort it for readability
-        assertEquals(Collections.EMPTY_LIST, missing);
+        assertEquals("Missing classes", Collections.EMPTY_LIST, missing);
     }
 
     private static final Pattern alias = Pattern.compile("Alg\\.Alias\\.([^.]*)\\.(.*)");
@@ -176,7 +185,10 @@ public class ProviderTest extends TestCase {
                                                 true,
                                                 provider.getClass().getClassLoader()));
                 } catch (ClassNotFoundException e) {
-                    fail("Could not find class " + className + " for " + typeAndAlgorithm);
+                    // Sun forgot their own class
+                    if (!className.equals("sun.security.pkcs11.P11MAC")) {
+                        fail("Could not find class " + className + " for " + typeAndAlgorithm);
+                    }
                 }
             }
 
@@ -189,4 +201,48 @@ public class ProviderTest extends TestCase {
             }
         }
     }
+
+    /**
+     * http://code.google.com/p/android/issues/detail?id=21449
+     */
+    public void testSecureRandomImplementationOrder() {
+        Provider srp = new SRProvider();
+        try {
+            int position = Security.insertProviderAt(srp, 1); // first is one, not zero
+            assertEquals(1, position);
+            SecureRandom sr = new SecureRandom();
+            if (!sr.getAlgorithm().equals("SecureRandom1")) {
+                throw new IllegalStateException("Expected SecureRandom1 was " + sr.getAlgorithm());
+            }
+        } finally {
+            Security.removeProvider(srp.getName());
+        }
+    }
+
+    public static class SRProvider extends Provider {
+
+        SRProvider() {
+            super("SRProvider", 1.42, "SecureRandom Provider");
+            put("SecureRandom.SecureRandom1", SecureRandom1.class.getName());
+            put("SecureRandom.SecureRandom2", SecureRandom2.class.getName());
+            put("SecureRandom.SecureRandom3", SecureRandom3.class.getName());
+        }
+    }
+
+    public static abstract class AbstractSecureRandom extends SecureRandomSpi {
+        protected void engineSetSeed(byte[] seed) {
+            throw new UnsupportedOperationException();
+        }
+        protected void engineNextBytes(byte[] bytes) {
+            throw new UnsupportedOperationException();
+        }
+        protected byte[] engineGenerateSeed(int numBytes) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    public static class SecureRandom1 extends AbstractSecureRandom {}
+    public static class SecureRandom2 extends AbstractSecureRandom {}
+    public static class SecureRandom3 extends AbstractSecureRandom {}
+
 }

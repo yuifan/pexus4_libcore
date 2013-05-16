@@ -17,6 +17,8 @@
 
 package java.nio;
 
+import java.util.Arrays;
+
 /**
  * A buffer of longs.
  * <p>
@@ -44,9 +46,9 @@ public abstract class LongBuffer extends Buffer implements
      */
     public static LongBuffer allocate(int capacity) {
         if (capacity < 0) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("capacity < 0: " + capacity);
         }
-        return BufferFactory.newLongBuffer(capacity);
+        return new LongArrayBuffer(new long[capacity]);
     }
 
     /**
@@ -67,44 +69,30 @@ public abstract class LongBuffer extends Buffer implements
      * Creates a new long buffer by wrapping the given long array.
      * <p>
      * The new buffer's position will be {@code start}, limit will be
-     * {@code start + len}, capacity will be the length of the array.
+     * {@code start + longCount}, capacity will be the length of the array.
      *
      * @param array
      *            the long array which the new buffer will be based on.
      * @param start
      *            the start index, must not be negative and not greater than
      *            {@code array.length}.
-     * @param len
+     * @param longCount
      *            the length, must not be negative and not greater than
      *            {@code array.length - start}.
      * @return the created long buffer.
      * @exception IndexOutOfBoundsException
-     *                if either {@code start} or {@code len} is invalid.
+     *                if either {@code start} or {@code longCount} is invalid.
      */
-    public static LongBuffer wrap(long[] array, int start, int len) {
-        if (array == null) {
-            throw new NullPointerException();
-        }
-        if (start < 0 || len < 0 || (long) len + (long) start > array.length) {
-            throw new IndexOutOfBoundsException();
-        }
-
-        LongBuffer buf = BufferFactory.newLongBuffer(array);
+    public static LongBuffer wrap(long[] array, int start, int longCount) {
+        Arrays.checkOffsetAndCount(array.length, start, longCount);
+        LongBuffer buf = new LongArrayBuffer(array);
         buf.position = start;
-        buf.limit = start + len;
-
+        buf.limit = start + longCount;
         return buf;
     }
 
-    /**
-     * Constructs a {@code LongBuffer} with given capacity.
-     *
-     * @param capacity
-     *            The capacity of the buffer
-     */
     LongBuffer(int capacity) {
-        super(capacity);
-        _elementSizeShift = 3;
+        super(3, capacity, null);
     }
 
     public final long[] array() {
@@ -160,7 +148,6 @@ public abstract class LongBuffer extends Buffer implements
                 : otherBuffer.remaining();
         int thisPos = position;
         int otherPos = otherBuffer.position;
-        // BEGIN android-changed
         long thisLong, otherLong;
         while (compareRemaining > 0) {
             thisLong = get(thisPos);
@@ -172,7 +159,6 @@ public abstract class LongBuffer extends Buffer implements
             otherPos++;
             compareRemaining--;
         }
-        // END android-changed
         return remaining() - otherBuffer.remaining();
     }
 
@@ -257,28 +243,24 @@ public abstract class LongBuffer extends Buffer implements
      *
      * @param dst
      *            the target long array.
-     * @param off
+     * @param dstOffset
      *            the offset of the long array, must not be negative and not
      *            greater than {@code dst.length}.
-     * @param len
+     * @param longCount
      *            the number of longs to read, must be no less than zero and not
-     *            greater than {@code dst.length - off}.
+     *            greater than {@code dst.length - dstOffset}.
      * @return this buffer.
      * @exception IndexOutOfBoundsException
-     *                if either {@code off} or {@code len} is invalid.
+     *                if either {@code dstOffset} or {@code longCount} is invalid.
      * @exception BufferUnderflowException
-     *                if {@code len} is greater than {@code remaining()}.
+     *                if {@code longCount} is greater than {@code remaining()}.
      */
-    public LongBuffer get(long[] dst, int off, int len) {
-        int length = dst.length;
-        if (off < 0 || len < 0 || (long) len + (long) off > length) {
-            throw new IndexOutOfBoundsException();
-        }
-
-        if (len > remaining()) {
+    public LongBuffer get(long[] dst, int dstOffset, int longCount) {
+        Arrays.checkOffsetAndCount(dst.length, dstOffset, longCount);
+        if (longCount > remaining()) {
             throw new BufferUnderflowException();
         }
-        for (int i = off; i < off + len; i++) {
+        for (int i = dstOffset; i < dstOffset + longCount; ++i) {
             dst[i] = get();
         }
         return this;
@@ -402,30 +384,26 @@ public abstract class LongBuffer extends Buffer implements
      *
      * @param src
      *            the source long array.
-     * @param off
+     * @param srcOffset
      *            the offset of long array, must not be negative and not greater
      *            than {@code src.length}.
-     * @param len
+     * @param longCount
      *            the number of longs to write, must be no less than zero and
-     *            not greater than {@code src.length - off}.
+     *            not greater than {@code src.length - srcOffset}.
      * @return this buffer.
      * @exception BufferOverflowException
-     *                if {@code remaining()} is less than {@code len}.
+     *                if {@code remaining()} is less than {@code longCount}.
      * @exception IndexOutOfBoundsException
-     *                if either {@code off} or {@code len} is invalid.
+     *                if either {@code srcOffset} or {@code longCount} is invalid.
      * @exception ReadOnlyBufferException
      *                if no changes may be made to the contents of this buffer.
      */
-    public LongBuffer put(long[] src, int off, int len) {
-        int length = src.length;
-        if (off < 0 || len < 0 || (long) len + (long) off > length) {
-            throw new IndexOutOfBoundsException();
-        }
-
-        if (len > remaining()) {
+    public LongBuffer put(long[] src, int srcOffset, int longCount) {
+        Arrays.checkOffsetAndCount(src.length, srcOffset, longCount);
+        if (longCount > remaining()) {
             throw new BufferOverflowException();
         }
-        for (int i = off; i < off + len; i++) {
+        for (int i = srcOffset; i < srcOffset + longCount; ++i) {
             put(src[i]);
         }
         return this;
@@ -448,8 +426,11 @@ public abstract class LongBuffer extends Buffer implements
      *                if no changes may be made to the contents of this buffer.
      */
     public LongBuffer put(LongBuffer src) {
+        if (isReadOnly()) {
+            throw new ReadOnlyBufferException();
+        }
         if (src == this) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("src == this");
         }
         if (src.remaining() > remaining()) {
             throw new BufferOverflowException();
@@ -492,22 +473,4 @@ public abstract class LongBuffer extends Buffer implements
      * @return a sliced buffer that shares its content with this buffer.
      */
     public abstract LongBuffer slice();
-
-    /**
-     * Returns a string representing the state of this long buffer.
-     *
-     * @return a string representing the state of this long buffer.
-     */
-    @Override
-    public String toString() {
-        StringBuilder buf = new StringBuilder();
-        buf.append(getClass().getName());
-        buf.append(", status: capacity=");
-        buf.append(capacity());
-        buf.append(" position=");
-        buf.append(position());
-        buf.append(" limit=");
-        buf.append(limit());
-        return buf.toString();
-    }
 }

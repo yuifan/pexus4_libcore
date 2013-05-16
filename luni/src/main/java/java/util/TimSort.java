@@ -175,7 +175,7 @@ class TimSort<T> {
             return;
         }
 
-        rangeCheck(a.length, lo, hi);
+        Arrays.checkStartAndEnd(a.length, lo, hi);
         int nRemaining  = hi - lo;
         if (nRemaining < 2)
             return;  // Arrays of size 0 and 1 are always sorted
@@ -270,7 +270,7 @@ class TimSort<T> {
              * pivot < all in [left, start), so pivot belongs at left.  Note
              * that if there are elements equal to pivot, left points to the
              * first slot after them -- that's why this sort is stable.
-             * Slide elements over to make room to make room for pivot.
+             * Slide elements over to make room for pivot.
              */
             int n = start - left;  // The number of elements to move
             // Switch is just an optimization for arraycopy in default case
@@ -509,7 +509,7 @@ class TimSort<T> {
             int maxOfs = len - hint;
             while (ofs < maxOfs && c.compare(key, a[base + hint + ofs]) > 0) {
                 lastOfs = ofs;
-                ofs = (ofs << 1) + 1;
+                ofs = (ofs * 2) + 1;
                 if (ofs <= 0)   // int overflow
                     ofs = maxOfs;
             }
@@ -524,7 +524,7 @@ class TimSort<T> {
             final int maxOfs = hint + 1;
             while (ofs < maxOfs && c.compare(key, a[base + hint - ofs]) <= 0) {
                 lastOfs = ofs;
-                ofs = (ofs << 1) + 1;
+                ofs = (ofs * 2) + 1;
                 if (ofs <= 0)   // int overflow
                     ofs = maxOfs;
             }
@@ -580,7 +580,7 @@ class TimSort<T> {
             int maxOfs = hint + 1;
             while (ofs < maxOfs && c.compare(key, a[base + hint - ofs]) < 0) {
                 lastOfs = ofs;
-                ofs = (ofs << 1) + 1;
+                ofs = (ofs * 2) + 1;
                 if (ofs <= 0)   // int overflow
                     ofs = maxOfs;
             }
@@ -596,7 +596,7 @@ class TimSort<T> {
             int maxOfs = len - hint;
             while (ofs < maxOfs && c.compare(key, a[base + hint + ofs]) >= 0) {
                 lastOfs = ofs;
-                ofs = (ofs << 1) + 1;
+                ofs = (ofs * 2) + 1;
                 if (ofs <= 0)   // int overflow
                     ofs = maxOfs;
             }
@@ -899,26 +899,5 @@ class TimSort<T> {
             tmp = newArray;
         }
         return tmp;
-    }
-
-    /**
-     * Checks that fromIndex and toIndex are in range, and throws an
-     * appropriate exception if they aren't.
-     *
-     * @param arrayLen the length of the array
-     * @param fromIndex the index of the first element of the range
-     * @param toIndex the index after the last element of the range
-     * @throws IllegalArgumentException if fromIndex > toIndex
-     * @throws ArrayIndexOutOfBoundsException if fromIndex < 0
-     *         or toIndex > arrayLen
-     */
-    private static void rangeCheck(int arrayLen, int fromIndex, int toIndex) {
-        if (fromIndex > toIndex)
-            throw new IllegalArgumentException("fromIndex(" + fromIndex +
-                       ") > toIndex(" + toIndex+")");
-        if (fromIndex < 0)
-            throw new ArrayIndexOutOfBoundsException(fromIndex);
-        if (toIndex > arrayLen)
-            throw new ArrayIndexOutOfBoundsException(toIndex);
     }
 }

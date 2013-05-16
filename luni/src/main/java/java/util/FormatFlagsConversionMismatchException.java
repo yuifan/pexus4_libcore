@@ -43,8 +43,8 @@ public class FormatFlagsConversionMismatchException extends
      *           the conversion.
      */
     public FormatFlagsConversionMismatchException(String f, char c) {
-        if (null == f) {
-            throw new NullPointerException();
+        if (f == null) {
+            throw new NullPointerException("f == null");
         }
         this.f = f;
         this.c = c;

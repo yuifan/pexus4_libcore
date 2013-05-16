@@ -30,19 +30,17 @@ final class MiniEnumSet<E extends Enum<E>> extends EnumSet<E> {
 
     private long bits;
 
-    // BEGIN android-changed
     /**
      * Constructs an instance.
      *
      * @param elementType non-null; type of the elements
-     * @param enums non-null; prepopulated array of constants in ordinal
+     * @param enums non-null; pre-populated array of constants in ordinal
      * order
      */
     MiniEnumSet(Class<E> elementType, E[] enums) {
         super(elementType);
         this.enums = enums;
     }
-    // END android-changed
 
     private class MiniEnumSetIterator implements Iterator<E> {
 
@@ -108,10 +106,7 @@ final class MiniEnumSet<E extends Enum<E>> extends EnumSet<E> {
 
     @Override
     public boolean add(E element) {
-        if (!isValidType(element.getDeclaringClass())) {
-            throw new ClassCastException();
-        }
-
+        elementClass.cast(element); // Called to throw ClassCastException.
         long oldBits = bits;
         long newBits = oldBits | (1L << element.ordinal());
         if (oldBits != newBits) {
@@ -129,9 +124,7 @@ final class MiniEnumSet<E extends Enum<E>> extends EnumSet<E> {
         }
         if (collection instanceof EnumSet) {
             EnumSet<?> set = (EnumSet) collection; // raw type due to javac bug 6548436
-            if (!isValidType(set.elementClass)) {
-                throw new ClassCastException();
-            }
+            set.elementClass.asSubclass(elementClass); // Called to throw ClassCastException.
 
             MiniEnumSet<?> miniSet = (MiniEnumSet<?>) set;
             long oldBits = bits;

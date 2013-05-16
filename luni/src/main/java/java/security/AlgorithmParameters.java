@@ -36,27 +36,27 @@ public class AlgorithmParameters {
     /**
      * Used to access common engine functionality.
      */
-    private static Engine engine = new Engine(SEVICE);
+    private static final Engine ENGINE = new Engine(SEVICE);
 
     /**
      * The security provider.
      */
-    private Provider provider;
+    private final Provider provider;
 
     /**
      * The SPI implementation.
      */
-    private AlgorithmParametersSpi spiImpl;
+    private final AlgorithmParametersSpi spiImpl;
 
     /**
      * The security algorithm.
      */
-    private String algorithm;
+    private final String algorithm;
 
     /**
      * The initialization state.
      */
-    private boolean initialized; // = false;
+    private boolean initialized;
 
     /**
      * Constructs a new instance of {@code AlgorithmParameters} with the given
@@ -92,13 +92,10 @@ public class AlgorithmParameters {
     public static AlgorithmParameters getInstance(String algorithm)
             throws NoSuchAlgorithmException {
         if (algorithm == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("algorithm == null");
         }
-        synchronized (engine) {
-            engine.getInstance(algorithm, null);
-            return new AlgorithmParameters((AlgorithmParametersSpi) engine.spi,
-                    engine.provider, algorithm);
-        }
+        Engine.SpiAndProvider sap = ENGINE.getInstance(algorithm, null);
+        return new AlgorithmParameters((AlgorithmParametersSpi) sap.spi, sap.provider, algorithm);
     }
 
     /**
@@ -123,7 +120,7 @@ public class AlgorithmParameters {
             String provider) throws NoSuchAlgorithmException,
             NoSuchProviderException {
         if (provider == null || provider.isEmpty()) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("provider == null || provider.isEmpty()");
         }
         Provider p = Security.getProvider(provider);
         if (p == null) {
@@ -151,16 +148,13 @@ public class AlgorithmParameters {
     public static AlgorithmParameters getInstance(String algorithm,
             Provider provider) throws NoSuchAlgorithmException {
         if (provider == null) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("provider == null");
         }
         if (algorithm == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("algorithm == null");
         }
-        synchronized (engine) {
-            engine.getInstance(algorithm, provider, null);
-            return new AlgorithmParameters((AlgorithmParametersSpi) engine.spi,
-                    provider, algorithm);
-        }
+        Object spi = ENGINE.getInstance(algorithm, provider, null);
+        return new AlgorithmParameters((AlgorithmParametersSpi) spi, provider, algorithm);
     }
 
     /**

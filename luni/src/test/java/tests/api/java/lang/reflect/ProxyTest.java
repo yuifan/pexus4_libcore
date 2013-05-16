@@ -17,11 +17,6 @@
 
 package tests.api.java.lang.reflect;
 
-import dalvik.annotation.KnownFailure;
-import dalvik.annotation.TestLevel;
-import dalvik.annotation.TestTargetNew;
-import dalvik.annotation.TestTargetClass;
-
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -32,19 +27,6 @@ import tests.support.Support_Proxy_I2;
 import tests.support.Support_Proxy_ParentException;
 import tests.support.Support_Proxy_SubException;
 
-@TestTargetClass(
-        value = Proxy.class,
-        untestedMethods= {
-            @TestTargetNew(
-                level = TestLevel.NOT_NECESSARY,
-                notes = "Interface without implementation. Whether method is " +
-                        "called from proxy is tested by ProxyTest.",
-                clazz = InvocationHandler.class,
-                method = "invoke",
-                args = { Object.class, Method.class, Object[].class }
-            )
-        }
-)
 public class ProxyTest extends junit.framework.TestCase {
 
     /*
@@ -80,15 +62,9 @@ public class ProxyTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.lang.reflect.Proxy#getProxyClass(java.lang.ClassLoader,
+     * java.lang.reflect.Proxy#getProxyClass(java.lang.ClassLoader,
      *        java.lang.Class[])
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getProxyClass",
-        args = {java.lang.ClassLoader.class, java.lang.Class[].class}
-    )
     public void test_getProxyClassLjava_lang_ClassLoader$Ljava_lang_Class() {
         Class proxy = Proxy.getProxyClass(Support_Proxy_I1.class
                 .getClassLoader(), new Class[] { Support_Proxy_I1.class });
@@ -102,49 +78,24 @@ public class ProxyTest extends junit.framework.TestCase {
                 .isProxyClass(Proxy.getProxyClass(null,
                         new Class[] { Comparable.class })));
 
-        boolean aborted = false;
-// TODO: We load the test classes in the bootclasspath, so they are visible
-// to the default loader. We can re-enable this test once we move the CTS
-// tests to the system classpath.
-//
-//        try {
-//            Proxy.getProxyClass(null, new Class[] { Support_Proxy_I1.class,
-//                    Support_Proxy_I2.class });
-//        } catch (IllegalArgumentException e) {
-//            aborted = true;
-//        }
-//        assertTrue("Default classLoader should not see app class ", aborted);
-
-        aborted = false;
         try {
             Proxy.getProxyClass(Support_Proxy_I1.class.getClassLoader(),
                     (Class<?>[]) null);
             fail("NPE expected");
-        } catch (NullPointerException e) {
-            aborted = true;
+        } catch (NullPointerException expected) {
         }
-        assertTrue("NPE not thrown", aborted);
 
-        aborted = false;
         try {
             Proxy.getProxyClass(Support_Proxy_I1.class.getClassLoader(),
                     new Class<?>[] {Support_Proxy_I1.class, null});
             fail("NPE expected");
-        } catch (NullPointerException e) {
-            aborted = true;
+        } catch (NullPointerException expected) {
         }
-        assertTrue("NPE not thrown", aborted);
     }
 
     /**
-     * @tests java.lang.reflect.Proxy#Proxy(java.lang.reflect.InvocationHandler)
+     * java.lang.reflect.Proxy#Proxy(java.lang.reflect.InvocationHandler)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "Proxy",
-        args = {java.lang.reflect.InvocationHandler.class}
-    )
     public void test_ProxyLjava_lang_reflect_InvocationHandler() {
         assertNotNull(new ProxyCoonstructorTest(new InvocationHandler() {
             public Object invoke(Object proxy, Method method, Object[] args)
@@ -157,15 +108,9 @@ public class ProxyTest extends junit.framework.TestCase {
 
 
     /**
-     * @tests java.lang.reflect.Proxy#newProxyInstance(java.lang.ClassLoader,
+     * java.lang.reflect.Proxy#newProxyInstance(java.lang.ClassLoader,
      *        java.lang.Class[], java.lang.reflect.InvocationHandler)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "newProxyInstance",
-        args = {java.lang.ClassLoader.class, java.lang.Class[].class, java.lang.reflect.InvocationHandler.class}
-    )
     public void test_newProxyInstanceLjava_lang_ClassLoader$Ljava_lang_ClassLjava_lang_reflect_InvocationHandler() {
         Object p = Proxy.newProxyInstance(Support_Proxy_I1.class
                 .getClassLoader(), new Class[] { Support_Proxy_I1.class,
@@ -247,14 +192,8 @@ public class ProxyTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.lang.reflect.Proxy#isProxyClass(java.lang.Class)
+     * java.lang.reflect.Proxy#isProxyClass(java.lang.Class)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "isProxyClass",
-        args = {java.lang.Class.class}
-    )
     public void test_isProxyClassLjava_lang_Class() {
         Class proxy = Proxy.getProxyClass(Support_Proxy_I1.class
                 .getClassLoader(), new Class[] { Support_Proxy_I1.class });
@@ -289,14 +228,8 @@ public class ProxyTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.lang.reflect.Proxy#getInvocationHandler(java.lang.Object)
+     * java.lang.reflect.Proxy#getInvocationHandler(java.lang.Object)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "getInvocationHandler",
-        args = {java.lang.Object.class}
-    )
     public void test_getInvocationHandlerLjava_lang_Object() {
         InvocationHandler handler = new InvocationHandler() {
             public Object invoke(Object proxy, Method method, Object[] args)
@@ -321,12 +254,6 @@ public class ProxyTest extends junit.framework.TestCase {
     }
 
     //Regression Test for HARMONY-2355
-    @TestTargetNew(
-        level = TestLevel.PARTIAL,
-        notes = "Regression test. Exceptions are not verified.",
-        method = "newProxyInstance",
-        args = {java.lang.ClassLoader.class, java.lang.Class[].class, java.lang.reflect.InvocationHandler.class}
-    )
     public void test_newProxyInstance_withCompatibleReturnTypes() {
         Object o = Proxy
                 .newProxyInstance(this.getClass().getClassLoader(),
@@ -336,12 +263,6 @@ public class ProxyTest extends junit.framework.TestCase {
         assertNotNull(o);
     }
 
-    @TestTargetNew(
-        level = TestLevel.PARTIAL,
-        notes = "IllegalArgumentException is verified.",
-        method = "newProxyInstance",
-        args = {java.lang.ClassLoader.class, java.lang.Class[].class, java.lang.reflect.InvocationHandler.class}
-    )
     public void test_newProxyInstance_withNonCompatibleReturnTypes() {
         try {
             Proxy.newProxyInstance(this.getClass().getClassLoader(),

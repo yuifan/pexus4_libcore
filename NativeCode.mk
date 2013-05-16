@@ -1,3 +1,4 @@
+# -*- mode: makefile -*-
 # Copyright (C) 2007 The Android Open Source Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,13 +20,6 @@
 #
 # Common definitions for host and target.
 #
-
-# Get the list of all native directories that contain sub.mk files.
-# We're using "sub.mk" to make it clear that these are not typical
-# android makefiles.
-define all-core-native-dirs
-$(patsubst %/sub.mk,%,$(shell cd $(LOCAL_PATH) && ls -d */src/$(1)/native/sub.mk 2> /dev/null))
-endef
 
 # These two definitions are used to help sanity check what's put in
 # sub.mk. See, the "error" directives immediately below.
@@ -53,23 +47,19 @@ define include-core-native-dir
     LOCAL_SRC_FILES :=
 endef
 
-# Find any native directories containing sub.mk files.
-core_native_dirs := $(strip $(call all-core-native-dirs,main))
-ifeq ($(core_native_dirs),)
-    $(error No native code defined for libcore)
-endif
-
 # Set up the default state. Note: We use CLEAR_VARS here, even though
 # we aren't quite defining a new rule yet, to make sure that the
 # sub.mk files don't see anything stray from the last rule that was
 # set up.
+
 include $(CLEAR_VARS)
 LOCAL_MODULE := $(core_magic_local_target)
+LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/NativeCode.mk
 core_src_files :=
 
 # Include the sub.mk files.
 $(foreach dir, \
-    $(core_native_dirs), \
+    crypto/src/main/native dalvik/src/main/native luni/src/main/native, \
     $(eval $(call include-core-native-dir,$(dir))))
 
 # Extract out the allowed LOCAL_* variables. Note: $(sort) also
@@ -77,7 +67,10 @@ $(foreach dir, \
 core_c_includes := $(sort libcore/include $(LOCAL_C_INCLUDES) $(JNI_H_INCLUDE))
 core_shared_libraries := $(sort $(LOCAL_SHARED_LIBRARIES))
 core_static_libraries := $(sort $(LOCAL_STATIC_LIBRARIES))
+core_cflags := -DJNI_JARJAR_PREFIX="com/android/"
 
+core_test_files := \
+  luni/src/test/native/test_openssl_engine.cpp \
 
 #
 # Build for the target (device).
@@ -86,7 +79,8 @@ core_static_libraries := $(sort $(LOCAL_STATIC_LIBRARIES))
 include $(CLEAR_VARS)
 
 LOCAL_CFLAGS += -Wall -Wextra -Werror
-
+LOCAL_CFLAGS += $(core_cflags)
+LOCAL_CPPFLAGS += $(core_cppflags)
 ifeq ($(TARGET_ARCH),arm)
 # Ignore "note: the mangling of 'va_list' has changed in GCC 4.4"
 LOCAL_CFLAGS += -Wno-psabi
@@ -94,18 +88,42 @@ endif
 
 # Define the rules.
 LOCAL_SRC_FILES := $(core_src_files)
+LOCAL_CFLAGS := $(core_cflags)
 LOCAL_C_INCLUDES := $(core_c_includes)
-LOCAL_SHARED_LIBRARIES := $(core_shared_libraries)
+LOCAL_SHARED_LIBRARIES := $(core_shared_libraries) libexpat libicuuc libicui18n libssl libcrypto libz libnativehelper
 LOCAL_STATIC_LIBRARIES := $(core_static_libraries)
 LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := libjavacore
-include $(BUILD_STATIC_LIBRARY)
+LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/NativeCode.mk
 
-# Deal with keystores required for security. Note: The path to this file
-# is hardcoded in TrustManagerFactoryImpl.java.
-ALL_PREBUILT += $(TARGET_OUT)/etc/security/cacerts.bks
-$(TARGET_OUT)/etc/security/cacerts.bks : $(LOCAL_PATH)/luni/src/main/files/cacerts.bks | $(ACP)
-	$(transform-prebuilt-to-target)
+LOCAL_C_INCLUDES += external/stlport/stlport bionic/ bionic/libstdc++/include
+LOCAL_SHARED_LIBRARIES += libstlport
+
+include $(BUILD_SHARED_LIBRARY)
+
+
+# Test library
+ifeq ($(LIBCORE_SKIP_TESTS),)
+include $(CLEAR_VARS)
+
+LOCAL_CFLAGS += -Wall -Wextra -Werror
+LOCAL_CFLAGS += $(core_cflags)
+LOCAL_CPPFLAGS += $(core_cppflags)
+ifeq ($(TARGET_ARCH),arm)
+# Ignore "note: the mangling of 'va_list' has changed in GCC 4.4"
+LOCAL_CFLAGS += -Wno-psabi
+endif
+
+# Define the rules.
+LOCAL_SRC_FILES := $(core_test_files)
+LOCAL_C_INCLUDES := libcore/include external/openssl/include
+LOCAL_SHARED_LIBRARIES := libcrypto
+LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE := libjavacoretests
+LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/NativeCode.mk
+
+include $(BUILD_SHARED_LIBRARY)
+endif # LIBCORE_SKIP_TESTS
 
 
 #
@@ -113,19 +131,47 @@ $(TARGET_OUT)/etc/security/cacerts.bks : $(LOCAL_PATH)/luni/src/main/files/cacer
 #
 
 ifeq ($(WITH_HOST_DALVIK),true)
-
     include $(CLEAR_VARS)
-
     # Define the rules.
     LOCAL_SRC_FILES := $(core_src_files)
+    LOCAL_CFLAGS += $(core_cflags)
     LOCAL_C_INCLUDES := $(core_c_includes)
-    LOCAL_SHARED_LIBRARIES := $(core_shared_libraries)
-    LOCAL_STATIC_LIBRARIES := $(core_static_libraries)
+    LOCAL_CPPFLAGS += $(core_cppflags)
+    LOCAL_LDLIBS += -ldl -lpthread
     LOCAL_MODULE_TAGS := optional
-    LOCAL_MODULE := libjavacore-host
-    LOCAL_ADDITIONAL_DEPENDENCIES += $(HOST_OUT)/etc/security/cacerts.bks
-    include $(BUILD_HOST_STATIC_LIBRARY)
+    LOCAL_MODULE := libjavacore
+    LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/NativeCode.mk
+    LOCAL_SHARED_LIBRARIES := $(core_shared_libraries) libexpat-host libicuuc-host libicui18n-host libssl-host libcrypto-host libz-host
+    LOCAL_STATIC_LIBRARIES := $(core_static_libraries)
+    include $(BUILD_HOST_SHARED_LIBRARY)
 
-    $(eval $(call copy-one-file,$(LOCAL_PATH)/luni/src/main/files/cacerts.bks,$(HOST_OUT)/etc/security/cacerts.bks))
+    # Conscrypt native library for nojarjar'd version
+    include $(CLEAR_VARS)
+    LOCAL_SRC_FILES := \
+            crypto/src/main/native/org_conscrypt_NativeCrypto.cpp \
+            luni/src/main/native/AsynchronousSocketCloseMonitor.cpp
+    LOCAL_C_INCLUDES := $(core_c_includes)
+    LOCAL_CPPFLAGS += $(core_cppflags)
+    LOCAL_LDLIBS += -lpthread
+    LOCAL_MODULE_TAGS := optional
+    LOCAL_MODULE := libconscrypt_jni
+    LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/NativeCode.mk
+    LOCAL_SHARED_LIBRARIES := $(core_shared_libraries) libssl-host libcrypto-host
+    LOCAL_STATIC_LIBRARIES := $(core_static_libraries)
+    include $(BUILD_HOST_SHARED_LIBRARY)
 
+    ifeq ($(LIBCORE_SKIP_TESTS),)
+    include $(CLEAR_VARS)
+    # Define the rules.
+    LOCAL_SRC_FILES := $(core_test_files)
+    LOCAL_CFLAGS += $(core_cflags)
+    LOCAL_C_INCLUDES := libcore/include external/openssl/include
+    LOCAL_CPPFLAGS += $(core_cppflags)
+    LOCAL_LDLIBS += -ldl -lpthread
+    LOCAL_MODULE_TAGS := optional
+    LOCAL_MODULE := libjavacoretests
+    LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/NativeCode.mk
+    LOCAL_SHARED_LIBRARIES := libcrypto-host
+    include $(BUILD_HOST_SHARED_LIBRARY)
+    endif # LIBCORE_SKIP_TESTS
 endif

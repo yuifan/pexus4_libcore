@@ -20,45 +20,17 @@ package java.sql;
 import java.io.Serializable;
 import java.security.BasicPermission;
 import java.security.Guard;
+import java.security.Permission;
 
 /**
- * A Permission relating to security access control in the {@code java.sql}
- * package.
- * <p>
- * Currently, the only permission supported has the name " {@code setLog}". The
- * {@code setLog} permission controls whether a Java application or applet can
- * open a logging stream using the {@code DriverManager.setLogWriter} method or
- * the {@code DriverManager.setLogStream} method. This is a potentially
- * dangerous operation since the logging stream can contain sensitive
- * information such as usernames and passwords.
- *
- * @see DriverManager
+ * Legacy security code; do not use.
  */
-public final class SQLPermission extends BasicPermission implements Guard,
-        Serializable {
+public final class SQLPermission extends BasicPermission implements Guard, Serializable {
+    public SQLPermission(String name) { super(""); }
 
-    private static final long serialVersionUID = -1439323187199563495L;
+    public SQLPermission(String name, String actions) { super("", ""); }
 
-    /**
-     * Creates a new {@code SQLPermission} object with the specified name.
-     *
-     * @param name
-     *            the name to use for this {@code SQLPermission}.
-     */
-    public SQLPermission(String name) {
-        super(name);
-    }
+    @Override public String getActions() { return null; }
 
-    /**
-     * Creates a new {@code SQLPermission} object with the specified name.
-     *
-     * @param name
-     *            is the name of the {@code SQLPermission}. Currently only
-     *            {@code "setLog"} is allowed.
-     * @param actions
-     *            is currently unused and should be set to {@code null}.
-     */
-    public SQLPermission(String name, String actions) {
-        super(name, null);
-    }
+    @Override public boolean implies(Permission permission) { return true; }
 }

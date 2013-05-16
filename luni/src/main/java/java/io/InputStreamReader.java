@@ -25,7 +25,7 @@ import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.MalformedInputException;
 import java.nio.charset.UnmappableCharacterException;
-import org.apache.harmony.luni.util.HistoricalNamesUtil;
+import java.util.Arrays;
 
 /**
  * A class for turning a byte stream into a character stream. Data read from the
@@ -62,32 +62,32 @@ public class InputStreamReader extends Reader {
     /**
      * Constructs a new InputStreamReader on the InputStream {@code in}. The
      * character converter that is used to decode bytes into characters is
-     * identified by name by {@code enc}. If the encoding cannot be found, an
+     * identified by name by {@code charsetName}. If the encoding cannot be found, an
      * UnsupportedEncodingException error is thrown.
      *
      * @param in
      *            the InputStream from which to read characters.
-     * @param enc
+     * @param charsetName
      *            identifies the character converter to use.
      * @throws NullPointerException
-     *             if {@code enc} is {@code null}.
+     *             if {@code charsetName} is {@code null}.
      * @throws UnsupportedEncodingException
-     *             if the encoding specified by {@code enc} cannot be found.
+     *             if the encoding specified by {@code charsetName} cannot be found.
      */
-    public InputStreamReader(InputStream in, final String enc)
+    public InputStreamReader(InputStream in, final String charsetName)
             throws UnsupportedEncodingException {
         super(in);
-        if (enc == null) {
-            throw new NullPointerException();
+        if (charsetName == null) {
+            throw new NullPointerException("charsetName == null");
         }
         this.in = in;
         try {
-            decoder = Charset.forName(enc).newDecoder().onMalformedInput(
+            decoder = Charset.forName(charsetName).newDecoder().onMalformedInput(
                     CodingErrorAction.REPLACE).onUnmappableCharacter(
                     CodingErrorAction.REPLACE);
         } catch (IllegalArgumentException e) {
             throw (UnsupportedEncodingException)
-                    new UnsupportedEncodingException(enc).initCause(e);
+                    new UnsupportedEncodingException(charsetName).initCause(e);
         }
         bytes.limit(0);
     }
@@ -137,11 +137,9 @@ public class InputStreamReader extends Reader {
     @Override
     public void close() throws IOException {
         synchronized (lock) {
-            // BEGIN android-added
             if (decoder != null) {
                 decoder.reset();
             }
-            // END android-added
             decoder = null;
             if (in != null) {
                 in.close();
@@ -151,17 +149,16 @@ public class InputStreamReader extends Reader {
     }
 
     /**
-     * Returns the name of the encoding used to convert bytes into characters.
-     * The value {@code null} is returned if this reader has been closed.
-     *
-     * @return the name of the character converter or {@code null} if this
-     *         reader is closed.
+     * Returns the historical name of the encoding used by this writer to convert characters to
+     * bytes, or null if this writer has been closed. Most callers should probably keep
+     * track of the String or Charset they passed in; this method may not return the same
+     * name.
      */
     public String getEncoding() {
         if (!isOpen()) {
             return null;
         }
-        return HistoricalNamesUtil.getHistoricalName(decoder.charset().name());
+        return HistoricalCharsetNames.get(decoder.charset());
     }
 
     /**
@@ -217,16 +214,8 @@ public class InputStreamReader extends Reader {
             if (!isOpen()) {
                 throw new IOException("InputStreamReader is closed");
             }
-            // RI exception compatibility so we can run more tests.
-            if (offset < 0) {
-                throw new IndexOutOfBoundsException();
-            }
-            if (buffer == null) {
-                throw new NullPointerException("buffer == null");
-            }
-            if (length < 0 || offset > buffer.length - length) {
-                throw new IndexOutOfBoundsException();
-            }
+
+            Arrays.checkOffsetAndCount(buffer.length, offset, length);
             if (length == 0) {
                 return 0;
             }
@@ -250,17 +239,17 @@ public class InputStreamReader extends Reader {
                         // available didn't work so just try the read
                     }
 
-                    int to_read = bytes.capacity() - bytes.limit();
+                    int desiredByteCount = bytes.capacity() - bytes.limit();
                     int off = bytes.arrayOffset() + bytes.limit();
-                    int was_red = in.read(bytes.array(), off, to_read);
+                    int actualByteCount = in.read(bytes.array(), off, desiredByteCount);
 
-                    if (was_red == -1) {
+                    if (actualByteCount == -1) {
                         endOfInput = true;
                         break;
-                    } else if (was_red == 0) {
+                    } else if (actualByteCount == 0) {
                         break;
                     }
-                    bytes.limit(bytes.limit() + was_red);
+                    bytes.limit(bytes.limit() + actualByteCount);
                     needInput = false;
                 }
 
@@ -285,10 +274,8 @@ public class InputStreamReader extends Reader {
                 decoder.flush(out);
                 decoder.reset();
             }
-            if (result.isMalformed()) {
-                throw new MalformedInputException(result.length());
-            } else if (result.isUnmappable()) {
-                throw new UnmappableCharacterException(result.length());
+            if (result.isMalformed() || result.isUnmappable()) {
+                result.throwException();
             }
 
             return out.position() - offset == 0 ? -1 : out.position() - offset;

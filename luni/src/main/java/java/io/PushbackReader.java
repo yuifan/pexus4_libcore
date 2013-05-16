@@ -17,6 +17,8 @@
 
 package java.io;
 
+import java.util.Arrays;
+
 /**
  * Wraps an existing {@link Reader} and adds functionality to "push back"
  * characters that have been read, so that they can be read again. Parsers may
@@ -181,19 +183,7 @@ public class PushbackReader extends FilterReader {
     public int read(char[] buffer, int offset, int count) throws IOException {
         synchronized (lock) {
             checkNotClosed();
-            // avoid int overflow
-            // BEGIN android-changed
-            // Exception priorities (in case of multiple errors) differ from
-            // RI, but are spec-compliant.
-            // made implicit null check explicit, used (offset | count) < 0
-            // instead of (offset < 0) || (count < 0) to safe one operation
-            if (buffer == null) {
-                throw new NullPointerException("buffer == null");
-            }
-            if ((offset | count) < 0 || offset > buffer.length - count) {
-                throw new IndexOutOfBoundsException();
-            }
-            // END android-changed
+            Arrays.checkOffsetAndCount(buffer.length, offset, count);
 
             int copiedChars = 0;
             int copyLength = 0;
@@ -317,14 +307,7 @@ public class PushbackReader extends FilterReader {
             if (length > pos) {
                 throw new IOException("Pushback buffer full");
             }
-            // Force buffer null check first!
-            if (offset > buffer.length - length || offset < 0) {
-                throw new ArrayIndexOutOfBoundsException("Offset out of bounds: " + offset);
-            }
-            if (length < 0) {
-                throw new ArrayIndexOutOfBoundsException("Length out of bounds: " + length);
-            }
-
+            Arrays.checkOffsetAndCount(buffer.length, offset, length);
             for (int i = offset + length - 1; i >= offset; i--) {
                 unread(buffer[i]);
             }
@@ -356,39 +339,37 @@ public class PushbackReader extends FilterReader {
     }
 
     /**
-     * Skips {@code count} characters in this reader. This implementation skips
+     * Skips {@code charCount} characters in this reader. This implementation skips
      * characters in the pushback buffer first and then in the source reader if
      * necessary.
      *
-     * @param count
-     *            the number of characters to skip.
      * @return the number of characters actually skipped.
-     * @throws IllegalArgumentException if {@code count < 0}.
+     * @throws IllegalArgumentException if {@code charCount < 0}.
      * @throws IOException
      *             if this reader is closed or another I/O error occurs.
      */
     @Override
-    public long skip(long count) throws IOException {
-        if (count < 0) {
-            throw new IllegalArgumentException();
+    public long skip(long charCount) throws IOException {
+        if (charCount < 0) {
+            throw new IllegalArgumentException("charCount < 0: " + charCount);
         }
         synchronized (lock) {
             checkNotClosed();
-            if (count == 0) {
+            if (charCount == 0) {
                 return 0;
             }
             long inSkipped;
             int availableFromBuffer = buf.length - pos;
             if (availableFromBuffer > 0) {
-                long requiredFromIn = count - availableFromBuffer;
+                long requiredFromIn = charCount - availableFromBuffer;
                 if (requiredFromIn <= 0) {
-                    pos += count;
-                    return count;
+                    pos += charCount;
+                    return charCount;
                 }
                 pos += availableFromBuffer;
                 inSkipped = in.skip(requiredFromIn);
             } else {
-                inSkipped = in.skip(count);
+                inSkipped = in.skip(charCount);
             }
             return inSkipped + availableFromBuffer;
         }

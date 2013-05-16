@@ -17,7 +17,6 @@
 
 package java.util;
 
-import com.ibm.icu4jni.util.ICU;
 import dalvik.system.VMStack;
 import java.io.File;
 import java.io.IOException;
@@ -25,8 +24,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLConnection;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
+import java.nio.charset.Charsets;
+import static java.nio.charset.Charsets.UTF_8;
+import libcore.io.IoUtils;
 
 /**
  * {@code ResourceBundle} is an abstract class which is the superclass of classes which
@@ -110,7 +110,10 @@ public abstract class ResourceBundle {
 
     private static final ResourceBundle MISSINGBASE = new MissingBundle();
 
-    private static final WeakHashMap<Object, Hashtable<String, ResourceBundle>> cache = new WeakHashMap<Object, Hashtable<String, ResourceBundle>>();
+    private static final WeakHashMap<Object, Hashtable<String, ResourceBundle>> cache
+            = new WeakHashMap<Object, Hashtable<String, ResourceBundle>>();
+
+    private static Locale cacheLocale = Locale.getDefault();
 
     /**
      * Constructs a new instance of this class.
@@ -129,8 +132,12 @@ public abstract class ResourceBundle {
      * @throws MissingResourceException
      *                if the {@code ResourceBundle} cannot be found.
      */
-    public static final ResourceBundle getBundle(String bundleName) throws MissingResourceException {
-        return getBundleImpl(bundleName, Locale.getDefault(), VMStack.getCallingClassLoader());
+    public static ResourceBundle getBundle(String bundleName) throws MissingResourceException {
+        ClassLoader classLoader = VMStack.getCallingClassLoader();
+        if (classLoader == null) {
+            classLoader = getLoader();
+        }
+        return getBundle(bundleName, Locale.getDefault(), classLoader);
     }
 
     /**
@@ -145,8 +152,12 @@ public abstract class ResourceBundle {
      * @throws MissingResourceException
      *                if the resource bundle cannot be found.
      */
-    public static final ResourceBundle getBundle(String bundleName, Locale locale) {
-        return getBundleImpl(bundleName, locale, VMStack.getCallingClassLoader());
+    public static ResourceBundle getBundle(String bundleName, Locale locale) {
+        ClassLoader classLoader = VMStack.getCallingClassLoader();
+        if (classLoader == null) {
+            classLoader = getLoader();
+        }
+        return getBundle(bundleName, locale, classLoader);
     }
 
     /**
@@ -201,23 +212,26 @@ public abstract class ResourceBundle {
     public static ResourceBundle getBundle(String bundleName, Locale locale,
             ClassLoader loader) throws MissingResourceException {
         if (loader == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("loader == null");
+        } else if (bundleName == null) {
+            throw new NullPointerException("bundleName == null");
         }
-        if (bundleName != null) {
-            ResourceBundle bundle;
-            if (!locale.equals(Locale.getDefault())) {
-                if ((bundle = handleGetBundle(bundleName, UNDER_SCORE + locale,
-                        false, loader)) != null) {
-                    return bundle;
-                }
-            }
-            if ((bundle = handleGetBundle(bundleName, UNDER_SCORE
-                    + Locale.getDefault(), true, loader)) != null) {
-                return bundle;
-            }
-            throw missingResourceException(bundleName + '_' + locale, "");
+        Locale defaultLocale = Locale.getDefault();
+        if (!cacheLocale.equals(defaultLocale)) {
+            cache.clear();
+            cacheLocale = defaultLocale;
         }
-        throw new NullPointerException();
+        ResourceBundle bundle = null;
+        if (!locale.equals(defaultLocale)) {
+            bundle = handleGetBundle(false, bundleName, locale, loader);
+        }
+        if (bundle == null) {
+            bundle = handleGetBundle(true, bundleName, defaultLocale, loader);
+            if (bundle == null) {
+                throw missingResourceException(bundleName + '_' + locale, "");
+            }
+        }
+        return bundle;
     }
 
     private static MissingResourceException missingResourceException(String className, String key) {
@@ -236,7 +250,7 @@ public abstract class ResourceBundle {
      *
      * @since 1.6
      */
-    public static final ResourceBundle getBundle(String baseName, ResourceBundle.Control control) {
+    public static ResourceBundle getBundle(String baseName, ResourceBundle.Control control) {
         return getBundle(baseName, Locale.getDefault(), getLoader(), control);
     }
 
@@ -253,22 +267,17 @@ public abstract class ResourceBundle {
      *
      * @since 1.6
      */
-    public static final ResourceBundle getBundle(String baseName,
+    public static ResourceBundle getBundle(String baseName,
             Locale targetLocale, ResourceBundle.Control control) {
         return getBundle(baseName, targetLocale, getLoader(), control);
     }
 
     private static ClassLoader getLoader() {
-        return AccessController
-                .doPrivileged(new PrivilegedAction<ClassLoader>() {
-                    public ClassLoader run() {
-                        ClassLoader cl = this.getClass().getClassLoader();
-                        if (null == cl) {
-                            cl = ClassLoader.getSystemClassLoader();
-                        }
-                        return cl;
-                    }
-                });
+        ClassLoader cl = ResourceBundle.class.getClassLoader();
+        if (cl == null) {
+            cl = ClassLoader.getSystemClassLoader();
+        }
+        return cl;
     }
 
     /**
@@ -291,16 +300,8 @@ public abstract class ResourceBundle {
             ResourceBundle.Control control) {
         boolean expired = false;
         String bundleName = control.toBundleName(baseName, targetLocale);
-        Object cacheKey = loader != null ? (Object) loader : (Object) "null";
-        Hashtable<String, ResourceBundle> loaderCache;
-        // try to find in cache
-        synchronized (cache) {
-            loaderCache = cache.get(cacheKey);
-            if (loaderCache == null) {
-                loaderCache = new Hashtable<String, ResourceBundle>();
-                cache.put(cacheKey, loaderCache);
-            }
-        }
+        Object cacheKey = loader != null ? loader : "null";
+        Hashtable<String, ResourceBundle> loaderCache = getLoaderCache(cacheKey);
         ResourceBundle result = loaderCache.get(bundleName);
         if (result != null) {
             long time = control.getTimeToLive(baseName, targetLocale);
@@ -318,23 +319,21 @@ public abstract class ResourceBundle {
         ResourceBundle ret = processGetBundle(baseName, targetLocale, loader,
                 control, expired, result);
 
-        if (null != ret) {
+        if (ret != null) {
             loaderCache.put(bundleName, ret);
             ret.lastLoadTime = System.currentTimeMillis();
             return ret;
         }
         loaderCache.put(bundleName, MISSING);
-        throw new MissingResourceException(null, bundleName + '_'
-                + targetLocale, EMPTY_STRING);
+        throw new MissingResourceException(null, bundleName + '_' + targetLocale, EMPTY_STRING);
     }
 
     private static ResourceBundle processGetBundle(String baseName,
             Locale targetLocale, ClassLoader loader,
             ResourceBundle.Control control, boolean expired,
             ResourceBundle result) {
-        List<Locale> locales = control.getCandidateLocales(baseName,
-                targetLocale);
-        if (null == locales) {
+        List<Locale> locales = control.getCandidateLocales(baseName, targetLocale);
+        if (locales == null) {
             throw new IllegalArgumentException();
         }
         List<String> formats = control.getFormats(baseName);
@@ -370,61 +369,34 @@ public abstract class ResourceBundle {
                 } catch (IOException e) {
                     // do nothing
                 }
-                if (null != bundle) {
-                    if (null != currentBundle) {
+                if (bundle != null) {
+                    if (currentBundle != null) {
                         currentBundle.setParent(bundle);
                         currentBundle = bundle;
                     } else {
-                        if (null == ret) {
+                        if (ret == null) {
                             ret = bundle;
                             currentBundle = ret;
                         }
                     }
                 }
-                if (null != bundle) {
+                if (bundle != null) {
                     break;
                 }
             }
         }
 
-        if ((null == ret)
+        if ((ret == null)
                 || (Locale.ROOT.equals(ret.getLocale()) && (!(locales.size() == 1 && locales
                         .contains(Locale.ROOT))))) {
-            Locale nextLocale = control.getFallbackLocale(baseName,
-                    targetLocale);
-            if (null != nextLocale) {
+            Locale nextLocale = control.getFallbackLocale(baseName, targetLocale);
+            if (nextLocale != null) {
                 ret = processGetBundle(baseName, nextLocale, loader, control,
                         expired, result);
             }
         }
 
         return ret;
-    }
-
-    private static ResourceBundle getBundleImpl(String bundleName,
-            Locale locale, ClassLoader loader) throws MissingResourceException {
-        if (bundleName != null) {
-            ResourceBundle bundle;
-            if (!locale.equals(Locale.getDefault())) {
-                String localeName = locale.toString();
-                if (localeName.length() > 0) {
-                    localeName = UNDER_SCORE + localeName;
-                }
-                if ((bundle = handleGetBundle(bundleName, localeName, false,
-                        loader)) != null) {
-                    return bundle;
-                }
-            }
-            String localeName = Locale.getDefault().toString();
-            if (localeName.length() > 0) {
-                localeName = UNDER_SCORE + localeName;
-            }
-            if ((bundle = handleGetBundle(bundleName, localeName, true, loader)) != null) {
-                return bundle;
-            }
-            throw missingResourceException(bundleName + '_' + locale, "");
-        }
-        throw new NullPointerException();
     }
 
     /**
@@ -502,80 +474,63 @@ public abstract class ResourceBundle {
         return (String[]) getObject(key);
     }
 
-    private static ResourceBundle handleGetBundle(String base, String locale,
-            boolean loadBase, final ClassLoader loader) {
-        ResourceBundle bundle = null;
-        String bundleName = base + locale;
-        Object cacheKey = loader != null ? (Object) loader : (Object) "null";
-        Hashtable<String, ResourceBundle> loaderCache;
-        synchronized (cache) {
-            loaderCache = cache.get(cacheKey);
-            if (loaderCache == null) {
-                loaderCache = new Hashtable<String, ResourceBundle>();
-                cache.put(cacheKey, loaderCache);
-            }
-        }
-        ResourceBundle result = loaderCache.get(bundleName);
-        if (result != null) {
-            if (result == MISSINGBASE) {
+    private static ResourceBundle handleGetBundle(boolean loadBase, String base, Locale locale,
+            ClassLoader loader) {
+        String localeName = locale.toString();
+        String bundleName = localeName.isEmpty()
+                ? base
+                : (base + "_" + localeName);
+        Object cacheKey = loader != null ? loader : "null";
+        Hashtable<String, ResourceBundle> loaderCache = getLoaderCache(cacheKey);
+        ResourceBundle cached = loaderCache.get(bundleName);
+        if (cached != null) {
+            if (cached == MISSINGBASE) {
                 return null;
-            }
-            if (result == MISSING) {
+            } else if (cached == MISSING) {
                 if (!loadBase) {
                     return null;
                 }
-                String extension = strip(locale);
-                if (extension == null) {
+                Locale newLocale = strip(locale);
+                if (newLocale == null) {
                     return null;
                 }
-                return handleGetBundle(base, extension, loadBase, loader);
+                return handleGetBundle(loadBase, base, newLocale, loader);
             }
-            return result;
+            return cached;
         }
 
+        ResourceBundle bundle = null;
         try {
             Class<?> bundleClass = Class.forName(bundleName, true, loader);
-
             if (ResourceBundle.class.isAssignableFrom(bundleClass)) {
                 bundle = (ResourceBundle) bundleClass.newInstance();
             }
-        } catch (LinkageError e) {
-        } catch (Exception e) {
+        } catch (LinkageError ignored) {
+        } catch (Exception ignored) {
         }
 
         if (bundle != null) {
             bundle.setLocale(locale);
         } else {
-            final String fileName = bundleName.replace('.', '/');
-            InputStream stream = AccessController
-                    .doPrivileged(new PrivilegedAction<InputStream>() {
-                        public InputStream run() {
-                            return loader == null ? ClassLoader
-                                    .getSystemResourceAsStream(fileName
-                                            + ".properties") : loader
-                                    .getResourceAsStream(fileName
-                                            + ".properties");
-                        }
-                    });
+            String fileName = bundleName.replace('.', '/') + ".properties";
+            InputStream stream = loader != null
+                    ? loader.getResourceAsStream(fileName)
+                    : ClassLoader.getSystemResourceAsStream(fileName);
             if (stream != null) {
                 try {
-                    try {
-                        bundle = new PropertyResourceBundle(new InputStreamReader(stream));
-                    } finally {
-                        stream.close();
-                    }
+                    bundle = new PropertyResourceBundle(new InputStreamReader(stream, UTF_8));
                     bundle.setLocale(locale);
-                } catch (IOException e) {
-                    // do nothing
+                } catch (IOException ignored) {
+                } finally {
+                    IoUtils.closeQuietly(stream);
                 }
             }
         }
 
-        String extension = strip(locale);
+        Locale strippedLocale = strip(locale);
         if (bundle != null) {
-            if (extension != null) {
-                ResourceBundle parent = handleGetBundle(base, extension, true,
-                        loader);
+            if (strippedLocale != null) {
+                ResourceBundle parent = handleGetBundle(loadBase, base, strippedLocale, loader);
                 if (parent != null) {
                     bundle.setParent(parent);
                 }
@@ -584,8 +539,8 @@ public abstract class ResourceBundle {
             return bundle;
         }
 
-        if (extension != null && (loadBase || extension.length() > 0)) {
-            bundle = handleGetBundle(base, extension, loadBase, loader);
+        if (strippedLocale != null && (loadBase || !strippedLocale.toString().isEmpty())) {
+            bundle = handleGetBundle(loadBase, base, strippedLocale, loader);
             if (bundle != null) {
                 loaderCache.put(bundleName, bundle);
                 return bundle;
@@ -593,6 +548,17 @@ public abstract class ResourceBundle {
         }
         loaderCache.put(bundleName, loadBase ? MISSINGBASE : MISSING);
         return null;
+    }
+
+    private static Hashtable<String, ResourceBundle> getLoaderCache(Object cacheKey) {
+        synchronized (cache) {
+            Hashtable<String, ResourceBundle> loaderCache = cache.get(cacheKey);
+            if (loaderCache == null) {
+                loaderCache = new Hashtable<String, ResourceBundle>();
+                cache.put(cacheKey, loaderCache);
+            }
+            return loaderCache;
+        }
     }
 
     /**
@@ -616,36 +582,44 @@ public abstract class ResourceBundle {
         parent = bundle;
     }
 
-    private static String strip(String name) {
-        int index = name.lastIndexOf('_');
-        if (index != -1) {
-            return name.substring(0, index);
+    /**
+     * Returns a locale with the most-specific field removed, or null if this
+     * locale had an empty language, country and variant.
+     */
+    private static Locale strip(Locale locale) {
+        String language = locale.getLanguage();
+        String country = locale.getCountry();
+        String variant = locale.getVariant();
+        if (!variant.isEmpty()) {
+            variant = "";
+        } else if (!country.isEmpty()) {
+            country = "";
+        } else if (!language.isEmpty()) {
+            language = "";
+        } else {
+            return null;
         }
-        return null;
+        return new Locale(language, country, variant);
     }
 
     private void setLocale(Locale locale) {
         this.locale = locale;
     }
 
-    private void setLocale(String name) {
-        setLocale(ICU.localeFromString(name));
-    }
-
-    public static final void clearCache() {
+    public static void clearCache() {
         cache.remove(ClassLoader.getSystemClassLoader());
     }
 
-    public static final void clearCache(ClassLoader loader) {
-        if (null == loader) {
-            throw new NullPointerException();
+    public static void clearCache(ClassLoader loader) {
+        if (loader == null) {
+            throw new NullPointerException("loader == null");
         }
         cache.remove(loader);
     }
 
     public boolean containsKey(String key) {
-        if (null == key) {
-            throw new NullPointerException();
+        if (key == null) {
+            throw new NullPointerException("key == null");
         }
         return keySet().contains(key);
     }
@@ -663,7 +637,7 @@ public abstract class ResourceBundle {
         Set<String> set = keySet();
         Set<String> ret = new HashSet<String>();
         for (String key : set) {
-            if (null != handleGetObject(key)) {
+            if (handleGetObject(key) != null) {
                 ret.add(key);
             }
         }
@@ -682,21 +656,21 @@ public abstract class ResourceBundle {
                 listDefault);
 
         public NoFallbackControl(String format) {
-            super();
             listClass = new ArrayList<String>();
             listClass.add(format);
             super.format = Collections.unmodifiableList(listClass);
         }
 
         public NoFallbackControl(List<String> list) {
-            super();
             super.format = list;
         }
 
         @Override
         public Locale getFallbackLocale(String baseName, Locale locale) {
-            if (null == baseName || null == locale) {
-                throw new NullPointerException();
+            if (baseName == null) {
+                throw new NullPointerException("baseName == null");
+            } else if (locale == null) {
+                throw new NullPointerException("locale == null");
             }
             return null;
         }
@@ -704,14 +678,12 @@ public abstract class ResourceBundle {
 
     private static class SimpleControl extends Control {
         public SimpleControl(String format) {
-            super();
             listClass = new ArrayList<String>();
             listClass.add(format);
             super.format = Collections.unmodifiableList(listClass);
         }
     }
 
-    @SuppressWarnings("nls")
     /**
      * ResourceBundle.Control is a static utility class defines ResourceBundle
      * load access methods, its default access order is as the same as before.
@@ -780,7 +752,6 @@ public abstract class ResourceBundle {
          *
          */
         protected Control() {
-            super();
             listClass = new ArrayList<String>();
             listClass.add(JAVACLASS);
             listClass.add(JAVAPROPERTIES);
@@ -790,7 +761,7 @@ public abstract class ResourceBundle {
         /**
          * Returns a control according to {@code formats}.
          */
-        public static final Control getControl(List<String> formats) {
+        public static Control getControl(List<String> formats) {
             switch (formats.size()) {
             case 1:
                 if (formats.contains(JAVACLASS)) {
@@ -813,7 +784,7 @@ public abstract class ResourceBundle {
          * Returns a control according to {@code formats} whose fallback
          * locale is null.
          */
-        public static final Control getNoFallbackControl(List<String> formats) {
+        public static Control getNoFallbackControl(List<String> formats) {
             switch (formats.size()) {
             case 1:
                 if (formats.contains(JAVACLASS)) {
@@ -837,8 +808,10 @@ public abstract class ResourceBundle {
          * {@code locale}.
          */
         public List<Locale> getCandidateLocales(String baseName, Locale locale) {
-            if (null == baseName || null == locale) {
-                throw new NullPointerException();
+            if (baseName == null) {
+                throw new NullPointerException("baseName == null");
+            } else if (locale == null) {
+                throw new NullPointerException("locale == null");
             }
             List<Locale> retList = new ArrayList<Locale>();
             String language = locale.getLanguage();
@@ -861,8 +834,8 @@ public abstract class ResourceBundle {
          * Returns a list of strings of formats according to {@code baseName}.
          */
         public List<String> getFormats(String baseName) {
-            if (null == baseName) {
-                throw new NullPointerException();
+            if (baseName == null) {
+                throw new NullPointerException("baseName == null");
             }
             return format;
         }
@@ -871,8 +844,10 @@ public abstract class ResourceBundle {
          * Returns the fallback locale for {@code baseName} in {@code locale}.
          */
         public Locale getFallbackLocale(String baseName, Locale locale) {
-            if (null == baseName || null == locale) {
-                throw new NullPointerException();
+            if (baseName == null) {
+                throw new NullPointerException("baseName == null");
+            } else if (locale == null) {
+                throw new NullPointerException("locale == null");
             }
             if (Locale.getDefault() != locale) {
                 return Locale.getDefault();
@@ -905,28 +880,22 @@ public abstract class ResourceBundle {
                 String format, ClassLoader loader, boolean reload)
                 throws IllegalAccessException, InstantiationException,
                 IOException {
-            if (null == format || null == loader) {
-                throw new NullPointerException();
+            if (format == null) {
+                throw new NullPointerException("format == null");
+            } else if (loader == null) {
+                throw new NullPointerException("loader == null");
             }
-            InputStream streams = null;
             final String bundleName = toBundleName(baseName, locale);
             final ClassLoader clsloader = loader;
             ResourceBundle ret;
-            Class<?> cls = null;
-            if (JAVACLASS == format) {
-                cls = AccessController
-                        .doPrivileged(new PrivilegedAction<Class<?>>() {
-                            public Class<?> run() {
-                                try {
-                                    return clsloader.loadClass(bundleName);
-                                } catch (Exception e) {
-                                    return null;
-                                } catch (NoClassDefFoundError e) {
-                                    return null;
-                                }
-                            }
-                        });
-                if (null == cls) {
+            if (format.equals(JAVACLASS)) {
+                Class<?> cls = null;
+                try {
+                    cls = clsloader.loadClass(bundleName);
+                } catch (Exception e) {
+                } catch (NoClassDefFoundError e) {
+                }
+                if (cls == null) {
                     return null;
                 }
                 try {
@@ -937,9 +906,9 @@ public abstract class ResourceBundle {
                     return null;
                 }
             }
-            if (JAVAPROPERTIES == format) {
-                final String resourceName = toResourceName(bundleName,
-                        "properties");
+            if (format.equals(JAVAPROPERTIES)) {
+                InputStream streams = null;
+                final String resourceName = toResourceName(bundleName, "properties");
                 if (reload) {
                     URL url = null;
                     try {
@@ -947,20 +916,14 @@ public abstract class ResourceBundle {
                     } catch (NullPointerException e) {
                         // do nothing
                     }
-                    if (null != url) {
+                    if (url != null) {
                         URLConnection con = url.openConnection();
                         con.setUseCaches(false);
                         streams = con.getInputStream();
                     }
                 } else {
                     try {
-                        streams = AccessController
-                                .doPrivileged(new PrivilegedAction<InputStream>() {
-                                    public InputStream run() {
-                                        return clsloader
-                                                .getResourceAsStream(resourceName);
-                                    }
-                                });
+                        streams = clsloader.getResourceAsStream(resourceName);
                     } catch (NullPointerException e) {
                         // do nothing
                     }
@@ -985,8 +948,10 @@ public abstract class ResourceBundle {
          * default is TTL_NO_EXPIRATION_CONTROL.
          */
         public long getTimeToLive(String baseName, Locale locale) {
-            if (null == baseName || null == locale) {
-                throw new NullPointerException();
+            if (baseName == null) {
+                throw new NullPointerException("baseName == null");
+            } else if (locale == null) {
+                throw new NullPointerException("locale == null");
             }
             return TTL_NO_EXPIRATION_CONTROL;
         }
@@ -1011,21 +976,21 @@ public abstract class ResourceBundle {
         public boolean needsReload(String baseName, Locale locale,
                 String format, ClassLoader loader, ResourceBundle bundle,
                 long loadTime) {
-            if (null == bundle) {
+            if (bundle == null) {
                 // FIXME what's the use of bundle?
-                throw new NullPointerException();
+                throw new NullPointerException("bundle == null");
             }
             String bundleName = toBundleName(baseName, locale);
             String suffix = format;
-            if (JAVACLASS == format) {
+            if (format.equals(JAVACLASS)) {
                 suffix = "class";
             }
-            if (JAVAPROPERTIES == format) {
+            if (format.equals(JAVAPROPERTIES)) {
                 suffix = "properties";
             }
             String urlname = toResourceName(bundleName, suffix);
             URL url = loader.getResource(urlname);
-            if (null != url) {
+            if (url != null) {
                 String fileName = url.getFile();
                 long lastModified = new File(fileName).lastModified();
                 if (lastModified > loadTime) {
@@ -1050,8 +1015,8 @@ public abstract class ResourceBundle {
             final String emptyString = EMPTY_STRING;
             final String preString = UNDER_SCORE;
             final String underline = UNDER_SCORE;
-            if (null == baseName) {
-                throw new NullPointerException();
+            if (baseName == null) {
+                throw new NullPointerException("baseName == null");
             }
             StringBuilder ret = new StringBuilder();
             StringBuilder prefix = new StringBuilder();
@@ -1090,8 +1055,8 @@ public abstract class ResourceBundle {
          *         suffix
          */
         public final String toResourceName(String bundleName, String suffix) {
-            if (null == suffix) {
-                throw new NullPointerException();
+            if (suffix == null) {
+                throw new NullPointerException("suffix == null");
             }
             StringBuilder ret = new StringBuilder(bundleName.replace('.', '/'));
             ret.append('.');

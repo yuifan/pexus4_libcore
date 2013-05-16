@@ -22,26 +22,10 @@ void jniThrowExceptionWithErrno(JNIEnv* env, const char* exceptionClassName, int
     jniThrowException(env, exceptionClassName, jniStrError(error, buf, sizeof(buf)));
 }
 
-void jniThrowBindException(JNIEnv* env, int error) {
-    jniThrowExceptionWithErrno(env, "java/net/BindException", error);
-}
-
-void jniThrowConnectException(JNIEnv* env, int error) {
-    jniThrowExceptionWithErrno(env, "java/net/ConnectException", error);
-}
-
 void jniThrowOutOfMemoryError(JNIEnv* env, const char* message) {
     jniThrowException(env, "java/lang/OutOfMemoryError", message);
 }
 
-void jniThrowSecurityException(JNIEnv* env, int error) {
-    jniThrowExceptionWithErrno(env, "java/lang/SecurityException", error);
-}
-
 void jniThrowSocketException(JNIEnv* env, int error) {
     jniThrowExceptionWithErrno(env, "java/net/SocketException", error);
-}
-
-void jniThrowSocketTimeoutException(JNIEnv* env, int error) {
-    jniThrowExceptionWithErrno(env, "java/net/SocketTimeoutException", error);
 }

@@ -42,7 +42,7 @@ $(foreach dir,$(1),$(patsubst ./%,%,$(shell cd $(LOCAL_PATH) && find $(dir)/src/
 endef
 
 define all-test-java-files-under
-$(patsubst ./%,%,$(shell cd $(LOCAL_PATH) && find $(1)/src/test/java -name "*.java" 2> /dev/null))
+$(foreach dir,$(1),$(patsubst ./%,%,$(shell cd $(LOCAL_PATH) && find $(dir)/src/test/java -name "*.java" 2> /dev/null)))
 endef
 
 define all-core-resource-dirs
@@ -50,15 +50,20 @@ $(shell cd $(LOCAL_PATH) && ls -d */src/$(1)/{java,resources} 2> /dev/null)
 endef
 
 # The Java files and their associated resources.
-core_src_files := $(call all-main-java-files-under,dalvik dom json luni support xml)
+core_src_files := $(call all-main-java-files-under,dalvik dex dom json luni support xml)
 core_resource_dirs := $(call all-core-resource-dirs,main)
 test_resource_dirs := $(call all-core-resource-dirs,test)
 
 ifeq ($(EMMA_INSTRUMENT),true)
+ifneq ($(EMMA_INSTRUMENT_STATIC),true)
     core_src_files += $(call all-java-files-under, ../external/emma/core ../external/emma/pregenerated)
     core_resource_dirs += ../external/emma/core/res ../external/emma/pregenerated/res
 endif
+endif
 
+local_javac_flags=-encoding UTF-8
+#local_javac_flags+=-Xlint:all -Xlint:-serial,-deprecation,-unchecked
+local_javac_flags+=-Xmaxwarns 9999999
 
 #
 # Build for the target (device).
@@ -72,201 +77,71 @@ LOCAL_SRC_FILES := $(core_src_files)
 LOCAL_JAVA_RESOURCE_DIRS := $(core_resource_dirs)
 
 LOCAL_NO_STANDARD_LIBRARIES := true
-LOCAL_JAVACFLAGS := -encoding UTF-8
+LOCAL_JAVACFLAGS := $(local_javac_flags)
 LOCAL_DX_FLAGS := --core-library
 
-LOCAL_NO_EMMA_INSTRUMENT := true
-LOCAL_NO_EMMA_COMPILE := true
 LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := core
+LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/JavaLibrary.mk
+LOCAL_REQUIRED_MODULES := tzdata
 
 include $(BUILD_JAVA_LIBRARY)
 
 core-intermediates := ${intermediates}
 
 
-# Make core-junit
+# Create the conscrypt library
 include $(CLEAR_VARS)
-LOCAL_SRC_FILES := $(call all-main-java-files-under,junit)
-LOCAL_NO_STANDARD_LIBRARIES := true
+LOCAL_SRC_FILES := $(call all-main-java-files-under,crypto)
 LOCAL_JAVA_LIBRARIES := core
+LOCAL_NO_STANDARD_LIBRARIES := true
+LOCAL_JAVACFLAGS := $(local_javac_flags)
+LOCAL_JARJAR_RULES := $(LOCAL_PATH)/crypto/jarjar-rules.txt
 LOCAL_MODULE_TAGS := optional
-LOCAL_MODULE := core-junit
+LOCAL_MODULE := conscrypt
+LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/JavaLibrary.mk
 include $(BUILD_JAVA_LIBRARY)
 
-# Make core-junitrunner
+# Create the conscrypt library without jarjar for tests
 include $(CLEAR_VARS)
-LOCAL_SRC_FILES := $(call all-test-java-files-under,junit)
-LOCAL_JAVA_RESOURCE_DIRS := $(test_resource_dirs)
-LOCAL_NO_STANDARD_LIBRARIES := true
-LOCAL_JAVA_LIBRARIES := core core-junit
-LOCAL_DX_FLAGS := --core-library
-LOCAL_MODULE_TAGS := tests
-LOCAL_MODULE := core-junitrunner
-include $(BUILD_JAVA_LIBRARY)
-
-# Definitions to make the sqlite JDBC driver.
-
-include $(CLEAR_VARS)
-LOCAL_SRC_FILES := $(call all-main-java-files-under,sqlite-jdbc)
-LOCAL_NO_STANDARD_LIBRARIES := true
+LOCAL_SRC_FILES := $(call all-main-java-files-under,crypto)
 LOCAL_JAVA_LIBRARIES := core
+LOCAL_NO_STANDARD_LIBRARIES := true
+LOCAL_JAVACFLAGS := $(local_javac_flags)
 LOCAL_MODULE_TAGS := optional
-LOCAL_MODULE := sqlite-jdbc
+LOCAL_MODULE := conscrypt-nojarjar
+LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/JavaLibrary.mk
 include $(BUILD_JAVA_LIBRARY)
 
 
-# Definitions to make the core-tests libraries.
-#
-# We make a library per module, because otherwise the .jar files get too
-# large, to the point that dx(1) can't cope (and the build is
-# ridiculously slow).
-#
-# TODO: vogar will make this nonsense obsolete.
-
+ifeq ($(LIBCORE_SKIP_TESTS),)
+# Make the core-tests library.
 include $(CLEAR_VARS)
-LOCAL_SRC_FILES := $(call all-test-java-files-under,dalvik)
+LOCAL_SRC_FILES := $(call all-test-java-files-under,crypto dalvik dom harmony-tests json luni support xml)
 LOCAL_JAVA_RESOURCE_DIRS := $(test_resource_dirs)
 LOCAL_NO_STANDARD_LIBRARIES := true
-LOCAL_JAVA_LIBRARIES := core core-junit core-junitrunner core-tests-support
-LOCAL_DX_FLAGS := --core-library
-LOCAL_MODULE_TAGS := tests
-LOCAL_MODULE := core-tests-dalvik
-include $(BUILD_JAVA_LIBRARY)
-
-include $(CLEAR_VARS)
-LOCAL_SRC_FILES := $(call all-test-java-files-under,dom)
-LOCAL_JAVA_RESOURCE_DIRS := $(test_resource_dirs)
-LOCAL_NO_STANDARD_LIBRARIES := true
-LOCAL_JAVA_LIBRARIES := core core-junit core-junitrunner core-tests-support
-LOCAL_DX_FLAGS := --core-library
-LOCAL_MODULE_TAGS := tests
-LOCAL_MODULE := core-tests-dom
-include $(BUILD_JAVA_LIBRARY)
-
-include $(CLEAR_VARS)
-LOCAL_SRC_FILES := $(call all-test-java-files-under,json)
-LOCAL_JAVA_RESOURCE_DIRS := $(test_resource_dirs)
-LOCAL_NO_STANDARD_LIBRARIES := true
-LOCAL_JAVA_LIBRARIES := core core-junit core-junitrunner core-tests-support
-LOCAL_DX_FLAGS := --core-library
-LOCAL_MODULE_TAGS := tests
-LOCAL_MODULE := core-tests-json
-include $(BUILD_JAVA_LIBRARY)
-
-include $(CLEAR_VARS)
-LOCAL_SRC_FILES := $(call all-test-java-files-under,luni)
-LOCAL_JAVA_RESOURCE_DIRS := $(test_resource_dirs)
-LOCAL_NO_STANDARD_LIBRARIES := true
-# This module contains the top-level "tests.AllTests" that ties everything
-# together, so it has compile-time dependencies on all the other test
-# libraries.
-# TODO: we should have a bogus module that just contains tests.AllTests for speed.
-LOCAL_JAVA_LIBRARIES := \
-        bouncycastle \
-        core \
-        core-junit \
-        core-junitrunner \
-        core-tests-support \
-        core-tests-dalvik \
-        core-tests-dom \
-        core-tests-json \
-        core-tests-xml \
-        sqlite-jdbc
-LOCAL_DX_FLAGS := --core-library
-LOCAL_MODULE_TAGS := tests
+LOCAL_JAVA_LIBRARIES := bouncycastle core conscrypt-nojarjar core-junit okhttp
+LOCAL_STATIC_JAVA_LIBRARIES := sqlite-jdbc mockwebserver nist-pkix-tests okhttp-tests
+LOCAL_JAVACFLAGS := $(local_javac_flags)
+LOCAL_JARJAR_RULES := $(LOCAL_PATH)/crypto/jarjar-rules.txt
 LOCAL_MODULE := core-tests
-
-LOCAL_NO_EMMA_INSTRUMENT := true
-LOCAL_NO_EMMA_COMPILE := true
-
-include $(BUILD_JAVA_LIBRARY)
-
-include $(CLEAR_VARS)
-LOCAL_SRC_FILES := $(call all-test-java-files-under,support)
-LOCAL_JAVA_RESOURCE_DIRS := $(test_resource_dirs)
-LOCAL_NO_STANDARD_LIBRARIES := true
-LOCAL_JAVA_LIBRARIES := bouncycastle core core-junit core-junitrunner
-LOCAL_DX_FLAGS := --core-library
-LOCAL_MODULE_TAGS := tests
-LOCAL_MODULE := core-tests-support
-include $(BUILD_JAVA_LIBRARY)
-
-include $(CLEAR_VARS)
-LOCAL_SRC_FILES := $(call all-test-java-files-under,xml)
-LOCAL_JAVA_RESOURCE_DIRS := $(test_resource_dirs)
-LOCAL_NO_STANDARD_LIBRARIES := true
-LOCAL_JAVA_LIBRARIES := core core-junit core-junitrunner core-tests-support
-LOCAL_DX_FLAGS := --core-library
-LOCAL_MODULE_TAGS := tests
-LOCAL_MODULE := core-tests-xml
-include $(BUILD_JAVA_LIBRARY)
-
-# also build support as a static library for use by frameworks/base HTTPS tests
-include $(CLEAR_VARS)
-LOCAL_SRC_FILES := $(call all-test-java-files-under,support)
-LOCAL_JAVA_RESOURCE_DIRS := $(test_resource_dirs)
-LOCAL_NO_STANDARD_LIBRARIES := true
-LOCAL_JAVA_LIBRARIES := bouncycastle core core-junit core-junitrunner
-LOCAL_DX_FLAGS := --core-library
-LOCAL_MODULE_TAGS := tests
-LOCAL_MODULE := core-tests-supportlib
+LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/JavaLibrary.mk
 include $(BUILD_STATIC_JAVA_LIBRARY)
+endif
 
 # This one's tricky. One of our tests needs to have a
 # resource with a "#" in its name, but Perforce doesn't
 # allow us to submit such a file. So we create it here
 # on-the-fly.
-TMP_RESOURCE_DIR := $(OUT_DIR)/tmp/
+TMP_RESOURCE_DIR := $(intermediates.COMMON)/tmp/
 TMP_RESOURCE_FILE := org/apache/harmony/luni/tests/java/lang/test\#.properties
 
 $(TMP_RESOURCE_DIR)$(TMP_RESOURCE_FILE):
 	@mkdir -p $(dir $@)
 	@echo "Hello, world!" > $@
 
-$(LOCAL_INTERMEDIATE_TARGETS): PRIVATE_EXTRA_JAR_ARGS := $(extra_jar_args) -C $(TMP_RESOURCE_DIR) $(TMP_RESOURCE_FILE)
+$(LOCAL_INTERMEDIATE_TARGETS): PRIVATE_EXTRA_JAR_ARGS := $(extra_jar_args) -C "$(TMP_RESOURCE_DIR)" "$(TMP_RESOURCE_FILE)"
 $(LOCAL_INTERMEDIATE_TARGETS): $(TMP_RESOURCE_DIR)$(TMP_RESOURCE_FILE)
-
-# Definitions for building a version of the core-tests.jar
-# that is suitable for execution on the RI. This JAR would
-# be better located in $HOST_OUT_JAVA_LIBRARIES, but it is
-# not possible to refer to that from a shell script (the
-# variable is not exported from envsetup.sh). There is also
-# some trickery involved: we need to include some classes
-# that reside in core.jar, but since we cannot incldue the
-# whole core.jar in the RI classpath, we copy those classses
-# over to our new file.
-HOST_CORE_JAR := $(HOST_COMMON_OUT_ROOT)/core-tests.jar
-
-$(HOST_CORE_JAR): PRIVATE_LOCAL_BUILT_MODULE := $(LOCAL_BUILT_MODULE)
-$(HOST_CORE_JAR): PRIVATE_CORE_INTERMEDIATES := $(core-intermediates)
-$(HOST_CORE_JAR): $(LOCAL_BUILT_MODULE)
-	@rm -rf $(dir $<)/hostctsclasses
-	$(call unzip-jar-files,$(dir $<)classes.jar,$(dir $<)hostctsclasses)
-	@unzip -qx -o $(PRIVATE_CORE_INTERMEDIATES)/classes.jar dalvik/annotation/* -d $(dir $<)hostctsclasses
-	@cp $< $@
-	@jar uf $@ -C $(dir $<)hostctsclasses .
-
-$(LOCAL_INSTALLED_MODULE): $(HOST_CORE_JAR)
-
-$(LOCAL_INSTALLED_MODULE): run-core-tests
-
-# Definitions to copy the core-tests runner script.
-
-include $(CLEAR_VARS)
-LOCAL_SRC_FILES := run-core-tests
-LOCAL_MODULE_CLASS := EXECUTABLES
-LOCAL_MODULE_TAGS := tests
-LOCAL_MODULE := run-core-tests
-include $(BUILD_PREBUILT)
-
-include $(CLEAR_VARS)
-LOCAL_SRC_FILES := run-core-tests-on-ri
-LOCAL_IS_HOST_MODULE := true
-LOCAL_MODULE_CLASS := EXECUTABLES
-LOCAL_MODULE_TAGS := tests
-LOCAL_MODULE := run-core-tests-on-ri
-include $(BUILD_PREBUILT)
 
 
 #
@@ -283,16 +158,101 @@ ifeq ($(WITH_HOST_DALVIK),true)
     LOCAL_JAVA_RESOURCE_DIRS := $(core_resource_dirs)
 
     LOCAL_NO_STANDARD_LIBRARIES := true
-    LOCAL_JAVACFLAGS := -encoding UTF-8
+    LOCAL_JAVACFLAGS := $(local_javac_flags)
     LOCAL_DX_FLAGS := --core-library
 
-    LOCAL_NO_EMMA_INSTRUMENT := true
-    LOCAL_NO_EMMA_COMPILE := true
     LOCAL_BUILD_HOST_DEX := true
 
     LOCAL_MODULE_TAGS := optional
     LOCAL_MODULE := core-hostdex
+    LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/JavaLibrary.mk
+    LOCAL_REQUIRED_MODULES := tzdata-host
 
     include $(BUILD_HOST_JAVA_LIBRARY)
 
+    # Make the conscrypt-hostdex library
+    include $(CLEAR_VARS)
+    LOCAL_SRC_FILES := $(call all-main-java-files-under,crypto)
+    LOCAL_JAVA_LIBRARIES := core-hostdex
+    LOCAL_NO_STANDARD_LIBRARIES := true
+    LOCAL_JAVACFLAGS := $(local_javac_flags)
+    LOCAL_JARJAR_RULES := $(LOCAL_PATH)/crypto/jarjar-rules.txt
+    LOCAL_BUILD_HOST_DEX := true
+    LOCAL_MODULE_TAGS := optional
+    LOCAL_MODULE := conscrypt-hostdex
+    LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/JavaLibrary.mk
+    include $(BUILD_HOST_JAVA_LIBRARY)
+
+    # Make the conscrypt-hostdex-nojarjar for tests
+    include $(CLEAR_VARS)
+    LOCAL_SRC_FILES := $(call all-main-java-files-under,crypto)
+    LOCAL_JAVA_LIBRARIES := core-hostdex
+    LOCAL_NO_STANDARD_LIBRARIES := true
+    LOCAL_JAVACFLAGS := $(local_javac_flags)
+    LOCAL_BUILD_HOST_DEX := true
+    LOCAL_MODULE_TAGS := optional
+    LOCAL_MODULE := conscrypt-hostdex-nojarjar
+    LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/JavaLibrary.mk
+    include $(BUILD_HOST_JAVA_LIBRARY)
+
+    # Make the core-tests library.
+    ifeq ($(LIBCORE_SKIP_TESTS),)
+    include $(CLEAR_VARS)
+    LOCAL_SRC_FILES := $(call all-test-java-files-under,crypto dalvik dom json luni support xml)
+    LOCAL_JAVA_RESOURCE_DIRS := $(test_resource_dirs)
+    LOCAL_NO_STANDARD_LIBRARIES := true
+    LOCAL_JAVA_LIBRARIES := bouncycastle-hostdex core-hostdex conscrypt-hostdex-nojarjar core-junit-hostdex okhttp-hostdex
+    LOCAL_STATIC_JAVA_LIBRARIES := sqlite-jdbc-host mockwebserver-host nist-pkix-tests-host
+    LOCAL_JAVACFLAGS := $(local_javac_flags)
+    LOCAL_JARJAR_RULES := $(LOCAL_PATH)/crypto/jarjar-rules.txt
+    LOCAL_MODULE_TAGS := optional
+    LOCAL_MODULE := core-tests-hostdex
+    LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/JavaLibrary.mk
+    LOCAL_BUILD_HOST_DEX := true
+    include $(BUILD_HOST_JAVA_LIBRARY)
+    endif
 endif
+
+#
+# Local droiddoc for faster libcore testing
+#
+#
+# Run with:
+#     mm -j32 libcore-docs
+#
+# Main output:
+#     ../out/target/common/docs/libcore/reference/packages.html
+#
+# All text for proofreading (or running tools over):
+#     ../out/target/common/docs/libcore-proofread.txt
+#
+# TODO list of missing javadoc, etc:
+#     ../out/target/common/docs/libcore-docs-todo.html
+#
+# Rerun:
+#     rm -rf ../out/target/common/docs/libcore-timestamp && mm -j32 libcore-docs
+#
+include $(CLEAR_VARS)
+
+# for shared defintion of libcore_to_document
+include $(LOCAL_PATH)/Docs.mk
+
+LOCAL_SRC_FILES:=$(call libcore_to_document,$(LOCAL_PATH))
+# rerun doc generation without recompiling the java
+LOCAL_JAVA_LIBRARIES:=
+LOCAL_JAVACFLAGS := $(local_javac_flags)
+LOCAL_MODULE_CLASS:=JAVA_LIBRARIES
+
+LOCAL_MODULE := libcore
+LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/JavaLibrary.mk
+
+LOCAL_DROIDDOC_OPTIONS := \
+ -offlinemode \
+ -title "libcore" \
+ -proofread $(OUT_DOCS)/$(LOCAL_MODULE)-proofread.txt \
+ -todo ../$(LOCAL_MODULE)-docs-todo.html \
+ -hdf android.whichdoc offline
+
+LOCAL_DROIDDOC_CUSTOM_TEMPLATE_DIR:=build/tools/droiddoc/templates-sdk
+
+include $(BUILD_DROIDDOC)

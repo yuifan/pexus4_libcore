@@ -118,55 +118,32 @@ static jdouble StrictMath_nextafter(JNIEnv*, jclass, jdouble a, jdouble b) {
     return ieee_nextafter(a, b);
 }
 
-extern jint Float_floatToRawIntBits(JNIEnv*, jclass, jfloat);
-extern jfloat Float_intBitsToFloat(JNIEnv*, jclass, jint val);
-
-// TODO: we should make Float.floatToRawBits and Float.intBitsToFloat intrinsics, and move
-// this kind of code into Java.
-static jfloat StrictMath_nextafterf(JNIEnv*, jclass, jfloat arg1, jfloat arg2) {
-    jint hx = Float_floatToRawIntBits(NULL, NULL, arg1);
-    jint hy = Float_floatToRawIntBits(NULL, NULL, arg2);
-
-    if (!(hx & 0x7fffffff)) { /* arg1 == 0 */
-        return Float_intBitsToFloat(NULL, NULL, (hy & 0x80000000) | 0x1);
-    }
-
-    if ((hx > 0) ^ (hx > hy)) { /* |arg1| < |arg2| */
-        hx += 1;
-    } else {
-        hx -= 1;
-    }
-    return Float_intBitsToFloat(NULL, NULL, hx);
-}
-
 static JNINativeMethod gMethods[] = {
-    NATIVE_METHOD(StrictMath, IEEEremainder, "(DD)D"),
-    NATIVE_METHOD(StrictMath, acos, "(D)D"),
-    NATIVE_METHOD(StrictMath, asin, "(D)D"),
-    NATIVE_METHOD(StrictMath, atan, "(D)D"),
-    NATIVE_METHOD(StrictMath, atan2, "(DD)D"),
-    NATIVE_METHOD(StrictMath, cbrt, "(D)D"),
-    NATIVE_METHOD(StrictMath, ceil, "(D)D"),
-    NATIVE_METHOD(StrictMath, cos, "(D)D"),
-    NATIVE_METHOD(StrictMath, cosh, "(D)D"),
-    NATIVE_METHOD(StrictMath, exp, "(D)D"),
-    NATIVE_METHOD(StrictMath, expm1, "(D)D"),
-    NATIVE_METHOD(StrictMath, floor, "(D)D"),
-    NATIVE_METHOD(StrictMath, hypot, "(DD)D"),
-    NATIVE_METHOD(StrictMath, log, "(D)D"),
-    NATIVE_METHOD(StrictMath, log10, "(D)D"),
-    NATIVE_METHOD(StrictMath, log1p, "(D)D"),
-    NATIVE_METHOD(StrictMath, nextafter, "(DD)D"),
-    NATIVE_METHOD(StrictMath, nextafterf, "(FF)F"),
-    NATIVE_METHOD(StrictMath, pow, "(DD)D"),
-    NATIVE_METHOD(StrictMath, rint, "(D)D"),
-    NATIVE_METHOD(StrictMath, sin, "(D)D"),
-    NATIVE_METHOD(StrictMath, sinh, "(D)D"),
-    NATIVE_METHOD(StrictMath, sqrt, "(D)D"),
-    NATIVE_METHOD(StrictMath, tan, "(D)D"),
-    NATIVE_METHOD(StrictMath, tanh, "(D)D"),
+    NATIVE_METHOD(StrictMath, IEEEremainder, "!(DD)D"),
+    NATIVE_METHOD(StrictMath, acos, "!(D)D"),
+    NATIVE_METHOD(StrictMath, asin, "!(D)D"),
+    NATIVE_METHOD(StrictMath, atan, "!(D)D"),
+    NATIVE_METHOD(StrictMath, atan2, "!(DD)D"),
+    NATIVE_METHOD(StrictMath, cbrt, "!(D)D"),
+    NATIVE_METHOD(StrictMath, ceil, "!(D)D"),
+    NATIVE_METHOD(StrictMath, cos, "!(D)D"),
+    NATIVE_METHOD(StrictMath, cosh, "!(D)D"),
+    NATIVE_METHOD(StrictMath, exp, "!(D)D"),
+    NATIVE_METHOD(StrictMath, expm1, "!(D)D"),
+    NATIVE_METHOD(StrictMath, floor, "!(D)D"),
+    NATIVE_METHOD(StrictMath, hypot, "!(DD)D"),
+    NATIVE_METHOD(StrictMath, log, "!(D)D"),
+    NATIVE_METHOD(StrictMath, log10, "!(D)D"),
+    NATIVE_METHOD(StrictMath, log1p, "!(D)D"),
+    NATIVE_METHOD(StrictMath, nextafter, "!(DD)D"),
+    NATIVE_METHOD(StrictMath, pow, "!(DD)D"),
+    NATIVE_METHOD(StrictMath, rint, "!(D)D"),
+    NATIVE_METHOD(StrictMath, sin, "!(D)D"),
+    NATIVE_METHOD(StrictMath, sinh, "!(D)D"),
+    NATIVE_METHOD(StrictMath, sqrt, "!(D)D"),
+    NATIVE_METHOD(StrictMath, tan, "!(D)D"),
+    NATIVE_METHOD(StrictMath, tanh, "!(D)D"),
 };
-
-int register_java_lang_StrictMath(JNIEnv* env) {
-    return jniRegisterNativeMethods(env, "java/lang/StrictMath", gMethods, NELEM(gMethods));
+void register_java_lang_StrictMath(JNIEnv* env) {
+    jniRegisterNativeMethods(env, "java/lang/StrictMath", gMethods, NELEM(gMethods));
 }

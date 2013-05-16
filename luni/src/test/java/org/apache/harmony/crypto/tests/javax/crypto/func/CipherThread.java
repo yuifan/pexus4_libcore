@@ -35,7 +35,7 @@ public abstract class CipherThread implements Runnable {
     private String paddingMode = null;
     private int fails = 0;
 
-    abstract public void crypt() throws Exception;
+    public abstract void crypt() throws Exception;
 
     CipherThread(String name, int[] keys, String[] modes, String[] paddings) {
         algName     = name;
@@ -53,6 +53,20 @@ public abstract class CipherThread implements Runnable {
             if (original[i] != encoded[i]) {
                 throw new Exception("Source and encoded data not match " +
                         getCipherParameters());
+            }
+        }
+    }
+
+    public void checkPaddedEncodedData(byte[] original, byte[] encoded, int offset)
+            throws Exception {
+        for (int i = 0; i < offset; i++) {
+            if (encoded[i] != 0) {
+                throw new Exception("Encoded data is not properly padded at offset " + i);
+            }
+        }
+        for (int i = 0; i < original.length; i++) {
+            if (original[i] != encoded[i + offset]) {
+                throw new Exception("Source and encoded data not match " + getCipherParameters());
             }
         }
     }

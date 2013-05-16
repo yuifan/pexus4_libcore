@@ -51,7 +51,7 @@ public class OldDateFormatTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.text.DateFormat#DateFormat() Test of method
+     * java.text.DateFormat#DateFormat() Test of method
      *        java.text.DateFormat#DateFormat().
      */
     public void test_Constructor() {
@@ -63,7 +63,7 @@ public class OldDateFormatTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.text.DateFormat#equals(java.lang.Object obj) Test of
+     * java.text.DateFormat#equals(java.lang.Object obj) Test of
      *        java.text.DateFormat#equals(java.lang.Object obj).
      */
     public void test_equalsLjava_lang_Object() {
@@ -81,7 +81,7 @@ public class OldDateFormatTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.text.DateFormat#format(java.util.Date) Test of method
+     * java.text.DateFormat#format(java.util.Date) Test of method
      *        java.text.DateFormat#format(java.util.Date).
      */
     public void test_formatLjava_util_Date() {
@@ -90,7 +90,7 @@ public class OldDateFormatTest extends junit.framework.TestCase {
                     DateFormat.SHORT, DateFormat.SHORT, Locale.US);
             Date current = new Date();
             String dtf = format.format(current);
-            SimpleDateFormat sdf = new SimpleDateFormat("M/d/yy h:mm a");
+            SimpleDateFormat sdf = new SimpleDateFormat("M/d/yy h:mm a", Locale.US);
             assertTrue("Incorrect date format", sdf.format(current).equals(dtf));
         } catch (Exception e) {
             fail("Unexpected exception " + e.toString());
@@ -98,7 +98,7 @@ public class OldDateFormatTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.text.DateFormat#format(Object, StringBuffer, FieldPosition)
+     * java.text.DateFormat#format(Object, StringBuffer, FieldPosition)
      *        Test of method java.text.DateFormat#format(Object, StringBuffer,
      *        FieldPosition)
      */
@@ -110,7 +110,7 @@ public class OldDateFormatTest extends junit.framework.TestCase {
             StringBuffer toAppend = new StringBuffer();
             FieldPosition fp = new FieldPosition(DateFormat.YEAR_FIELD);
             StringBuffer sb = format.format(current, toAppend, fp);
-            SimpleDateFormat sdf = new SimpleDateFormat("M/d/yy h:mm a");
+            SimpleDateFormat sdf = new SimpleDateFormat("M/d/yy h:mm a", Locale.US);
             assertTrue("Incorrect date format", sdf.format(current).equals(
                     sb.toString()));
             assertTrue("Incorrect beginIndex of filed position", fp
@@ -140,7 +140,7 @@ public class OldDateFormatTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.text.DateFormat#hashCode() Test of method
+     * java.text.DateFormat#hashCode() Test of method
      *        java.text.DateFormat#hashCode().
      */
     public void test_hashCode() {
@@ -157,7 +157,7 @@ public class OldDateFormatTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.text.DateFormat#isLenient() Test of method
+     * java.text.DateFormat#isLenient() Test of method
      *        java.text.DateFormat#isLenient().
      */
     public void test_isLenient() {
@@ -201,10 +201,10 @@ public class OldDateFormatTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.text.DateFormat#parse(String)
+     * java.text.DateFormat#parse(String)
      */
-    public void test_parseLString() {
-        DateFormat format = DateFormat.getInstance();
+    public void test_parseLString() throws Exception {
+        DateFormat format = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT, Locale.US);
 
         try {
             format.parse("not a Date");
@@ -247,7 +247,7 @@ public class OldDateFormatTest extends junit.framework.TestCase {
             //expected
         }
 
-        format = DateFormat.getDateInstance();
+        format = DateFormat.getDateInstance(DateFormat.DEFAULT, Locale.US);
         try {
             Date date = format.parse(format.format(current).toString());
             assertEquals(current.getDate(), date.getDate());
@@ -275,7 +275,7 @@ public class OldDateFormatTest extends junit.framework.TestCase {
             //expected
         }
 
-        format = DateFormat.getDateInstance(DateFormat.LONG);
+        format = DateFormat.getDateInstance(DateFormat.LONG, Locale.US);
         try {
             Date date = format.parse(format.format(current).toString());
             assertEquals(current.getDate(), date.getDate());
@@ -289,7 +289,7 @@ public class OldDateFormatTest extends junit.framework.TestCase {
             fail("ParseException was thrown for current Date.");
         }
 
-        format = DateFormat.getDateInstance(DateFormat.MEDIUM);
+        format = DateFormat.getDateInstance(DateFormat.MEDIUM, Locale.US);
         try {
             Date date = format.parse(format.format(current).toString());
             assertEquals(current.getDate(), date.getDate());
@@ -303,7 +303,7 @@ public class OldDateFormatTest extends junit.framework.TestCase {
             fail("ParseException was thrown for current Date.");
         }
 
-        format = DateFormat.getTimeInstance();
+        format = DateFormat.getTimeInstance(DateFormat.DEFAULT, Locale.US);
         try {
             Date date = format.parse(format.format(current).toString());
             assertEquals(1, date.getDate());
@@ -322,7 +322,7 @@ public class OldDateFormatTest extends junit.framework.TestCase {
             //expected
         }
 
-        format = DateFormat.getDateTimeInstance();
+        format = DateFormat.getDateTimeInstance(DateFormat.DEFAULT, DateFormat.SHORT, Locale.US);
         try {
             Date date = format.parse(format.format(current).toString());
             assertEquals(current.getDate(), date.getDate());
@@ -338,40 +338,34 @@ public class OldDateFormatTest extends junit.framework.TestCase {
         try {
             format.parse("January 31 1970 7:52:34 AM PST");
             fail("ParseException was not thrown.");
-        } catch(ParseException pe) {
-            //expected
+        } catch (ParseException expected) {
         }
 
         try {
             format.parse("January 31 1970");
             fail("ParseException was not thrown.");
-        } catch(ParseException pe) {
-            //expected
+        } catch (ParseException expected) {
         }
 
-        format = DateFormat.getDateTimeInstance(DateFormat.FULL, DateFormat.FULL);
-        try {
-            Date date = format.parse(format.format(current).toString());
-            assertEquals(current.getDate(), date.getDate());
-            assertEquals(current.getDay(), date.getDay());
-            assertEquals(current.getMonth(), date.getMonth());
-            assertEquals(current.getYear(), date.getYear());
-            assertEquals(current.getHours(), date.getHours());
-            assertEquals(current.getMinutes(), date.getMinutes());
-        } catch(ParseException pe) {
-            fail("ParseException was thrown for current Date.");
+        format = DateFormat.getDateTimeInstance(DateFormat.FULL, DateFormat.FULL, Locale.US);
+        String formatPattern = ((SimpleDateFormat) format).toPattern();
+        String formattedCurrent = format.format(current);
+        Date date = format.parse(formattedCurrent);
+        // Date has millisecond accuracy, but humans don't use time formats that precise.
+        if (date.getTime() / 1000 != current.getTime() / 1000) {
+            fail(date.getTime() + " != " + current.getTime() +
+                    "; " + formatPattern + "; " + formattedCurrent);
         }
 
         try {
             format.parse("January 16, 1970 8:03:52 PM CET");
             fail("ParseException was not thrown.");
-        } catch(ParseException pe) {
-            //expected
+        } catch (ParseException expected) {
         }
     }
 
     /**
-     * @tests java.text.DateFormat#parseObject(String, ParsePosition) Test of
+     * java.text.DateFormat#parseObject(String, ParsePosition) Test of
      *        method java.text.DateFormat#parseObject(String, ParsePosition).
      *        Case 1: Try to parse correct data string. Case 2: Try to parse
      *        partialy correct data string. Case 3: Try to use argument
@@ -439,7 +433,7 @@ public class OldDateFormatTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.text.DateFormat#setLenient(boolean) Test of method
+     * java.text.DateFormat#setLenient(boolean) Test of method
      *        java.text.DateFormat#setLenient(boolean).
      */
     public void test_setLenientZ() {
@@ -469,7 +463,7 @@ public class OldDateFormatTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.text.DateFormat#setTimeZone(TimeZone) Test of method
+     * java.text.DateFormat#setTimeZone(TimeZone) Test of method
      *        java.text.DateFormat#setTimeZone(TimeZone).
      */
     public void test_setTimeZoneLjava_util_TimeZone() {

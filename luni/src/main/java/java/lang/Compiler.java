@@ -18,16 +18,13 @@
 package java.lang;
 
 /**
- * Placeholder class for environments which explicitly manage the action of a
- * <em>Just In Time (JIT)</em> compiler. This class is usually implemented by
- * the virtual machine vendor.
+ * Does nothing on Android.
  */
 public final class Compiler {
-
     /**
      * Prevent this class from being instantiated.
      */
-    private Compiler(){
+    private Compiler() {
         //do nothing
     }
 
@@ -79,14 +76,11 @@ public final class Compiler {
      * Disables the JIT compiler. Does nothing on Android.
      */
     public static void disable() {
-        return;
     }
 
     /**
      * Enables the JIT compiler. Does nothing on Android.
      */
     public static void enable() {
-        return;
     }
-
 }

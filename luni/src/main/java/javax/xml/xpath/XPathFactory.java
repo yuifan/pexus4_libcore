@@ -133,16 +133,14 @@ public abstract class XPathFactory {
     public static final XPathFactory newInstance(final String uri)
         throws XPathFactoryConfigurationException {
         if (uri == null) {
-            throw new NullPointerException(
-                "XPathFactory#newInstance(String uri) cannot be called with uri == null"
-            );
+            throw new NullPointerException("uri == null");
         }
         if (uri.length() == 0) {
             throw new IllegalArgumentException(
                 "XPathFactory#newInstance(String uri) cannot be called with uri == \"\""
             );
         }
-        ClassLoader classLoader = SecuritySupport.getContextClassLoader();
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         if (classLoader == null) {
             //use the current class loader
             classLoader = XPathFactory.class.getClassLoader();
@@ -150,7 +148,7 @@ public abstract class XPathFactory {
         XPathFactory xpathFactory = new XPathFactoryFinder(classLoader).newFactory(uri);
         if (xpathFactory == null) {
             throw new XPathFactoryConfigurationException(
-                "No XPathFctory implementation found for the object model: "
+                "No XPathFactory implementation found for the object model: "
                 + uri
             );
         }
@@ -167,9 +165,7 @@ public abstract class XPathFactory {
     public static XPathFactory newInstance(String uri, String factoryClassName,
             ClassLoader classLoader) throws XPathFactoryConfigurationException {
         if (uri == null) {
-            throw new NullPointerException(
-                "XPathFactory#newInstance(String uri) cannot be called with uri == null"
-            );
+            throw new NullPointerException("uri == null");
         }
         if (uri.length() == 0) {
             throw new IllegalArgumentException(
@@ -180,12 +176,12 @@ public abstract class XPathFactory {
             throw new XPathFactoryConfigurationException("factoryClassName cannot be null.");
         }
         if (classLoader == null) {
-            classLoader = SecuritySupport.getContextClassLoader();
+            classLoader = Thread.currentThread().getContextClassLoader();
         }
         XPathFactory xpathFactory = new XPathFactoryFinder(classLoader).createInstance(factoryClassName);
         if (xpathFactory == null || !xpathFactory.isObjectModelSupported(uri)) {
             throw new XPathFactoryConfigurationException(
-                "No XPathFctory implementation found for the object model: "
+                "No XPathFactory implementation found for the object model: "
                 + uri
             );
         }

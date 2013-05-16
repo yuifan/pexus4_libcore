@@ -179,7 +179,7 @@ public abstract class SchemaFactory {
      */
     public static SchemaFactory newInstance(String schemaLanguage) {
         ClassLoader cl;
-        cl = SecuritySupport.getContextClassLoader();
+        cl = Thread.currentThread().getContextClassLoader();
 
         if (cl == null) {
             //cl = ClassLoader.getSystemClassLoader();
@@ -203,8 +203,10 @@ public abstract class SchemaFactory {
      */
     public static SchemaFactory newInstance(String schemaLanguage, String factoryClassName,
             ClassLoader classLoader) {
-        if (schemaLanguage == null || factoryClassName == null) {
-            throw new NullPointerException("schemaLanguage == null || factoryClassName == null");
+        if (schemaLanguage == null) {
+            throw new NullPointerException("schemaLanguage == null");
+        } else if (factoryClassName == null) {
+            throw new NullPointerException("factoryClassName == null");
         }
         if (classLoader == null) {
             classLoader = Thread.currentThread().getContextClassLoader();
@@ -265,7 +267,7 @@ public abstract class SchemaFactory {
     public boolean getFeature(String name) throws SAXNotRecognizedException, SAXNotSupportedException {
 
         if (name == null) {
-            throw new NullPointerException("the name parameter is null");
+            throw new NullPointerException("name == null");
         }
         throw new SAXNotRecognizedException(name);
     }
@@ -312,9 +314,8 @@ public abstract class SchemaFactory {
      * @see #getFeature(String)
      */
     public void setFeature(String name, boolean value) throws SAXNotRecognizedException, SAXNotSupportedException {
-
         if (name == null) {
-            throw new NullPointerException("the name parameter is null");
+            throw new NullPointerException("name == null");
         }
         throw new SAXNotRecognizedException(name);
     }
@@ -340,9 +341,8 @@ public abstract class SchemaFactory {
      *              if the name parameter is null.
      */
     public void setProperty(String name, Object object) throws SAXNotRecognizedException, SAXNotSupportedException {
-
         if (name == null) {
-            throw new NullPointerException("the name parameter is null");
+            throw new NullPointerException("name == null");
         }
         throw new SAXNotRecognizedException(name);
     }
@@ -372,9 +372,8 @@ public abstract class SchemaFactory {
      * @see #setProperty(String, Object)
      */
     public Object getProperty(String name) throws SAXNotRecognizedException, SAXNotSupportedException {
-
         if (name == null) {
-            throw new NullPointerException("the name parameter is null");
+            throw new NullPointerException("name == null");
         }
         throw new SAXNotRecognizedException(name);
     }
@@ -586,7 +585,7 @@ public abstract class SchemaFactory {
      * in the same order as the sources.  Section 4.2.3 of the XML Schema
      * recommendation describes the options processors have in this
      * regard.  While a processor should be consistent in its treatment of
-     * JAXP schema sources and XML Schema imports, the behaviour between
+     * JAXP schema sources and XML Schema imports, the behavior between
      * JAXP-compliant parsers may vary; in particular, parsers may choose
      * to ignore all but the first &lt;import> for a given namespace,
      * regardless of information provided in schemaLocation.

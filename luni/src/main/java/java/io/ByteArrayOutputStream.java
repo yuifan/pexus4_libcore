@@ -17,6 +17,8 @@
 
 package java.io;
 
+import java.util.Arrays;
+
 /**
  * A specialized {@link OutputStream} for class for writing content to an
  * (internal) byte array. As bytes are written to this stream, the byte array
@@ -42,7 +44,6 @@ public class ByteArrayOutputStream extends OutputStream {
      * array will expand.
      */
     public ByteArrayOutputStream() {
-        super();
         buf = new byte[32];
     }
 
@@ -58,7 +59,6 @@ public class ByteArrayOutputStream extends OutputStream {
      *             if {@code size} < 0.
      */
     public ByteArrayOutputStream(int size) {
-        super();
         if (size >= 0) {
             buf = new byte[size];
         } else {
@@ -162,17 +162,17 @@ public class ByteArrayOutputStream extends OutputStream {
 
     /**
      * Returns the contents of this ByteArrayOutputStream as a string converted
-     * according to the encoding declared in {@code enc}.
+     * according to the encoding declared in {@code charsetName}.
      *
-     * @param enc
+     * @param charsetName
      *            a string representing the encoding to use when translating
      *            this stream to a string.
      * @return this stream's current contents as an encoded string.
      * @throws UnsupportedEncodingException
      *             if the provided encoding is not supported.
      */
-    public String toString(String enc) throws UnsupportedEncodingException {
-        return new String(buf, 0, count, enc);
+    public String toString(String charsetName) throws UnsupportedEncodingException {
+        return new String(buf, 0, count, charsetName);
     }
 
     /**
@@ -194,25 +194,10 @@ public class ByteArrayOutputStream extends OutputStream {
      */
     @Override
     public synchronized void write(byte[] buffer, int offset, int len) {
-        // avoid int overflow
-        // BEGIN android-changed
-        // Exception priorities (in case of multiple errors) differ from
-        // RI, but are spec-compliant.
-        // removed redundant check, made implicit null check explicit,
-        // used (offset | len) < 0 instead of (offset < 0) || (len < 0)
-        // to safe one operation
-        if (buffer == null) {
-            throw new NullPointerException("buffer == null");
-        }
-        if ((offset | len) < 0 || len > buffer.length - offset) {
-            throw new IndexOutOfBoundsException();
-        }
-        // END android-changed
+        Arrays.checkOffsetAndCount(buffer.length, offset, len);
         if (len == 0) {
             return;
         }
-
-        /* Expand if necessary */
         expand(len);
         System.arraycopy(buffer, offset, buf, this.count, len);
         this.count += len;

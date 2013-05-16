@@ -36,10 +36,10 @@ import org.apache.harmony.security.fortress.Engine;
 public class KeyAgreement {
 
     // Used to access common engine functionality
-    private static final Engine engine = new Engine("KeyAgreement");
+    private static final Engine ENGINE = new Engine("KeyAgreement");
 
     // Store SecureRandom
-    private static final SecureRandom rndm = new SecureRandom();
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     // Store used provider
     private final Provider provider;
@@ -99,13 +99,10 @@ public class KeyAgreement {
     public static final KeyAgreement getInstance(String algorithm)
             throws NoSuchAlgorithmException {
         if (algorithm == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("algorithm == null");
         }
-        synchronized (engine) {
-            engine.getInstance(algorithm, null);
-            return new KeyAgreement((KeyAgreementSpi) engine.spi, engine.provider,
-                    algorithm);
-        }
+        Engine.SpiAndProvider sap = ENGINE.getInstance(algorithm, null);
+        return new KeyAgreement((KeyAgreementSpi) sap.spi, sap.provider, algorithm);
     }
 
     /**
@@ -164,13 +161,10 @@ public class KeyAgreement {
             throw new IllegalArgumentException("provider == null");
         }
         if (algorithm == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("algorithm == null");
         }
-        synchronized (engine) {
-            engine.getInstance(algorithm, provider, null);
-            return new KeyAgreement((KeyAgreementSpi) engine.spi, provider,
-                    algorithm);
-        }
+        Object spi = ENGINE.getInstance(algorithm, provider, null);
+        return new KeyAgreement((KeyAgreementSpi) spi, provider, algorithm);
     }
 
     /**
@@ -183,7 +177,7 @@ public class KeyAgreement {
      *             agreement.
      */
     public final void init(Key key) throws InvalidKeyException {
-        spiImpl.engineInit(key, rndm);//new SecureRandom());
+        spiImpl.engineInit(key, RANDOM);//new SecureRandom());
     }
 
     /**
@@ -220,7 +214,7 @@ public class KeyAgreement {
      */
     public final void init(Key key, AlgorithmParameterSpec params)
             throws InvalidKeyException, InvalidAlgorithmParameterException {
-        spiImpl.engineInit(key, params, rndm);//new SecureRandom());
+        spiImpl.engineInit(key, params, RANDOM);//new SecureRandom());
     }
 
     /**

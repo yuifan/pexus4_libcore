@@ -39,36 +39,28 @@ static jboolean Character_isMirroredImpl(JNIEnv*, jclass, jint codePoint) {
     return u_isMirrored(codePoint);
 }
 
-static jint Character_getNumericValueImpl(JNIEnv*, jclass, jint codePoint){
-    // The letters A-Z in their uppercase ('\u0041' through '\u005A'),
-    //                          lowercase ('\u0061' through '\u007A'),
-    //             and full width variant ('\uFF21' through '\uFF3A'
-    //                                 and '\uFF41' through '\uFF5A') forms
-    // have numeric values from 10 through 35. This is independent of the
-    // Unicode specification, which does not assign numeric values to these
-    // char values.
-    if (codePoint >= 0x41 && codePoint <= 0x5A) {
-        return codePoint - 0x37;
-    }
-    if (codePoint >= 0x61 && codePoint <= 0x7A) {
-        return codePoint - 0x57;
-    }
-    if (codePoint >= 0xFF21 && codePoint <= 0xFF3A) {
-        return codePoint - 0xFF17;
-    }
-    if (codePoint >= 0xFF41 && codePoint <= 0xFF5A) {
-        return codePoint - 0xFF37;
-    }
+static jstring Character_getNameImpl(JNIEnv* env, jclass, jint codePoint) {
+    // U_UNICODE_CHAR_NAME gives us the modern names for characters. For control characters,
+    // we need U_EXTENDED_CHAR_NAME to get "NULL" rather than "BASIC LATIN 0" and so on.
+    // We could just use U_EXTENDED_CHAR_NAME except that it returns strings for characters
+    // that aren't unassigned but that don't have names, and those strings aren't in the form
+    // Java specifies.
+    bool isControl = (codePoint <= 0x1f || (codePoint >= 0x7f && codePoint <= 0x9f));
+    UCharNameChoice nameType = isControl ? U_EXTENDED_CHAR_NAME : U_UNICODE_CHAR_NAME;
+    UErrorCode status = U_ZERO_ERROR;
+    char buf[BUFSIZ]; // TODO: is there a more sensible upper bound?
+    int32_t byteCount = u_charName(codePoint, nameType, &buf[0], sizeof(buf), &status);
+    return (U_FAILURE(status) || byteCount == 0) ? NULL : env->NewStringUTF(buf);
+}
 
+static jint Character_getNumericValueImpl(JNIEnv*, jclass, jint codePoint) {
     double result = u_getNumericValue(codePoint);
-
     if (result == U_NO_NUMERIC_VALUE) {
         return -1;
     } else if (result < 0 || floor(result + 0.5) != result) {
         return -2;
     }
-
-    return result;
+    return static_cast<jint>(result);
 }
 
 static jboolean Character_isDefinedImpl(JNIEnv*, jclass, jint codePoint) {
@@ -80,10 +72,6 @@ static jboolean Character_isDigitImpl(JNIEnv*, jclass, jint codePoint) {
 }
 
 static jboolean Character_isIdentifierIgnorableImpl(JNIEnv*, jclass, jint codePoint) {
-    // Java also returns true for U+0085 Next Line (it omits U+0085 from whitespace ISO controls).
-    if(codePoint == 0x0085) {
-        return JNI_TRUE;
-    }
     return u_isIDIgnorable(codePoint);
 }
 
@@ -112,10 +100,6 @@ static jboolean Character_isUnicodeIdentifierStartImpl(JNIEnv*, jclass, jint cod
 }
 
 static jboolean Character_isWhitespaceImpl(JNIEnv*, jclass, jint codePoint) {
-    // Java omits U+0085
-    if(codePoint == 0x0085) {
-        return JNI_FALSE;
-    }
     return u_isWhitespace(codePoint);
 }
 
@@ -152,29 +136,30 @@ static int Character_ofImpl(JNIEnv*, jclass, jint codePoint) {
 }
 
 static JNINativeMethod gMethods[] = {
-    NATIVE_METHOD(Character, digitImpl, "(II)I"),
+    NATIVE_METHOD(Character, digitImpl, "!(II)I"),
     NATIVE_METHOD(Character, forNameImpl, "(Ljava/lang/String;)I"),
-    NATIVE_METHOD(Character, getDirectionalityImpl, "(I)B"),
-    NATIVE_METHOD(Character, getNumericValueImpl, "(I)I"),
-    NATIVE_METHOD(Character, getTypeImpl, "(I)I"),
-    NATIVE_METHOD(Character, isDefinedImpl, "(I)Z"),
-    NATIVE_METHOD(Character, isDigitImpl, "(I)Z"),
-    NATIVE_METHOD(Character, isIdentifierIgnorableImpl, "(I)Z"),
-    NATIVE_METHOD(Character, isLetterImpl, "(I)Z"),
-    NATIVE_METHOD(Character, isLetterOrDigitImpl, "(I)Z"),
-    NATIVE_METHOD(Character, isLowerCaseImpl, "(I)Z"),
-    NATIVE_METHOD(Character, isMirroredImpl, "(I)Z"),
-    NATIVE_METHOD(Character, isSpaceCharImpl, "(I)Z"),
-    NATIVE_METHOD(Character, isTitleCaseImpl, "(I)Z"),
-    NATIVE_METHOD(Character, isUnicodeIdentifierPartImpl, "(I)Z"),
-    NATIVE_METHOD(Character, isUnicodeIdentifierStartImpl, "(I)Z"),
-    NATIVE_METHOD(Character, isUpperCaseImpl, "(I)Z"),
-    NATIVE_METHOD(Character, isWhitespaceImpl, "(I)Z"),
-    NATIVE_METHOD(Character, ofImpl, "(I)I"),
-    NATIVE_METHOD(Character, toLowerCaseImpl, "(I)I"),
-    NATIVE_METHOD(Character, toTitleCaseImpl, "(I)I"),
-    NATIVE_METHOD(Character, toUpperCaseImpl, "(I)I"),
+    NATIVE_METHOD(Character, getDirectionalityImpl, "!(I)B"),
+    NATIVE_METHOD(Character, getNameImpl, "(I)Ljava/lang/String;"),
+    NATIVE_METHOD(Character, getNumericValueImpl, "!(I)I"),
+    NATIVE_METHOD(Character, getTypeImpl, "!(I)I"),
+    NATIVE_METHOD(Character, isDefinedImpl, "!(I)Z"),
+    NATIVE_METHOD(Character, isDigitImpl, "!(I)Z"),
+    NATIVE_METHOD(Character, isIdentifierIgnorableImpl, "!(I)Z"),
+    NATIVE_METHOD(Character, isLetterImpl, "!(I)Z"),
+    NATIVE_METHOD(Character, isLetterOrDigitImpl, "!(I)Z"),
+    NATIVE_METHOD(Character, isLowerCaseImpl, "!(I)Z"),
+    NATIVE_METHOD(Character, isMirroredImpl, "!(I)Z"),
+    NATIVE_METHOD(Character, isSpaceCharImpl, "!(I)Z"),
+    NATIVE_METHOD(Character, isTitleCaseImpl, "!(I)Z"),
+    NATIVE_METHOD(Character, isUnicodeIdentifierPartImpl, "!(I)Z"),
+    NATIVE_METHOD(Character, isUnicodeIdentifierStartImpl, "!(I)Z"),
+    NATIVE_METHOD(Character, isUpperCaseImpl, "!(I)Z"),
+    NATIVE_METHOD(Character, isWhitespaceImpl, "!(I)Z"),
+    NATIVE_METHOD(Character, ofImpl, "!(I)I"),
+    NATIVE_METHOD(Character, toLowerCaseImpl, "!(I)I"),
+    NATIVE_METHOD(Character, toTitleCaseImpl, "!(I)I"),
+    NATIVE_METHOD(Character, toUpperCaseImpl, "!(I)I"),
 };
-int register_java_lang_Character(JNIEnv* env) {
-    return jniRegisterNativeMethods(env, "java/lang/Character", gMethods, NELEM(gMethods));
+void register_java_lang_Character(JNIEnv* env) {
+    jniRegisterNativeMethods(env, "java/lang/Character", gMethods, NELEM(gMethods));
 }

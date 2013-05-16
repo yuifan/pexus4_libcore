@@ -18,6 +18,7 @@
 package java.lang;
 
 import java.io.Serializable;
+import java.util.Arrays;
 
 /**
  * The wrapper for the primitive type {@code char}. This class also provides a
@@ -57,8 +58,8 @@ import java.io.Serializable;
  * <tr> <td> Cn </td> <td> Unassigned </td>  <td>{@link #UNASSIGNED}</td> </tr>
  * <tr> <td> Cc </td> <td> Control </td>     <td>{@link #CONTROL}</td> </tr>
  * <tr> <td> Cf </td> <td> Format </td>      <td>{@link #FORMAT}</td> </tr>
- * <tr> <td> Cf </td> <td> Private use </td> <td>{@link #PRIVATE_USE}</td> </tr>
- * <tr> <td> Cf </td> <td> Surrogate </td>   <td>{@link #SURROGATE}</td> </tr>
+ * <tr> <td> Co </td> <td> Private use </td> <td>{@link #PRIVATE_USE}</td> </tr>
+ * <tr> <td> Cs </td> <td> Surrogate </td>   <td>{@link #SURROGATE}</td> </tr>
  * <tr> <td><br></td> </tr>
  * <tr> <td> Lu </td> <td> Uppercase letter </td> <td>{@link #UPPERCASE_LETTER}</td> </tr>
  * <tr> <td> Ll </td> <td> Lowercase letter </td> <td>{@link #LOWERCASE_LETTER}</td> </tr>
@@ -95,6 +96,7 @@ import java.io.Serializable;
  *
  * @since 1.0
  */
+@FindBugsSuppressWarnings("DM_NUMBER_CTOR")
 public final class Character implements Serializable, Comparable<Character> {
     private static final long serialVersionUID = 3786198910865385080L;
 
@@ -126,8 +128,7 @@ public final class Character implements Serializable, Comparable<Character> {
     @SuppressWarnings("unchecked")
     public static final Class<Character> TYPE
             = (Class<Character>) char[].class.getComponentType();
-
-    // Note: This can't be set to "char.class", since *that* is
+    // Note: Character.TYPE can't be set to "char.class", since *that* is
     // defined to be "java.lang.Character.TYPE";
 
     /**
@@ -499,44 +500,6 @@ public final class Character implements Serializable, Comparable<Character> {
      */
     public static final int SIZE = 16;
 
-    // BEGIN android-removed
-    // Unicode 3.0.1 (same as Unicode 3.0.0)
-    // private static final String bidiKeys = ...
-
-    // private static final char[] bidiValues = ...
-
-    // private static final char[] mirrored = ...
-
-    // Unicode 3.0.1 (same as Unicode 3.0.0)
-    // private static final String typeKeys = ...
-
-    // private static final char[] typeValues = ...
-
-    // private static final int[] typeValuesCache = ...
-
-    // Unicode 3.0.1 (same as Unicode 3.0.0)
-    // private static final String uppercaseKeys = ...
-
-    // private static final char[] uppercaseValues = ...
-
-    // private static final int[] uppercaseValuesCache = ...
-
-    // private static final String lowercaseKeys = ...
-
-    // private static final char[] lowercaseValues = ...
-
-    // private static final int[] lowercaseValuesCache = ...
-
-    // private static final String digitKeys = ...
-
-    // private static final char[] digitValues = ...
-
-    // private static final char[] typeTags = ...
-    // END android-removed
-
-    // BEGIN android-note
-    // put this in a helper class so that it's only initialized on demand?
-    // END android-note
     private static final byte[] DIRECTIONALITY = new byte[] {
             DIRECTIONALITY_LEFT_TO_RIGHT, DIRECTIONALITY_RIGHT_TO_LEFT,
             DIRECTIONALITY_EUROPEAN_NUMBER,
@@ -555,22 +518,6 @@ public final class Character implements Serializable, Comparable<Character> {
             DIRECTIONALITY_POP_DIRECTIONAL_FORMAT,
             DIRECTIONALITY_NONSPACING_MARK, DIRECTIONALITY_BOUNDARY_NEUTRAL };
 
-    // BEGIN android-removed
-    // private static final int ISJAVASTART = 1;
-
-    // private static final int ISJAVAPART = 2;
-
-    // Unicode 3.0.1 (same as Unicode 3.0.0)
-    // private static final String titlecaseKeys = ...
-
-    // private static final char[] titlecaseValues = ...
-
-    // Unicode 3.0.0 (NOT the same as Unicode 3.0.1)
-    // private static final String numericKeys = ...
-
-    // private static final char[] numericValues = ...
-    // END android-removed
-
     /*
      * Represents a subset of the Unicode character set.
      */
@@ -585,7 +532,7 @@ public final class Character implements Serializable, Comparable<Character> {
          */
         protected Subset(String string) {
             if (string == null) {
-                throw new NullPointerException();
+                throw new NullPointerException("string == null");
             }
             name = string;
         }
@@ -1553,13 +1500,13 @@ public final class Character implements Serializable, Comparable<Character> {
          *             if {@code blockName} is not a valid block name.
          * @since 1.5
          */
-        public static final UnicodeBlock forName(String blockName) {
+        public static UnicodeBlock forName(String blockName) {
             if (blockName == null) {
-                throw new NullPointerException();
+                throw new NullPointerException("blockName == null");
             }
             int block = forNameImpl(blockName);
             if (block == -1) {
-                if(blockName.equals("SURROGATES_AREA")) {
+                if (blockName.equals("SURROGATES_AREA")) {
                     return SURROGATES_AREA;
                 } else if(blockName.equalsIgnoreCase("greek")) {
                     return GREEK;
@@ -1568,7 +1515,7 @@ public final class Character implements Serializable, Comparable<Character> {
                         blockName.equals("CombiningMarksforSymbols")) {
                     return COMBINING_MARKS_FOR_SYMBOLS;
                 }
-                throw new IllegalArgumentException();
+                throw new IllegalArgumentException("Bad block name: " + blockName);
             }
             return BLOCKS[block];
         }
@@ -1598,16 +1545,13 @@ public final class Character implements Serializable, Comparable<Character> {
          * @return the {@code UnicodeBlock} constant for the block that contains
          *         {@code codePoint}, or {@code null} if {@code codePoint} does
          *         not belong to any defined block.
-         * @throws IllegalArgumentException
-         *             if {@code codePoint} is not a valid Unicode code point.
+         * @throws IllegalArgumentException if {@code codePoint} is not a valid code point.
          * @since 1.5
          */
         public static UnicodeBlock of(int codePoint) {
-            if (!isValidCodePoint(codePoint)) {
-                throw new IllegalArgumentException();
-            }
+            checkValidCodePoint(codePoint);
             int block = ofImpl(codePoint);
-            if(block == -1 || block >= BLOCKS.length) {
+            if (block == -1 || block >= BLOCKS.length) {
                 return null;
             }
             return BLOCKS[block];
@@ -1642,6 +1586,12 @@ public final class Character implements Serializable, Comparable<Character> {
         return value;
     }
 
+    private static void checkValidCodePoint(int codePoint) {
+        if (!isValidCodePoint(codePoint)) {
+            throw new IllegalArgumentException("Invalid code point: " + codePoint);
+        }
+    }
+
     /**
      * Compares this object to the specified character object to determine their
      * relative order.
@@ -1657,7 +1607,17 @@ public final class Character implements Serializable, Comparable<Character> {
      * @since 1.2
      */
     public int compareTo(Character c) {
-        return value - c.value;
+        return compare(value, c.value);
+    }
+
+    /**
+     * Compares two {@code char} values.
+     * @return 0 if lhs = rhs, less than 0 if lhs &lt; rhs, and greater than 0 if lhs &gt; rhs.
+     * @since 1.7
+     * @hide 1.7
+     */
+    public static int compare(char lhs, char rhs) {
+        return lhs - rhs;
     }
 
     /**
@@ -1682,7 +1642,7 @@ public final class Character implements Serializable, Comparable<Character> {
     private static final Character[] SMALL_VALUES = new Character[128];
 
     static {
-        for(int i = 0; i < 128; i++) {
+        for (int i = 0; i < 128; i++) {
             SMALL_VALUES[i] = new Character((char) i);
         }
     }
@@ -1743,6 +1703,15 @@ public final class Character implements Serializable, Comparable<Character> {
      */
     public static boolean isLowSurrogate(char ch) {
         return (MIN_LOW_SURROGATE <= ch && MAX_LOW_SURROGATE >= ch);
+    }
+
+    /**
+     * Tests whether the given character is a high or low surrogate.
+     * @since 1.7
+     * @hide 1.7
+     */
+    public static boolean isSurrogate(char ch) {
+        return ch >= MIN_SURROGATE && ch <= MAX_SURROGATE;
     }
 
     /**
@@ -1829,7 +1798,7 @@ public final class Character implements Serializable, Comparable<Character> {
      */
     public static int codePointAt(CharSequence seq, int index) {
         if (seq == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("seq == null");
         }
         int len = seq.length();
         if (index < 0 || index >= len) {
@@ -1871,7 +1840,7 @@ public final class Character implements Serializable, Comparable<Character> {
      */
     public static int codePointAt(char[] seq, int index) {
         if (seq == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("seq == null");
         }
         int len = seq.length;
         if (index < 0 || index >= len) {
@@ -1954,7 +1923,7 @@ public final class Character implements Serializable, Comparable<Character> {
      */
     public static int codePointBefore(CharSequence seq, int index) {
         if (seq == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("seq == null");
         }
         int len = seq.length();
         if (index < 1 || index > len) {
@@ -1996,7 +1965,7 @@ public final class Character implements Serializable, Comparable<Character> {
      */
     public static int codePointBefore(char[] seq, int index) {
         if (seq == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("seq == null");
         }
         int len = seq.length;
         if (index < 1 || index > len) {
@@ -2043,7 +2012,7 @@ public final class Character implements Serializable, Comparable<Character> {
      */
     public static int codePointBefore(char[] seq, int index, int start) {
         if (seq == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("seq == null");
         }
         int len = seq.length;
         if (index <= start || index > len || start < 0 || start >= len) {
@@ -2073,8 +2042,7 @@ public final class Character implements Serializable, Comparable<Character> {
      * @param dstIndex
      *            the index in {@code dst} from where to start copying.
      * @return the number of {@code char} value units copied into {@code dst}.
-     * @throws IllegalArgumentException
-     *             if {@code codePoint} is not a valid Unicode code point.
+     * @throws IllegalArgumentException if {@code codePoint} is not a valid code point.
      * @throws NullPointerException
      *             if {@code dst} is {@code null}.
      * @throws IndexOutOfBoundsException
@@ -2085,11 +2053,9 @@ public final class Character implements Serializable, Comparable<Character> {
      * @since 1.5
      */
     public static int toChars(int codePoint, char[] dst, int dstIndex) {
-        if (!isValidCodePoint(codePoint)) {
-            throw new IllegalArgumentException();
-        }
+        checkValidCodePoint(codePoint);
         if (dst == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("dst == null");
         }
         if (dstIndex < 0 || dstIndex >= dst.length) {
             throw new IndexOutOfBoundsException();
@@ -2123,15 +2089,11 @@ public final class Character implements Serializable, Comparable<Character> {
      *         {@link #isSupplementaryCodePoint(int) supplementary code point},
      *         then the returned array contains two characters, otherwise it
      *         contains just one character.
-     * @throws IllegalArgumentException
-     *             if {@code codePoint} is not a valid Unicode code point.
+     * @throws IllegalArgumentException if {@code codePoint} is not a valid code point.
      * @since 1.5
      */
     public static char[] toChars(int codePoint) {
-        if (!isValidCodePoint(codePoint)) {
-            throw new IllegalArgumentException();
-        }
-
+        checkValidCodePoint(codePoint);
         if (isSupplementaryCodePoint(codePoint)) {
             int cpPrime = codePoint - 0x10000;
             int high = 0xD800 | ((cpPrime >> 10) & 0x3FF);
@@ -2164,7 +2126,7 @@ public final class Character implements Serializable, Comparable<Character> {
     public static int codePointCount(CharSequence seq, int beginIndex,
             int endIndex) {
         if (seq == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("seq == null");
         }
         int len = seq.length();
         if (beginIndex < 0 || endIndex > len || beginIndex > endIndex) {
@@ -2210,15 +2172,8 @@ public final class Character implements Serializable, Comparable<Character> {
      * @since 1.5
      */
     public static int codePointCount(char[] seq, int offset, int count) {
-        if (seq == null) {
-            throw new NullPointerException();
-        }
-        int len = seq.length;
+        Arrays.checkOffsetAndCount(seq.length, offset, count);
         int endIndex = offset + count;
-        if (offset < 0 || count < 0 || endIndex > len) {
-            throw new IndexOutOfBoundsException();
-        }
-
         int result = 0;
         for (int i = offset; i < endIndex; i++) {
             char c = seq[i];
@@ -2258,10 +2213,9 @@ public final class Character implements Serializable, Comparable<Character> {
      *             negative) from {@code index}.
      * @since 1.5
      */
-    public static int offsetByCodePoints(CharSequence seq, int index,
-            int codePointOffset) {
+    public static int offsetByCodePoints(CharSequence seq, int index, int codePointOffset) {
         if (seq == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("seq == null");
         }
         int len = seq.length();
         if (index < 0 || index > len) {
@@ -2291,7 +2245,6 @@ public final class Character implements Serializable, Comparable<Character> {
             return i;
         }
 
-        assert codePointOffset < 0;
         int codePoints = -codePointOffset;
         int i = index;
         while (codePoints > 0) {
@@ -2344,12 +2297,9 @@ public final class Character implements Serializable, Comparable<Character> {
      */
     public static int offsetByCodePoints(char[] seq, int start, int count,
             int index, int codePointOffset) {
-        if (seq == null) {
-            throw new NullPointerException();
-        }
+        Arrays.checkOffsetAndCount(seq.length, start, count);
         int end = start + count;
-        if (start < 0 || count < 0 || end > seq.length || index < start
-                || index > end) {
+        if (index < start || index > end) {
             throw new IndexOutOfBoundsException();
         }
 
@@ -2376,7 +2326,6 @@ public final class Character implements Serializable, Comparable<Character> {
             return i;
         }
 
-        assert codePointOffset < 0;
         int codePoints = -codePointOffset;
         int i = index;
         while (codePoints > 0) {
@@ -2457,7 +2406,7 @@ public final class Character implements Serializable, Comparable<Character> {
      */
     @Override
     public boolean equals(Object object) {
-        return (object instanceof Character) && (value == ((Character) object).value);
+        return (object instanceof Character) && (((Character) object).value == value);
     }
 
     /**
@@ -2476,7 +2425,7 @@ public final class Character implements Serializable, Comparable<Character> {
      */
     public static char forDigit(int digit, int radix) {
         if (MIN_RADIX <= radix && radix <= MAX_RADIX) {
-            if (0 <= digit && digit < radix) {
+            if (digit >= 0 && digit < radix) {
                 return (char) (digit < 10 ? digit + '0' : digit + 'a' - 10);
             }
         }
@@ -2484,13 +2433,47 @@ public final class Character implements Serializable, Comparable<Character> {
     }
 
     /**
-     * Gets the numeric value of the specified Unicode character.
+     * Returns the name of the given code point, or null if the code point is unassigned.
      *
-     * @param c
-     *            the Unicode character to get the numeric value of.
+     * <p>As a fallback mechanism this method returns strings consisting of the Unicode
+     * block name (with underscores replaced by spaces), a single space, and the uppercase
+     * hex value of the code point, using as few digits as necessary.
+     *
+     * <p>Examples:
+     * <ul>
+     * <li>{@code Character.getName(0)} returns "NULL".
+     * <li>{@code Character.getName('e')} returns "LATIN SMALL LETTER E".
+     * <li>{@code Character.getName('\u0666')} returns "ARABIC-INDIC DIGIT SIX".
+     * <li>{@code Character.getName(0xe000)} returns "PRIVATE USE AREA E000".
+     * </ul>
+     *
+     * @throws IllegalArgumentException if {@code codePoint} is not a valid code point.
+     * @since 1.7
+     * @hide 1.7
+     */
+    public static String getName(int codePoint) {
+        checkValidCodePoint(codePoint);
+        if (getType(codePoint) == Character.UNASSIGNED) {
+            return null;
+        }
+        String result = getNameImpl(codePoint);
+        if (result == null) {
+            String blockName = Character.UnicodeBlock.of(codePoint).toString().replace('_', ' ');
+            result = blockName + " " + IntegralToString.intToHexString(codePoint, true, 0);
+        }
+        return result;
+    }
+
+    private static native String getNameImpl(int codePoint);
+
+    /**
+     * Returns the numeric value of the specified Unicode character.
+     * See {@link #getNumericValue(int)}.
+     *
+     * @param c the character
      * @return a non-negative numeric integer value if a numeric value for
      *         {@code c} exists, -1 if there is no numeric value for {@code c},
-     *         -2 if the numeric value can not be represented with an integer.
+     *         -2 if the numeric value can not be represented as an integer.
      */
     public static int getNumericValue(char c) {
         return getNumericValue((int) c);
@@ -2501,16 +2484,22 @@ public final class Character implements Serializable, Comparable<Character> {
      * the code point '\u216B' stands for the Roman number XII, which has the
      * numeric value 12.
      *
-     * @param codePoint
-     *            the Unicode code point to get the numeric value of.
+     * <p>There are two points of divergence between this method and the Unicode
+     * specification. This method treats the letters a-z (in both upper and lower
+     * cases, and their full-width variants) as numbers from 10 to 35. The
+     * Unicode specification also supports the idea of code points with non-integer
+     * numeric values; this method does not (except to the extent of returning -2
+     * for such code points).
+     *
+     * @param codePoint the code point
      * @return a non-negative numeric integer value if a numeric value for
      *         {@code codePoint} exists, -1 if there is no numeric value for
      *         {@code codePoint}, -2 if the numeric value can not be
      *         represented with an integer.
      */
     public static int getNumericValue(int codePoint) {
+        // This is both an optimization and papers over differences between Java and ICU.
         if (codePoint < 128) {
-            // Optimized for ASCII
             if (codePoint >= '0' && codePoint <= '9') {
                 return codePoint - '0';
             }
@@ -2521,6 +2510,14 @@ public final class Character implements Serializable, Comparable<Character> {
                 return codePoint - ('A' - 10);
             }
             return -1;
+        }
+        // Full-width uppercase A-Z.
+        if (codePoint >= 0xff21 && codePoint <= 0xff3a) {
+            return codePoint - 0xff17;
+        }
+        // Full-width lowercase a-z.
+        if (codePoint >= 0xff41 && codePoint <= 0xff5a) {
+            return codePoint - 0xff37;
         }
         return getNumericValueImpl(codePoint);
     }
@@ -2620,6 +2617,36 @@ public final class Character implements Serializable, Comparable<Character> {
     }
 
     /**
+     * Returns the high surrogate for the given code point. The result is meaningless if
+     * the given code point is not a supplementary character.
+     * @since 1.7
+     * @hide 1.7
+     */
+    public static char highSurrogate(int codePoint) {
+        return (char) ((codePoint >> 10) + 0xd7c0);
+    }
+
+    /**
+     * Returns the low surrogate for the given code point. The result is meaningless if
+     * the given code point is not a supplementary character.
+     * @since 1.7
+     * @hide 1.7
+     */
+    public static char lowSurrogate(int codePoint) {
+        return (char) ((codePoint & 0x3ff) | 0xdc00);
+    }
+
+    /**
+     * Tests whether the given code point is in the Basic Multilingual Plane (BMP).
+     * Such code points can be represented by a single {@code char}.
+     * @since 1.7
+     * @hide 1.7
+     */
+    public static boolean isBmpCodePoint(int codePoint) {
+        return codePoint >= 0 && codePoint <= 0xffff;
+    }
+
+    /**
      * Indicates whether the specified character is defined in the Unicode
      * specification.
      *
@@ -2702,6 +2729,7 @@ public final class Character implements Serializable, Comparable<Character> {
      *         otherwise.
      */
     public static boolean isIdentifierIgnorable(int codePoint) {
+        // This is both an optimization and papers over differences between Java and ICU.
         if (codePoint < 0x600) {
             return (codePoint >= 0 && codePoint <= 8) || (codePoint >= 0xe && codePoint <= 0x1b) ||
                     (codePoint >= 0x7f && codePoint <= 0x9f) || (codePoint == 0xad);
@@ -2745,9 +2773,7 @@ public final class Character implements Serializable, Comparable<Character> {
      *         {@code false} otherwise.
      */
     public static boolean isJavaIdentifierPart(char c) {
-        // BEGIN android-changed
         return isJavaIdentifierPart((int) c);
-        // END android-changed
     }
 
     /**
@@ -2760,8 +2786,7 @@ public final class Character implements Serializable, Comparable<Character> {
      *         {@code false} otherwise.
      */
     public static boolean isJavaIdentifierPart(int codePoint) {
-        // BEGIN android-changed: use precomputed bitmasks for the ASCII range.
-        // Optimized case for ASCII
+        // Use precomputed bitmasks to optimize the ASCII range.
         if (codePoint < 64) {
             return (0x3ff00100fffc1ffL & (1L << codePoint)) != 0;
         } else if (codePoint < 128) {
@@ -2774,7 +2799,6 @@ public final class Character implements Serializable, Comparable<Character> {
                 || type == COMBINING_SPACING_MARK || type == NON_SPACING_MARK
                 || (codePoint >= 0 && codePoint <= 8) || (codePoint >= 0xe && codePoint <= 0x1b)
                 || (codePoint >= 0x7f && codePoint <= 0x9f) || type == FORMAT;
-        // END android-changed
     }
 
     /**
@@ -2787,9 +2811,7 @@ public final class Character implements Serializable, Comparable<Character> {
      *         identifier; {@code false} otherwise.
      */
     public static boolean isJavaIdentifierStart(char c) {
-        // BEGIN android-changed
         return isJavaIdentifierStart((int) c);
-        // END android-changed
     }
 
     /**
@@ -2802,8 +2824,7 @@ public final class Character implements Serializable, Comparable<Character> {
      *         identifier; {@code false} otherwise.
      */
     public static boolean isJavaIdentifierStart(int codePoint) {
-        // BEGIN android-changed: use precomputed bitmasks for the ASCII range.
-        // Optimized case for ASCII
+        // Use precomputed bitmasks to optimize the ASCII range.
         if (codePoint < 64) {
             return (codePoint == '$'); // There's only one character in this range.
         } else if (codePoint < 128) {
@@ -2812,7 +2833,6 @@ public final class Character implements Serializable, Comparable<Character> {
         int type = getType(codePoint);
         return (type >= UPPERCASE_LETTER && type <= OTHER_LETTER) || type == CURRENCY_SYMBOL
                 || type == CONNECTOR_PUNCTUATION || type == LETTER_NUMBER;
-        // END android-changed
     }
 
     /**
@@ -3136,7 +3156,7 @@ public final class Character implements Serializable, Comparable<Character> {
      *         in Java; {@code false} otherwise.
      */
     public static boolean isWhitespace(int codePoint) {
-        // Optimized case for ASCII
+        // This is both an optimization and papers over differences between Java and ICU.
         if ((codePoint >= 0x1c && codePoint <= 0x20) || (codePoint >= 0x9 && codePoint <= 0xd)) {
             return true;
         }

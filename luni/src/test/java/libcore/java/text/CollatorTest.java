@@ -92,9 +92,7 @@ public class CollatorTest extends junit.framework.TestCase {
         RuleBasedCollator coll = new RuleBasedCollator(rule);
 
         assertEquals(Collator.TERTIARY, coll.getStrength());
-        // This is a harmony test, but it assumes that RuleBasedCollators default to
-        // NO_DECOMPOSITION, which isn't true on Android.
-        // assertEquals(Collator.NO_DECOMPOSITION, coll.getDecomposition());
+        assertEquals(Collator.NO_DECOMPOSITION, coll.getDecomposition());
         RuleBasedCollator other = new RuleBasedCollator(rule);
         assertTrue(coll.equals(other));
 
@@ -139,12 +137,12 @@ public class CollatorTest extends junit.framework.TestCase {
     public void testGetCollationElementIteratorString() throws Exception {
         assertGetCollationElementIteratorString(new Locale("es", "", "TRADITIONAL"), "cha", 0, 2, 3);
         assertGetCollationElementIteratorString(new Locale("es", "", ""), "cha", 0, 1, 2, 3);
-        assertGetCollationElementIteratorString(new Locale("de", "DE", ""), "\u00e6b", 0, 1, 1, 2);
+        assertGetCollationElementIteratorString(new Locale("de", "DE", ""), "\u00e6b", 0, 1, 1, 1, 1, 2);
     }
 
     public void testGetCollationElementIteratorCharacterIterator() throws Exception {
         assertGetCollationElementIteratorCharacterIterator(new Locale("es", "", "TRADITIONAL"), "cha", 0, 2, 3);
         assertGetCollationElementIteratorCharacterIterator(new Locale("es", "", ""), "cha", 0, 1, 2, 3);
-        assertGetCollationElementIteratorCharacterIterator(new Locale("de", "DE", ""), "\u00e6b", 0, 1, 1, 2);
+        assertGetCollationElementIteratorCharacterIterator(new Locale("de", "DE", ""), "\u00e6b", 0, 1, 1, 1, 1, 2);
     }
 }

@@ -17,6 +17,9 @@
 
 package java.nio;
 
+import java.util.Arrays;
+import libcore.io.Memory;
+
 /**
  * A buffer for bytes.
  * <p>
@@ -32,6 +35,10 @@ package java.nio;
  *
  */
 public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer> {
+    /**
+     * The byte order of this buffer, default is {@code BIG_ENDIAN}.
+     */
+    ByteOrder order = ByteOrder.BIG_ENDIAN;
 
     /**
      * Creates a byte buffer based on a newly allocated byte array.
@@ -44,9 +51,9 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      */
     public static ByteBuffer allocate(int capacity) {
         if (capacity < 0) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("capacity < 0: " + capacity);
         }
-        return BufferFactory.newByteBuffer(capacity);
+        return new ByteArrayBuffer(new byte[capacity]);
     }
 
     /**
@@ -60,9 +67,9 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      */
     public static ByteBuffer allocateDirect(int capacity) {
         if (capacity < 0) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("capacity < 0: " + capacity);
         }
-        return BufferFactory.newDirectByteBuffer(capacity);
+        return new DirectByteBuffer(MemoryBlock.allocate(capacity), capacity, 0, false, null);
     }
 
     /**
@@ -76,54 +83,37 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      * @return the created byte buffer.
      */
     public static ByteBuffer wrap(byte[] array) {
-        return BufferFactory.newByteBuffer(array);
+        return new ByteArrayBuffer(array);
     }
 
     /**
      * Creates a new byte buffer by wrapping the given byte array.
      * <p>
      * The new buffer's position will be {@code start}, limit will be
-     * {@code start + len}, capacity will be the length of the array.
+     * {@code start + byteCount}, capacity will be the length of the array.
      *
      * @param array
      *            the byte array which the new buffer will be based on.
      * @param start
      *            the start index, must not be negative and not greater than
      *            {@code array.length}.
-     * @param len
+     * @param byteCount
      *            the length, must not be negative and not greater than
      *            {@code array.length - start}.
      * @return the created byte buffer.
      * @exception IndexOutOfBoundsException
-     *                if either {@code start} or {@code len} is invalid.
+     *                if either {@code start} or {@code byteCount} is invalid.
      */
-    public static ByteBuffer wrap(byte[] array, int start, int len) {
-        int length = array.length;
-        if ((start < 0) || (len < 0) || ((long) start + (long) len > length)) {
-            throw new IndexOutOfBoundsException();
-        }
-
-        ByteBuffer buf = BufferFactory.newByteBuffer(array);
+    public static ByteBuffer wrap(byte[] array, int start, int byteCount) {
+        Arrays.checkOffsetAndCount(array.length, start, byteCount);
+        ByteBuffer buf = new ByteArrayBuffer(array);
         buf.position = start;
-        buf.limit = start + len;
-
+        buf.limit = start + byteCount;
         return buf;
     }
 
-    /**
-     * The byte order of this buffer, default is {@code BIG_ENDIAN}.
-     */
-    ByteOrder order = ByteOrder.BIG_ENDIAN;
-
-    /**
-     * Constructs a {@code ByteBuffer} with given capacity.
-     *
-     * @param capacity
-     *            the capacity of the buffer.
-     */
-    ByteBuffer(int capacity) {
-        super(capacity);
-        _elementSizeShift = 0;
+    ByteBuffer(int capacity, MemoryBlock block) {
+        super(0, capacity, block);
     }
 
     /**
@@ -135,7 +125,7 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      * @exception UnsupportedOperationException
      *                if this buffer is not based on an array.
      */
-    public final byte[] array() {
+    @Override public final byte[] array() {
         return protectedArray();
     }
 
@@ -152,7 +142,7 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      * @exception UnsupportedOperationException
      *                if this buffer is not based on an array.
      */
-    public final int arrayOffset() {
+    @Override public final int arrayOffset() {
         return protectedArrayOffset();
     }
 
@@ -282,7 +272,7 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      * {@code remaining()}; the limit is set to capacity; the mark is
      * cleared.
      *
-     * @return this buffer.
+     * @return {@code this}
      * @exception ReadOnlyBufferException
      *                if no changes may be made to the contents of this buffer.
      */
@@ -300,7 +290,7 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      * @exception ClassCastException
      *                if {@code other} is not a byte buffer.
      */
-    public int compareTo(ByteBuffer otherBuffer) {
+    @Override public int compareTo(ByteBuffer otherBuffer) {
         int compareRemaining = (remaining() < otherBuffer.remaining()) ? remaining()
                 : otherBuffer.remaining();
         int thisPos = position;
@@ -385,7 +375,7 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      *
      * @param dst
      *            the destination byte array.
-     * @return this buffer.
+     * @return {@code this}
      * @exception BufferUnderflowException
      *                if {@code dst.length} is greater than {@code remaining()}.
      */
@@ -400,28 +390,22 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      *
      * @param dst
      *            the target byte array.
-     * @param off
+     * @param dstOffset
      *            the offset of the byte array, must not be negative and
      *            not greater than {@code dst.length}.
-     * @param len
+     * @param byteCount
      *            the number of bytes to read, must not be negative and not
-     *            greater than {@code dst.length - off}
-     * @return this buffer.
-     * @exception IndexOutOfBoundsException
-     *                if either {@code off} or {@code len} is invalid.
-     * @exception BufferUnderflowException
-     *                if {@code len} is greater than {@code remaining()}.
+     *            greater than {@code dst.length - dstOffset}
+     * @return {@code this}
+     * @exception IndexOutOfBoundsException if {@code dstOffset < 0 ||  byteCount < 0}
+     * @exception BufferUnderflowException if {@code byteCount > remaining()}
      */
-    public ByteBuffer get(byte[] dst, int off, int len) {
-        int length = dst.length;
-        if ((off < 0) || (len < 0) || ((long) off + (long) len > length)) {
-            throw new IndexOutOfBoundsException();
-        }
-
-        if (len > remaining()) {
+    public ByteBuffer get(byte[] dst, int dstOffset, int byteCount) {
+        Arrays.checkOffsetAndCount(dst.length, dstOffset, byteCount);
+        if (byteCount > remaining()) {
             throw new BufferUnderflowException();
         }
-        for (int i = off; i < off + len; i++) {
+        for (int i = dstOffset; i < dstOffset + byteCount; ++i) {
             dst[i] = get();
         }
         return this;
@@ -608,7 +592,7 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      */
     public abstract short getShort(int index);
 
-    public final boolean hasArray() {
+    @Override public final boolean hasArray() {
         return protectedHasArray();
     }
 
@@ -633,7 +617,7 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      *
      * @return {@code true} if this buffer is direct, {@code false} otherwise.
      */
-    public abstract boolean isDirect();
+    @Override public abstract boolean isDirect();
 
     /**
      * Returns the byte order used by this buffer when converting bytes from/to
@@ -655,14 +639,10 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      * @param byteOrder
      *            the byte order to set. If {@code null} then the order
      *            will be {@link ByteOrder#LITTLE_ENDIAN LITTLE_ENDIAN}.
-     * @return this buffer.
+     * @return {@code this}
      * @see ByteOrder
      */
     public final ByteBuffer order(ByteOrder byteOrder) {
-        return orderImpl(byteOrder);
-    }
-
-    ByteBuffer orderImpl(ByteOrder byteOrder) {
         if (byteOrder == null) {
             byteOrder = ByteOrder.LITTLE_ENDIAN;
         }
@@ -697,7 +677,7 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      *
      * @param b
      *            the byte to write.
-     * @return this buffer.
+     * @return {@code this}
      * @exception BufferOverflowException
      *                if position is equal or greater than limit.
      * @exception ReadOnlyBufferException
@@ -714,7 +694,7 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      *
      * @param src
      *            the source byte array.
-     * @return this buffer.
+     * @return {@code this}
      * @exception BufferOverflowException
      *                if {@code remaining()} is less than {@code src.length}.
      * @exception ReadOnlyBufferException
@@ -731,30 +711,26 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      *
      * @param src
      *            the source byte array.
-     * @param off
+     * @param srcOffset
      *            the offset of byte array, must not be negative and not greater
      *            than {@code src.length}.
-     * @param len
+     * @param byteCount
      *            the number of bytes to write, must not be negative and not
-     *            greater than {@code src.length - off}.
-     * @return this buffer.
+     *            greater than {@code src.length - srcOffset}.
+     * @return {@code this}
      * @exception BufferOverflowException
-     *                if {@code remaining()} is less than {@code len}.
+     *                if {@code remaining()} is less than {@code byteCount}.
      * @exception IndexOutOfBoundsException
-     *                if either {@code off} or {@code len} is invalid.
+     *                if either {@code srcOffset} or {@code byteCount} is invalid.
      * @exception ReadOnlyBufferException
      *                if no changes may be made to the contents of this buffer.
      */
-    public ByteBuffer put(byte[] src, int off, int len) {
-        int length = src.length;
-        if ((off < 0 ) || (len < 0) || ((long)off + (long)len > length)) {
-            throw new IndexOutOfBoundsException();
-        }
-
-        if (len > remaining()) {
+    public ByteBuffer put(byte[] src, int srcOffset, int byteCount) {
+        Arrays.checkOffsetAndCount(src.length, srcOffset, byteCount);
+        if (byteCount > remaining()) {
             throw new BufferOverflowException();
         }
-        for (int i = off; i < off + len; i++) {
+        for (int i = srcOffset; i < srcOffset + byteCount; ++i) {
             put(src[i]);
         }
         return this;
@@ -767,7 +743,7 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      *
      * @param src
      *            the source byte buffer.
-     * @return this buffer.
+     * @return {@code this}
      * @exception BufferOverflowException
      *                if {@code src.remaining()} is greater than this buffer's
      *                {@code remaining()}.
@@ -777,15 +753,34 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      *                if no changes may be made to the contents of this buffer.
      */
     public ByteBuffer put(ByteBuffer src) {
-        if (src == this) {
-            throw new IllegalArgumentException();
+        if (isReadOnly()) {
+            throw new ReadOnlyBufferException();
         }
-        if (src.remaining() > remaining()) {
+        if (src == this) {
+            throw new IllegalArgumentException("src == this");
+        }
+        int srcByteCount = src.remaining();
+        if (srcByteCount > remaining()) {
             throw new BufferOverflowException();
         }
-        byte[] contents = new byte[src.remaining()];
-        src.get(contents);
-        put(contents);
+
+        Object srcObject = src.isDirect() ? src : NioUtils.unsafeArray(src);
+        int srcOffset = src.position();
+        if (!src.isDirect()) {
+            srcOffset += NioUtils.unsafeArrayOffset(src);
+        }
+
+        ByteBuffer dst = this;
+        Object dstObject = dst.isDirect() ? dst : NioUtils.unsafeArray(dst);
+        int dstOffset = dst.position();
+        if (!dst.isDirect()) {
+            dstOffset += NioUtils.unsafeArrayOffset(dst);
+        }
+
+        Memory.memmove(dstObject, dstOffset, srcObject, srcOffset, srcByteCount);
+        src.position(src.limit());
+        dst.position(dst.position() + srcByteCount);
+
         return this;
     }
 
@@ -797,7 +792,7 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      *            the index, must not be negative and less than the limit.
      * @param b
      *            the byte to write.
-     * @return this buffer.
+     * @return {@code this}
      * @exception IndexOutOfBoundsException
      *                if {@code index} is invalid.
      * @exception ReadOnlyBufferException
@@ -813,7 +808,7 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      *
      * @param value
      *            the char to write.
-     * @return this buffer.
+     * @return {@code this}
      * @exception BufferOverflowException
      *                if position is greater than {@code limit - 2}.
      * @exception ReadOnlyBufferException
@@ -832,7 +827,7 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      *            {@code limit - 2}.
      * @param value
      *            the char to write.
-     * @return this buffer.
+     * @return {@code this}
      * @exception IndexOutOfBoundsException
      *                if {@code index} is invalid.
      * @exception ReadOnlyBufferException
@@ -848,7 +843,7 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      *
      * @param value
      *            the double to write.
-     * @return this buffer.
+     * @return {@code this}
      * @exception BufferOverflowException
      *                if position is greater than {@code limit - 8}.
      * @exception ReadOnlyBufferException
@@ -867,7 +862,7 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      *            {@code limit - 8}.
      * @param value
      *            the double to write.
-     * @return this buffer.
+     * @return {@code this}
      * @exception IndexOutOfBoundsException
      *                if {@code index} is invalid.
      * @exception ReadOnlyBufferException
@@ -883,7 +878,7 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      *
      * @param value
      *            the float to write.
-     * @return this buffer.
+     * @return {@code this}
      * @exception BufferOverflowException
      *                if position is greater than {@code limit - 4}.
      * @exception ReadOnlyBufferException
@@ -902,7 +897,7 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      *            {@code limit - 4}.
      * @param value
      *            the float to write.
-     * @return this buffer.
+     * @return {@code this}
      * @exception IndexOutOfBoundsException
      *                if {@code index} is invalid.
      * @exception ReadOnlyBufferException
@@ -918,7 +913,7 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      *
      * @param value
      *            the int to write.
-     * @return this buffer.
+     * @return {@code this}
      * @exception BufferOverflowException
      *                if position is greater than {@code limit - 4}.
      * @exception ReadOnlyBufferException
@@ -937,7 +932,7 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      *            {@code limit - 4}.
      * @param value
      *            the int to write.
-     * @return this buffer.
+     * @return {@code this}
      * @exception IndexOutOfBoundsException
      *                if {@code index} is invalid.
      * @exception ReadOnlyBufferException
@@ -953,7 +948,7 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      *
      * @param value
      *            the long to write.
-     * @return this buffer.
+     * @return {@code this}
      * @exception BufferOverflowException
      *                if position is greater than {@code limit - 8}.
      * @exception ReadOnlyBufferException
@@ -972,7 +967,7 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      *            {@code limit - 8}.
      * @param value
      *            the long to write.
-     * @return this buffer.
+     * @return {@code this}
      * @exception IndexOutOfBoundsException
      *                if {@code index} is invalid.
      * @exception ReadOnlyBufferException
@@ -988,7 +983,7 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      *
      * @param value
      *            the short to write.
-     * @return this buffer.
+     * @return {@code this}
      * @exception BufferOverflowException
      *                if position is greater than {@code limit - 2}.
      * @exception ReadOnlyBufferException
@@ -1007,7 +1002,7 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      *            {@code limit - 2}.
      * @param value
      *            the short to write.
-     * @return this buffer.
+     * @return {@code this}
      * @exception IndexOutOfBoundsException
      *                if {@code index} is invalid.
      * @exception ReadOnlyBufferException
@@ -1031,22 +1026,4 @@ public abstract class ByteBuffer extends Buffer implements Comparable<ByteBuffer
      * @return a sliced buffer that shares its content with this buffer.
      */
     public abstract ByteBuffer slice();
-
-    /**
-     * Returns a string representing the state of this byte buffer.
-     *
-     * @return a string representing the state of this byte buffer.
-     */
-    @Override
-    public String toString() {
-        StringBuilder buf = new StringBuilder();
-        buf.append(getClass().getName());
-        buf.append(", status: capacity=");
-        buf.append(capacity());
-        buf.append(" position=");
-        buf.append(position());
-        buf.append(" limit=");
-        buf.append(limit());
-        return buf.toString();
-    }
 }

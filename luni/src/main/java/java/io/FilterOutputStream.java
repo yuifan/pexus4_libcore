@@ -17,7 +17,8 @@
 
 package java.io;
 
-import org.apache.harmony.luni.util.SneakyThrow;
+import java.util.Arrays;
+import libcore.util.SneakyThrow;
 
 /**
  * Wraps an existing {@link OutputStream} and performs some transformation on
@@ -88,24 +89,6 @@ public class FilterOutputStream extends OutputStream {
     }
 
     /**
-     * Writes the entire contents of the byte array {@code buffer} to this
-     * stream. This implementation writes the {@code buffer} to the target
-     * stream.
-     *
-     * @param buffer
-     *            the buffer to be written.
-     * @throws IOException
-     *             if an I/O error occurs while writing to this stream.
-     */
-    @Override
-    public void write(byte[] buffer) throws IOException {
-        // BEGIN android-note
-        // changed array notation to be consistent with the rest of harmony
-        // END android-note
-        write(buffer, 0, buffer.length);
-    }
-
-    /**
      * Writes {@code count} bytes from the byte array {@code buffer} starting at
      * {@code offset} to the target stream.
      *
@@ -124,16 +107,7 @@ public class FilterOutputStream extends OutputStream {
      */
     @Override
     public void write(byte[] buffer, int offset, int length) throws IOException {
-        // BEGIN android-note
-        // changed array notation to be consistent with the rest of harmony
-        // END android-note
-        // Force null buffer check first!
-        if (offset > buffer.length || offset < 0) {
-            throw new ArrayIndexOutOfBoundsException("Offset out of bounds: " + offset);
-        }
-        if (length < 0 || length > buffer.length - offset) {
-            throw new ArrayIndexOutOfBoundsException("Length out of bounds: " + length);
-        }
+        Arrays.checkOffsetAndCount(buffer.length, offset, length);
         for (int i = 0; i < length; i++) {
             // Call write() instead of out.write() since subclasses could
             // override the write() method.

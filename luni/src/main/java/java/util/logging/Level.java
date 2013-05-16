@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
-import libcore.base.Objects;
+import libcore.util.Objects;
 
 /**
  * {@code Level} objects are used to indicate the level of logging. There are a
@@ -209,9 +209,7 @@ public class Level implements Serializable {
         if (resourceBundleName != null) {
             try {
                 rb = ResourceBundle.getBundle(resourceBundleName,
-                        // BEGIN android-changed
                         Locale.getDefault(), VMStack.getCallingClassLoader());
-                        // BEGIN android-changed
             } catch (MissingResourceException e) {
                 rb = null;
             }

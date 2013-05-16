@@ -93,12 +93,10 @@ public class SSLContext {
      */
     public static SSLContext getInstance(String protocol) throws NoSuchAlgorithmException {
         if (protocol == null) {
-            throw new NullPointerException("protocol is null");
+            throw new NullPointerException("protocol == null");
         }
-        synchronized (ENGINE) {
-            ENGINE.getInstance(protocol, null);
-            return new SSLContext((SSLContextSpi) ENGINE.spi, ENGINE.provider, protocol);
-        }
+        Engine.SpiAndProvider sap = ENGINE.getInstance(protocol, null);
+        return new SSLContext((SSLContextSpi) sap.spi, sap.provider, protocol);
     }
 
     /**
@@ -156,12 +154,10 @@ public class SSLContext {
             throw new IllegalArgumentException("provider is null");
         }
         if (protocol == null) {
-            throw new NullPointerException("protocol is null");
+            throw new NullPointerException("protocol == null");
         }
-        synchronized (ENGINE) {
-            ENGINE.getInstance(protocol, provider, null);
-            return new SSLContext((SSLContextSpi) ENGINE.spi, provider, protocol);
-        }
+        Object spi = ENGINE.getInstance(protocol, provider, null);
+        return new SSLContext((SSLContextSpi) spi, provider, protocol);
     }
 
     private final Provider provider;

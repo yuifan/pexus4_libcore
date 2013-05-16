@@ -82,7 +82,7 @@ public class PriorityQueue<E> extends AbstractQueue<E> implements Serializable {
      */
     public PriorityQueue(int initialCapacity, Comparator<? super E> comparator) {
         if (initialCapacity < 1) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("initialCapacity < 1: " + initialCapacity);
         }
         elements = newElementArray(initialCapacity);
         this.comparator = comparator;
@@ -185,8 +185,8 @@ public class PriorityQueue<E> extends AbstractQueue<E> implements Serializable {
      *             if {@code o} is {@code null}.
      */
     public boolean offer(E o) {
-        if (null == o) {
-            throw new NullPointerException();
+        if (o == null) {
+            throw new NullPointerException("o == null");
         }
         growToSize(size + 1);
         elements[size] = o;
@@ -347,7 +347,7 @@ public class PriorityQueue<E> extends AbstractQueue<E> implements Serializable {
     }
 
     private int compare(E o1, E o2) {
-        if (null != comparator) {
+        if (comparator != null) {
             return comparator.compare(o1, o2);
         }
         return ((Comparable<? super E>) o1).compareTo(o2);
@@ -386,8 +386,8 @@ public class PriorityQueue<E> extends AbstractQueue<E> implements Serializable {
     }
 
     private void initSize(Collection<? extends E> c) {
-        if (null == c) {
-            throw new NullPointerException();
+        if (c == null) {
+            throw new NullPointerException("c == null");
         }
         if (c.isEmpty()) {
             elements = newElementArray(1);

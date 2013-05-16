@@ -18,6 +18,7 @@
 package java.nio;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 /**
  * A buffer of chars.
@@ -48,9 +49,9 @@ public abstract class CharBuffer extends Buffer implements
      */
     public static CharBuffer allocate(int capacity) {
         if (capacity < 0) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("capacity < 0: " + capacity);
         }
-        return BufferFactory.newCharBuffer(capacity);
+        return new CharArrayBuffer(new char[capacity]);
     }
 
     /**
@@ -71,30 +72,25 @@ public abstract class CharBuffer extends Buffer implements
      * Creates a new char buffer by wrapping the given char array.
      * <p>
      * The new buffer's position will be {@code start}, limit will be
-     * {@code start + len}, capacity will be the length of the array.
+     * {@code start + charCount}, capacity will be the length of the array.
      *
      * @param array
      *            the char array which the new buffer will be based on.
      * @param start
      *            the start index, must not be negative and not greater than
      *            {@code array.length}.
-     * @param len
+     * @param charCount
      *            the length, must not be negative and not greater than
      *            {@code array.length - start}.
      * @return the created char buffer.
      * @exception IndexOutOfBoundsException
-     *                if either {@code start} or {@code len} is invalid.
+     *                if either {@code start} or {@code charCount} is invalid.
      */
-    public static CharBuffer wrap(char[] array, int start, int len) {
-        int length = array.length;
-        if ((start < 0) || (len < 0) || (long) start + (long) len > length) {
-            throw new IndexOutOfBoundsException();
-        }
-
-        CharBuffer buf = BufferFactory.newCharBuffer(array);
+    public static CharBuffer wrap(char[] array, int start, int charCount) {
+        Arrays.checkOffsetAndCount(array.length, start, charCount);
+        CharBuffer buf = new CharArrayBuffer(array);
         buf.position = start;
-        buf.limit = start + len;
-
+        buf.limit = start + charCount;
         return buf;
     }
 
@@ -109,7 +105,7 @@ public abstract class CharBuffer extends Buffer implements
      * @return the created char buffer.
      */
     public static CharBuffer wrap(CharSequence chseq) {
-        return BufferFactory.newCharBuffer(chseq);
+        return new CharSequenceAdapter(chseq);
     }
 
     /**
@@ -119,41 +115,30 @@ public abstract class CharBuffer extends Buffer implements
      * {@code end}, capacity will be the length of the char sequence. The new
      * buffer is read-only.
      *
-     * @param chseq
+     * @param cs
      *            the char sequence which the new buffer will be based on.
      * @param start
      *            the start index, must not be negative and not greater than
-     *            {@code chseq.length()}.
+     *            {@code cs.length()}.
      * @param end
      *            the end index, must be no less than {@code start} and no
-     *            greater than {@code chseq.length()}.
+     *            greater than {@code cs.length()}.
      * @return the created char buffer.
      * @exception IndexOutOfBoundsException
      *                if either {@code start} or {@code end} is invalid.
      */
-    public static CharBuffer wrap(CharSequence chseq, int start, int end) {
-        if (chseq == null) {
-            throw new NullPointerException();
+    public static CharBuffer wrap(CharSequence cs, int start, int end) {
+        if (start < 0 || end < start || end > cs.length()) {
+            throw new IndexOutOfBoundsException("cs.length()=" + cs.length() + ", start=" + start + ", end=" + end);
         }
-        if (start < 0 || end < start || end > chseq.length()) {
-            throw new IndexOutOfBoundsException();
-        }
-
-        CharBuffer result = BufferFactory.newCharBuffer(chseq);
+        CharBuffer result = new CharSequenceAdapter(cs);
         result.position = start;
         result.limit = end;
         return result;
     }
 
-    /**
-     * Constructs a {@code CharBuffer} with given capacity.
-     *
-     * @param capacity
-     *            the capacity of the buffer.
-     */
     CharBuffer(int capacity) {
-        super(capacity);
-        _elementSizeShift = 1;
+        super(1, capacity, null);
     }
 
     public final char[] array() {
@@ -194,7 +179,7 @@ public abstract class CharBuffer extends Buffer implements
      */
     public final char charAt(int index) {
         if (index < 0 || index >= remaining()) {
-            throw new IndexOutOfBoundsException();
+            throw new IndexOutOfBoundsException("index=" + index + ", remaining()=" + remaining());
         }
         return get(position + index);
     }
@@ -324,28 +309,24 @@ public abstract class CharBuffer extends Buffer implements
      *
      * @param dst
      *            the target char array.
-     * @param off
+     * @param dstOffset
      *            the offset of the char array, must not be negative and not
      *            greater than {@code dst.length}.
-     * @param len
+     * @param charCount
      *            The number of chars to read, must be no less than zero and no
-     *            greater than {@code dst.length - off}.
+     *            greater than {@code dst.length - dstOffset}.
      * @return this buffer.
      * @exception IndexOutOfBoundsException
-     *                if either {@code off} or {@code len} is invalid.
+     *                if either {@code dstOffset} or {@code charCount} is invalid.
      * @exception BufferUnderflowException
-     *                if {@code len} is greater than {@code remaining()}.
+     *                if {@code charCount} is greater than {@code remaining()}.
      */
-    public CharBuffer get(char[] dst, int off, int len) {
-        int length = dst.length;
-        if ((off < 0) || (len < 0) || (long) off + (long) len > length) {
-            throw new IndexOutOfBoundsException();
-        }
-
-        if (len > remaining()) {
+    public CharBuffer get(char[] dst, int dstOffset, int charCount) {
+        Arrays.checkOffsetAndCount(dst.length, dstOffset, charCount);
+        if (charCount > remaining()) {
             throw new BufferUnderflowException();
         }
-        for (int i = off; i < off + len; i++) {
+        for (int i = dstOffset; i < dstOffset + charCount; ++i) {
             dst[i] = get();
         }
         return this;
@@ -476,30 +457,26 @@ public abstract class CharBuffer extends Buffer implements
      *
      * @param src
      *            the source char array.
-     * @param off
+     * @param srcOffset
      *            the offset of char array, must not be negative and not greater
      *            than {@code src.length}.
-     * @param len
+     * @param charCount
      *            the number of chars to write, must be no less than zero and no
-     *            greater than {@code src.length - off}.
+     *            greater than {@code src.length - srcOffset}.
      * @return this buffer.
      * @exception BufferOverflowException
-     *                if {@code remaining()} is less than {@code len}.
+     *                if {@code remaining()} is less than {@code charCount}.
      * @exception IndexOutOfBoundsException
-     *                if either {@code off} or {@code len} is invalid.
+     *                if either {@code srcOffset} or {@code charCount} is invalid.
      * @exception ReadOnlyBufferException
      *                if no changes may be made to the contents of this buffer.
      */
-    public CharBuffer put(char[] src, int off, int len) {
-        int length = src.length;
-        if ((off < 0) || (len < 0) || (long) off + (long) len > length) {
-            throw new IndexOutOfBoundsException();
-        }
-
-        if (len > remaining()) {
+    public CharBuffer put(char[] src, int srcOffset, int charCount) {
+        Arrays.checkOffsetAndCount(src.length, srcOffset, charCount);
+        if (charCount > remaining()) {
             throw new BufferOverflowException();
         }
-        for (int i = off; i < off + len; i++) {
+        for (int i = srcOffset; i < srcOffset + charCount; ++i) {
             put(src[i]);
         }
         return this;
@@ -522,8 +499,11 @@ public abstract class CharBuffer extends Buffer implements
      *                if no changes may be made to the contents of this buffer.
      */
     public CharBuffer put(CharBuffer src) {
+        if (isReadOnly()) {
+            throw new ReadOnlyBufferException();
+        }
         if (src == this) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("src == this");
         }
         if (src.remaining() > remaining()) {
             throw new BufferOverflowException();
@@ -591,11 +571,13 @@ public abstract class CharBuffer extends Buffer implements
      *                if no changes may be made to the contents of this buffer.
      */
     public CharBuffer put(String str, int start, int end) {
-        int length = str.length();
-        if (start < 0 || end < start || end > length) {
-            throw new IndexOutOfBoundsException();
+        if (isReadOnly()) {
+            throw new ReadOnlyBufferException();
         }
-
+        if (start < 0 || end < start || end > str.length()) {
+            throw new IndexOutOfBoundsException("str.length()=" + str.length() +
+                    ", start=" + start + ", end=" + end);
+        }
         if (end - start > remaining()) {
             throw new BufferOverflowException();
         }
@@ -654,8 +636,6 @@ public abstract class CharBuffer extends Buffer implements
 
     /**
      * Returns a string representing the current remaining chars of this buffer.
-     *
-     * @return a string representing the current remaining chars of this buffer.
      */
     @Override
     public String toString() {
@@ -760,7 +740,7 @@ public abstract class CharBuffer extends Buffer implements
             if (remaining == 0) {
                 return -1;
             }
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("target == this");
         }
         if (remaining == 0) {
             return limit > 0 && target.remaining() == 0 ? 0 : -1;

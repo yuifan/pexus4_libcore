@@ -17,21 +17,37 @@
 
 package java.io;
 
-import libcore.base.Streams;
+import java.util.Arrays;
+import libcore.io.Streams;
 
 /**
- * The base class for all input streams. An input stream is a means of reading
- * data from a source in a byte-wise manner.
- * <p>
- * Some input streams also support marking a position in the input stream and
- * returning to this position later. This abstract class does not provide a
- * fully working implementation, so it needs to be subclassed, and at least the
- * {@link #read()} method needs to be overridden. Overriding some of the
- * non-abstract methods is also often advised, since it might result in higher
- * efficiency.
- * <p>
- * Many specialized input streams for purposes like reading from a file already
- * exist in this package.
+ * A readable source of bytes.
+ *
+ * <p>Most clients will use input streams that read data from the file system
+ * ({@link FileInputStream}), the network ({@link java.net.Socket#getInputStream()}/{@link
+ * java.net.HttpURLConnection#getInputStream()}), or from an in-memory byte
+ * array ({@link ByteArrayInputStream}).
+ *
+ * <p>Use {@link InputStreamReader} to adapt a byte stream like this one into a
+ * character stream.
+ *
+ * <p>Most clients should wrap their input stream with {@link
+ * BufferedInputStream}. Callers that do only bulk reads may omit buffering.
+ *
+ * <p>Some implementations support marking a position in the input stream and
+ * resetting back to this position later. Implementations that don't return
+ * false from {@link #markSupported()} and throw an {@link IOException} when
+ * {@link #reset()} is called.
+ *
+ * <h3>Subclassing InputStream</h3>
+ * Subclasses that decorate another input stream should consider subclassing
+ * {@link FilterInputStream}, which delegates all calls to the source input
+ * stream.
+ *
+ * <p>All input stream subclasses should override <strong>both</strong> {@link
+ * #read() read()} and {@link #read(byte[],int,int) read(byte[],int,int)}. The
+ * three argument overload is necessary for bulk access to the data. This is
+ * much more efficient than byte-by-byte access.
  *
  * @see OutputStream
  */
@@ -141,27 +157,17 @@ public abstract class InputStream extends Object implements Closeable {
     public abstract int read() throws IOException;
 
     /**
-     * Reads bytes from this stream and stores them in the byte array {@code b}.
-     *
-     * @param b
-     *            the byte array in which to store the bytes read.
-     * @return the number of bytes actually read or -1 if the end of the stream
-     *         has been reached.
-     * @throws IOException
-     *             if this stream is closed or another IOException occurs.
+     * Equivalent to {@code read(buffer, 0, buffer.length)}.
      */
-    public int read(byte[] b) throws IOException {
-        // BEGIN android-note
-        // changed array notation to be consistent with the rest of harmony
-        // END android-note
-        return read(b, 0, b.length);
+    public int read(byte[] buffer) throws IOException {
+        return read(buffer, 0, buffer.length);
     }
 
     /**
      * Reads at most {@code length} bytes from this stream and stores them in
      * the byte array {@code b} starting at {@code offset}.
      *
-     * @param b
+     * @param buffer
      *            the byte array in which to store the bytes read.
      * @param offset
      *            the initial position in {@code buffer} to store the bytes read
@@ -177,17 +183,8 @@ public abstract class InputStream extends Object implements Closeable {
      * @throws IOException
      *             if the stream is closed or another IOException occurs.
      */
-    public int read(byte[] b, int offset, int length) throws IOException {
-        // BEGIN android-note
-        // changed array notation to be consistent with the rest of harmony
-        // END android-note
-        // Force null check for b first!
-        if (offset > b.length || offset < 0) {
-            throw new ArrayIndexOutOfBoundsException("Offset out of bounds: " + offset);
-        }
-        if (length < 0 || length > b.length - offset) {
-            throw new ArrayIndexOutOfBoundsException("Length out of bounds: " + length);
-        }
+    public int read(byte[] buffer, int offset, int length) throws IOException {
+        Arrays.checkOffsetAndCount(buffer.length, offset, length);
         for (int i = 0; i < length; i++) {
             int c;
             try {
@@ -200,7 +197,7 @@ public abstract class InputStream extends Object implements Closeable {
                 }
                 throw e;
             }
-            b[offset + i] = (byte) c;
+            buffer[offset + i] = (byte) c;
         }
         return length;
     }
@@ -223,7 +220,7 @@ public abstract class InputStream extends Object implements Closeable {
 
     /**
      * Skips at most {@code n} bytes in this stream. This method does nothing and returns
-     * 0 if {@code n} is negative.
+     * 0 if {@code n} is negative, but some subclasses may throw.
      *
      * <p>Note the "at most" in the description of this method: this method may choose to skip
      * fewer bytes than requested. Callers should <i>always</i> check the return value.

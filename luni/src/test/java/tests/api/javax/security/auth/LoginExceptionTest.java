@@ -17,10 +17,6 @@
 
 package tests.api.javax.security.auth;
 
-import dalvik.annotation.TestLevel;
-import dalvik.annotation.TestTargetClass;
-import dalvik.annotation.TestTargetNew;
-
 import junit.framework.TestCase;
 
 import javax.security.auth.login.LoginException;
@@ -29,20 +25,7 @@ import javax.security.auth.login.LoginException;
  * Tests for <code>LoginException</code> class constructors and methods.
  *
  */
-@TestTargetClass(LoginException.class)
 public class LoginExceptionTest extends TestCase {
-
-    public static void main(String[] args) {
-    }
-
-    /**
-     * Constructor for LoginExceptionTest.
-     *
-     * @param arg0
-     */
-    public LoginExceptionTest(String arg0) {
-        super(arg0);
-    }
 
     private static String[] msgs = {
             "",
@@ -51,15 +34,9 @@ public class LoginExceptionTest extends TestCase {
 
 
     /**
-     * @tests javax.security.auth.login.LoginException#LoginException()
+     * javax.security.auth.login.LoginException#LoginException()
      * Assertion: constructs LoginException with no detail message
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "LoginException",
-        args = {}
-    )
     public void testLoginException01() {
         LoginException lE = new LoginException();
         assertNull("getMessage() must return null.", lE.getMessage());
@@ -67,15 +44,9 @@ public class LoginExceptionTest extends TestCase {
     }
 
     /**
-     * @tests javax.security.auth.login.LoginException#LoginException(String msg)
+     * javax.security.auth.login.LoginException#LoginException(String msg)
      * Assertion: constructs with not null parameter.
      */
-    @TestTargetNew(
-        level = TestLevel.PARTIAL_COMPLETE,
-        notes = "",
-        method = "LoginException",
-        args = {String.class}
-    )
     public void testLoginException02() {
         LoginException lE;
         for (int i = 0; i < msgs.length; i++) {
@@ -86,15 +57,9 @@ public class LoginExceptionTest extends TestCase {
     }
 
     /**
-     * @tests javax.security.auth.login.LoginException#LoginException(String msg)
+     * javax.security.auth.login.LoginException#LoginException(String msg)
      * Assertion: constructs with null parameter.
      */
-    @TestTargetNew(
-        level = TestLevel.PARTIAL_COMPLETE,
-        notes = "",
-        method = "LoginException",
-        args = {String.class}
-    )
     public void testLoginException03() {
         String msg = null;
         LoginException lE = new LoginException(msg);

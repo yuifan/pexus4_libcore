@@ -38,7 +38,6 @@ import java.security.cert.CertificateExpiredException;
 import java.security.cert.CertificateNotYetValidException;
 import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
-import java.security.interfaces.RSAPublicKey;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
@@ -49,7 +48,6 @@ import org.apache.harmony.security.x509.Certificate;
 import org.apache.harmony.security.x509.Extension;
 import org.apache.harmony.security.x509.Extensions;
 import org.apache.harmony.security.x509.TBSCertificate;
-import org.apache.harmony.xnet.provider.jsse.NativeCrypto;
 
 /**
  * This class is an implementation of X509Certificate. It wraps
@@ -60,21 +58,19 @@ import org.apache.harmony.xnet.provider.jsse.NativeCrypto;
  * @see org.apache.harmony.security.x509.Certificate
  * @see java.security.cert.X509Certificate
  */
-public class X509CertImpl extends X509Certificate {
+public final class X509CertImpl extends X509Certificate {
 
-    /**
-     * @serial
-     */
+    /** @serial */
     private static final long serialVersionUID = 2972248729446736154L;
 
-    // the core object to be wrapped in X509Certificate
+    /** the core object to be wrapped in X509Certificate */
     private final Certificate certificate;
 
+    private final TBSCertificate tbsCert;
+    private final Extensions extensions;
     // to speed up access to the info, the following fields
     // cache values retrieved from the certificate object,
     // initialized using the "single-check idiom".
-    private final TBSCertificate tbsCert;
-    private final Extensions extensions;
     private volatile long notBefore = -1;
     private volatile long notAfter = -1;
     private volatile BigInteger serialNumber;
@@ -91,10 +87,6 @@ public class X509CertImpl extends X509Certificate {
 
     // encoding of the certificate
     private volatile byte[] encoding;
-
-    //
-    // ---------------------- Constructors -------------------------------
-    //
 
     /**
      * Constructs the instance on the base of ASN.1 encoded
@@ -135,23 +127,11 @@ public class X509CertImpl extends X509Certificate {
         this((Certificate) Certificate.ASN1.decode(encoding));
     }
 
-    //
-    // ----------------- Public methods implementations ------------------
-    //
-
-    /**
-     * @see java.security.cert.X509Certificate#checkValidity()
-     * method documentation for more information.
-     */
     public void checkValidity()
             throws CertificateExpiredException, CertificateNotYetValidException {
         checkValidity(System.currentTimeMillis());
     }
 
-    /**
-     * @see java.security.cert.X509Certificate#checkValidity(Date)
-     * method documentation for more information.
-     */
     public void checkValidity(Date date)
             throws CertificateExpiredException, CertificateNotYetValidException {
         checkValidity(date.getTime());
@@ -169,18 +149,10 @@ public class X509CertImpl extends X509Certificate {
         }
     }
 
-    /**
-     * @see java.security.cert.X509Certificate#getVersion()
-     * method documentation for more information.
-     */
     public int getVersion() {
         return tbsCert.getVersion() + 1;
     }
 
-    /**
-     * @see java.security.cert.X509Certificate#getSerialNumber()
-     * method documentation for more information.
-     */
     public BigInteger getSerialNumber() {
         BigInteger result = serialNumber;
         if (result == null) {
@@ -189,18 +161,10 @@ public class X509CertImpl extends X509Certificate {
         return result;
     }
 
-    /**
-     * @see java.security.cert.X509Certificate#getIssuerDN()
-     * method documentation for more information.
-     */
     public Principal getIssuerDN() {
         return getIssuerX500Principal();
     }
 
-    /**
-     * @see java.security.cert.X509Certificate#getIssuerX500Principal()
-     * method documentation for more information.
-     */
     public X500Principal getIssuerX500Principal() {
         X500Principal result = issuer;
         if (result == null) {
@@ -210,18 +174,10 @@ public class X509CertImpl extends X509Certificate {
         return result;
     }
 
-    /**
-     * @see java.security.cert.X509Certificate#getSubjectDN()
-     * method documentation for more information.
-     */
     public Principal getSubjectDN() {
         return getSubjectX500Principal();
     }
 
-    /**
-     * @see java.security.cert.X509Certificate#getSubjectX500Principal()
-     * method documentation for more information.
-     */
     public X500Principal getSubjectX500Principal() {
         X500Principal result = subject;
         if (result == null) {
@@ -231,13 +187,10 @@ public class X509CertImpl extends X509Certificate {
         return result;
     }
 
-    /**
-     * @see java.security.cert.X509Certificate#getNotBefore()
-     * method documentation for more information.
-     */
     public Date getNotBefore() {
         return new Date(getNotBeforeInternal());
     }
+
     private long getNotBeforeInternal() {
         long result = notBefore;
         if (result == -1) {
@@ -246,13 +199,10 @@ public class X509CertImpl extends X509Certificate {
         return result;
     }
 
-    /**
-     * @see java.security.cert.X509Certificate#getNotAfter()
-     * method documentation for more information.
-     */
     public Date getNotAfter() {
         return new Date(getNotAfterInternal());
     }
+
     private long getNotAfterInternal() {
         long result = notAfter;
         if (result == -1) {
@@ -261,13 +211,10 @@ public class X509CertImpl extends X509Certificate {
         return result;
     }
 
-    /**
-     * @see java.security.cert.X509Certificate#getTBSCertificate()
-     * method documentation for more information.
-     */
     public byte[] getTBSCertificate() throws CertificateEncodingException {
         return getTbsCertificateInternal().clone();
     }
+
     private byte[] getTbsCertificateInternal() {
         byte[] result = tbsCertificate;
         if (result == null) {
@@ -276,13 +223,10 @@ public class X509CertImpl extends X509Certificate {
         return result;
     }
 
-    /**
-     * @see java.security.cert.X509Certificate#getSignature()
-     * method documentation for more information.
-     */
     public byte[] getSignature() {
         return getSignatureInternal().clone();
     }
+
     private byte[] getSignatureInternal() {
         byte[] result = signature;
         if (result == null) {
@@ -291,10 +235,6 @@ public class X509CertImpl extends X509Certificate {
         return result;
     }
 
-    /**
-     * @see java.security.cert.X509Certificate#getSigAlgName()
-     * method documentation for more information.
-     */
     public String getSigAlgName() {
         String result = sigAlgName;
         if (result == null) {
@@ -310,10 +250,6 @@ public class X509CertImpl extends X509Certificate {
         return result;
     }
 
-    /**
-     * @see java.security.cert.X509Certificate#getSigAlgOID()
-     * method documentation for more information.
-     */
     public String getSigAlgOID() {
         String result = sigAlgOID;
         if (result == null) {
@@ -323,10 +259,6 @@ public class X509CertImpl extends X509Certificate {
         return result;
     }
 
-    /**
-     * @see java.security.cert.X509Certificate#getSigAlgParams()
-     * method documentation for more information.
-     */
     public byte[] getSigAlgParams() {
         if (nullSigAlgParams) {
             return null;
@@ -343,26 +275,14 @@ public class X509CertImpl extends X509Certificate {
         return result;
     }
 
-    /**
-     * @see java.security.cert.X509Certificate#getIssuerUniqueID()
-     * method documentation for more information.
-     */
     public boolean[] getIssuerUniqueID() {
         return tbsCert.getIssuerUniqueID();
     }
 
-    /**
-     * @see java.security.cert.X509Certificate#getSubjectUniqueID()
-     * method documentation for more information.
-     */
     public boolean[] getSubjectUniqueID() {
         return tbsCert.getSubjectUniqueID();
     }
 
-    /**
-     * @see java.security.cert.X509Certificate#getKeyUsage()
-     * method documentation for more information.
-     */
     public boolean[] getKeyUsage() {
         if (extensions == null) {
             return null;
@@ -370,11 +290,7 @@ public class X509CertImpl extends X509Certificate {
         return extensions.valueOfKeyUsage();
     }
 
-    /**
-     * @see java.security.cert.X509Certificate#getExtendedKeyUsage()
-     * method documentation for more information.
-     */
-    public List/*<String>*/ getExtendedKeyUsage()
+    public List<String> getExtendedKeyUsage()
                                 throws CertificateParsingException {
         if (extensions == null) {
             return null;
@@ -386,23 +302,14 @@ public class X509CertImpl extends X509Certificate {
         }
     }
 
-    /**
-     * @see java.security.cert.X509Certificate#getBasicConstraints()
-     * method documentation for more information.
-     */
     public int getBasicConstraints() {
         if (extensions == null) {
-            return Integer.MAX_VALUE;
+            return -1;
         }
-        return extensions.valueOfBasicConstrains();
+        return extensions.valueOfBasicConstraints();
     }
 
-    /**
-     * @see java.security.cert.X509Certificate#getSubjectAlternativeNames()
-     * method documentation for more information.
-     */
-    public Collection/*<List<?>>*/ getSubjectAlternativeNames()
-                                throws CertificateParsingException {
+    public Collection<List<?>> getSubjectAlternativeNames() throws CertificateParsingException {
         if (extensions == null) {
             return null;
         }
@@ -420,8 +327,7 @@ public class X509CertImpl extends X509Certificate {
      * @see java.security.cert.X509Certificate#getIssuerAlternativeNames()
      * method documentation for more information.
      */
-    public Collection/*FIXME <List<?>>*/ getIssuerAlternativeNames()
-                                throws CertificateParsingException {
+    public Collection<List<?>> getIssuerAlternativeNames() throws CertificateParsingException {
         if (extensions == null) {
             return null;
         }
@@ -435,15 +341,7 @@ public class X509CertImpl extends X509Certificate {
         }
     }
 
-    //
-    // ----- java.security.cert.Certificate methods implementations ------
-    //
-
-    /**
-     * @see java.security.cert.Certificate#getEncoded()
-     * method documentation for more information.
-     */
-    public byte[] getEncoded() throws CertificateEncodingException {
+    @Override public byte[] getEncoded() throws CertificateEncodingException {
         return getEncodedInternal().clone();
     }
     private byte[] getEncodedInternal() throws CertificateEncodingException {
@@ -454,11 +352,7 @@ public class X509CertImpl extends X509Certificate {
         return result;
     }
 
-    /**
-     * @see java.security.cert.Certificate#getPublicKey()
-     * method documentation for more information.
-     */
-    public PublicKey getPublicKey() {
+    @Override public PublicKey getPublicKey() {
         PublicKey result = publicKey;
         if (result == null) {
             publicKey = result = tbsCert.getSubjectPublicKeyInfo().getPublicKey();
@@ -466,27 +360,13 @@ public class X509CertImpl extends X509Certificate {
         return result;
     }
 
-    /**
-     * @see java.security.cert.Certificate#toString()
-     * method documentation for more information.
-     */
-    public String toString() {
+    @Override public String toString() {
         return certificate.toString();
     }
 
-    /**
-     * Verifies the signature of the certificate.
-     * @see java.security.cert.Certificate#verify(PublicKey)
-     * method documentation for more information.
-     */
-    public void verify(PublicKey key)
-                         throws CertificateException, NoSuchAlgorithmException,
-                                InvalidKeyException, NoSuchProviderException,
-                                SignatureException {
-        if (getSigAlgName().endsWith("withRSA")) {
-            fastVerify(key);
-            return;
-        }
+    @Override public void verify(PublicKey key)
+            throws CertificateException, NoSuchAlgorithmException, InvalidKeyException,
+            NoSuchProviderException, SignatureException {
 
         Signature signature = Signature.getInstance(getSigAlgName());
         signature.initVerify(key);
@@ -499,22 +379,11 @@ public class X509CertImpl extends X509Certificate {
         }
     }
 
-    /**
-     * Verifies the signature of the certificate.
-     * @see java.security.cert.Certificate#verify(PublicKey,String)
-     * method documentation for more information.
-     */
-    public void verify(PublicKey key, String sigProvider)
-                         throws CertificateException, NoSuchAlgorithmException,
-                                InvalidKeyException, NoSuchProviderException,
-                                SignatureException {
-        if (getSigAlgName().endsWith("withRSA")) {
-            fastVerify(key);
-            return;
-        }
+    @Override public void verify(PublicKey key, String sigProvider)
+            throws CertificateException, NoSuchAlgorithmException, InvalidKeyException,
+            NoSuchProviderException, SignatureException {
 
-        Signature signature =
-            Signature.getInstance(getSigAlgName(), sigProvider);
+        Signature signature = Signature.getInstance(getSigAlgName(), sigProvider);
         signature.initVerify(key);
         // retrieve the encoding of the TBSCertificate structure
         byte[] tbsCertificateLocal = getTbsCertificateInternal();
@@ -525,53 +394,7 @@ public class X509CertImpl extends X509Certificate {
         }
     }
 
-    /**
-     * Implements a faster RSA verification method that delegates to OpenSSL
-     * native code. In all other aspects it behaves just like the ordinary
-     * {@link verify} method.
-     *
-     * @param key The RSA public key to use
-     *
-     * @throws SignatureException If the verification fails.
-     * @throws InvalidKeyException
-     */
-    private void fastVerify(PublicKey key) throws SignatureException,
-            InvalidKeyException, NoSuchAlgorithmException {
-        if (!(key instanceof RSAPublicKey)) {
-            throw new InvalidKeyException("key is not an instance of RSAPublicKey");
-        }
-        RSAPublicKey rsaKey = (RSAPublicKey) key;
-
-        String algorithm = getSigAlgName();
-
-        // We don't support MD2 anymore. This needs to also check for aliases
-        // and OIDs.
-        if ("MD2withRSA".equalsIgnoreCase(algorithm) ||
-                "MD2withRSAEncryption".equalsIgnoreCase(algorithm) ||
-                "1.2.840.113549.1.1.2".equalsIgnoreCase(algorithm) ||
-                "MD2/RSA".equalsIgnoreCase(algorithm)) {
-            throw new NoSuchAlgorithmException(algorithm);
-        }
-
-        int i = algorithm.indexOf("with");
-        algorithm = algorithm.substring(i + 4) + "-" + algorithm.substring(0, i);
-
-        byte[] tbsCertificateLocal = getTbsCertificateInternal();
-        byte[] sig = certificate.getSignatureValue();
-        if (!NativeCrypto.verifySignature(tbsCertificateLocal, sig, algorithm, rsaKey)) {
-            throw new SignatureException("Signature was not verified");
-        }
-    }
-
-    //
-    // ----- java.security.cert.X509Extension methods implementations ----
-    //
-
-    /**
-     * @see java.security.cert.X509Extension#getNonCriticalExtensionOIDs()
-     * method documentation for more information.
-     */
-    public Set getNonCriticalExtensionOIDs() {
+    @Override public Set<String> getNonCriticalExtensionOIDs() {
         if (extensions == null) {
             return null;
         }
@@ -579,11 +402,7 @@ public class X509CertImpl extends X509Certificate {
         return extensions.getNonCriticalExtensions();
     }
 
-    /**
-     * @see java.security.cert.X509Extension#getCriticalExtensionOIDs()
-     * method documentation for more information.
-     */
-    public Set getCriticalExtensionOIDs() {
+    @Override public Set<String> getCriticalExtensionOIDs() {
         if (extensions == null) {
             return null;
         }
@@ -591,11 +410,7 @@ public class X509CertImpl extends X509Certificate {
         return extensions.getCriticalExtensions();
     }
 
-    /**
-     * @see java.security.cert.X509Extension#getExtensionValue(String)
-     * method documentation for more information.
-     */
-    public byte[] getExtensionValue(String oid) {
+    @Override public byte[] getExtensionValue(String oid) {
         if (extensions == null) {
             return null;
         }
@@ -604,11 +419,7 @@ public class X509CertImpl extends X509Certificate {
         return (ext == null) ? null : ext.getRawExtnValue();
     }
 
-    /**
-     * @see java.security.cert.X509Extension#hasUnsupportedCriticalExtension()
-     * method documentation for more information.
-     */
-    public boolean hasUnsupportedCriticalExtension() {
+    @Override public boolean hasUnsupportedCriticalExtension() {
         if (extensions == null) {
             return false;
         }

@@ -116,15 +116,12 @@ public abstract class CertPath implements Serializable {
         sb.append(getCertificates().size());
         sb.append(": [\n");
         int n=1;
-        // BEGIN android-changed
-        for (Iterator<? extends Certificate> i=getCertificates().iterator();
-                      i.hasNext(); n++) {
+        for (Iterator<? extends Certificate> i=getCertificates().iterator(); i.hasNext(); n++) {
             sb.append("---------------certificate ");
             sb.append(n);
             sb.append("---------------\n");
             sb.append(((Certificate)i.next()).toString());
         }
-        // END android-changed
         sb.append("\n]");
         return sb.toString();
     }
@@ -148,16 +145,13 @@ public abstract class CertPath implements Serializable {
         throws CertificateEncodingException;
 
     /**
-     * Returns an encoding of the {@code CertPath} using the specified encoding.
+     * Returns an encoding of this {@code CertPath} using the given
+     * {@code encoding} from {@link #getEncodings()}.
      *
-     * @param encoding
-     *            encoding that should be generated.
-     * @return default encoding of the {@code CertPath}.
      * @throws CertificateEncodingException
      *             if the encoding fails.
      */
-    public abstract byte[] getEncoded(String encoding)
-        throws CertificateEncodingException;
+    public abstract byte[] getEncoded(String encoding) throws CertificateEncodingException;
 
     /**
      * Returns an {@code Iterator} over the supported encodings for a
@@ -197,8 +191,8 @@ public abstract class CertPath implements Serializable {
         // Force default serialization to use writeUnshared/readUnshared
         // for cert path data
         private static final ObjectStreamField[] serialPersistentFields = {
-             new ObjectStreamField("type", String.class),
-             new ObjectStreamField("data", byte[].class, true)
+            new ObjectStreamField("type", String.class),
+            new ObjectStreamField("data", byte[].class, true),
         };
 
         /**

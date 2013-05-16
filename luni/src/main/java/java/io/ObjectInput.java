@@ -23,7 +23,7 @@ package java.io;
  * @see ObjectInputStream
  * @see ObjectOutput
  */
-public interface ObjectInput extends DataInput {
+public interface ObjectInput extends DataInput, AutoCloseable {
     /**
      * Indicates the number of bytes of primitive data that can be read without
      * blocking.
@@ -99,16 +99,13 @@ public interface ObjectInput extends DataInput {
     public Object readObject() throws ClassNotFoundException, IOException;
 
     /**
-     * Skips {@code toSkip} bytes on this stream. Less than {@code toSkip} byte are
+     * Skips {@code byteCount} bytes on this stream. Less than {@code byteCount} byte are
      * skipped if the end of this stream is reached before the operation
      * completes.
      *
-     * @param toSkip
-     *            the number of bytes to skip.
      * @return the number of bytes actually skipped.
-     *
      * @throws IOException
      *             if this stream is closed or another I/O error occurs.
      */
-    public long skip(long toSkip) throws IOException;
+    public long skip(long byteCount) throws IOException;
 }

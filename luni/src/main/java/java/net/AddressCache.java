@@ -16,78 +16,66 @@
 
 package java.net;
 
-import java.security.AccessController;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import org.apache.harmony.luni.util.PriviAction;
+import libcore.util.BasicLruCache;
 
 /**
  * Implements caching for {@code InetAddress}. We use a unified cache for both positive and negative
  * cache entries.
+ *
+ * TODO: benchmark and optimize InetAddress until we get to the point where we can just rely on
+ * the C library level caching. The main thing caching at this level buys us is avoiding repeated
+ * conversions from 'struct sockaddr's to InetAddress[].
  */
 class AddressCache {
     /**
      * When the cache contains more entries than this, we start dropping the oldest ones.
      * This should be a power of two to avoid wasted space in our custom map.
      */
-    private static final int MAX_ENTRIES = 512;
+    private static final int MAX_ENTRIES = 16;
 
-    // This isn't used by our HashMap implementation, but the API demands it.
-    private static final float DEFAULT_LOAD_FACTOR = .75F;
-
-    // Default time-to-live for positive cache entries. 600 seconds (10 minutes).
-    private static final long DEFAULT_POSITIVE_TTL_NANOS = 600 * 1000000000L;
-    // Default time-to-live for negative cache entries. 10 seconds.
-    private static final long DEFAULT_NEGATIVE_TTL_NANOS = 10 * 1000000000L;
-
-    // Failed lookups are represented in the cache my mappings to this empty array.
-    private static final InetAddress[] NO_ADDRESSES = new InetAddress[0];
+    // The TTL for the Java-level cache is short, just 2s.
+    private static final long TTL_NANOS = 2 * 1000000000L;
 
     // The actual cache.
-    private final Map<String, AddressCacheEntry> map;
+    private final BasicLruCache<String, AddressCacheEntry> cache
+            = new BasicLruCache<String, AddressCacheEntry>(MAX_ENTRIES);
 
     static class AddressCacheEntry {
-        // The addresses. May be the empty array for a negative cache entry.
-        InetAddress[] addresses;
+        // Either an InetAddress[] for a positive entry,
+        // or a String detail message for a negative entry.
+        final Object value;
 
         /**
          * The absolute expiry time in nanoseconds. Nanoseconds from System.nanoTime is ideal
          * because -- unlike System.currentTimeMillis -- it can never go backwards.
          *
-         * Unless we need to cope with DNS TTLs of 292 years, we don't need to worry about overflow.
+         * We don't need to worry about overflow with a TTL_NANOS of 2s.
          */
-        long expiryNanos;
+        final long expiryNanos;
 
-        AddressCacheEntry(InetAddress[] addresses, long expiryNanos) {
-            this.addresses = addresses;
-            this.expiryNanos = expiryNanos;
+        AddressCacheEntry(Object value) {
+            this.value = value;
+            this.expiryNanos = System.nanoTime() + TTL_NANOS;
         }
-    }
-
-    public AddressCache() {
-        // We pass 'true' so removeEldestEntry removes the least-recently accessed entry, rather
-        // than the least-recently inserted.
-        map = new LinkedHashMap<String, AddressCacheEntry>(0, DEFAULT_LOAD_FACTOR, true) {
-            @Override protected boolean removeEldestEntry(Entry<String, AddressCacheEntry> eldest) {
-                // By the time this method is called, the new entry has already been inserted and
-                // the map will have grown to accommodate it. Using == lets us prevent resizing.
-                return size() == MAX_ENTRIES;
-            }
-        };
     }
 
     /**
-     * Returns the cached addresses associated with 'hostname'. Returns null if nothing is known
-     * about 'hostname'. Returns an empty array if 'hostname' is known not to exist.
+     * Removes all entries from the cache.
      */
-    public InetAddress[] get(String hostname) {
-        AddressCacheEntry entry;
-        synchronized (map) {
-            entry = map.get(hostname);
-        }
+    public void clear() {
+        cache.evictAll();
+    }
+
+    /**
+     * Returns the cached InetAddress[] associated with 'hostname'. Returns null if nothing is known
+     * about 'hostname'. Returns a String suitable for use as an UnknownHostException detail
+     * message if 'hostname' is known not to exist.
+     */
+    public Object get(String hostname) {
+        AddressCacheEntry entry = cache.get(hostname);
         // Do we have a valid cache entry?
         if (entry != null && entry.expiryNanos >= System.nanoTime()) {
-            return entry.addresses;
+            return entry.value;
         }
         // Either we didn't find anything, or it had expired.
         // No need to remove expired entries: the caller will provide a replacement shortly.
@@ -99,50 +87,14 @@ class AddressCache {
      * certain length of time.
      */
     public void put(String hostname, InetAddress[] addresses) {
-        // Calculate the expiry time.
-        boolean isPositive = (addresses.length > 0);
-        String propertyName = isPositive ? "networkaddress.cache.ttl" : "networkaddress.cache.negative.ttl";
-        long defaultTtlNanos = isPositive ? DEFAULT_POSITIVE_TTL_NANOS : DEFAULT_NEGATIVE_TTL_NANOS;
-        // Fast-path the default case...
-        long expiryNanos = System.nanoTime() + defaultTtlNanos;
-        if (System.getSecurityManager() != null || System.getProperty(propertyName, null) != null) {
-            // ...and let those using a SecurityManager or custom properties pay full price.
-            expiryNanos = customTtl(propertyName, defaultTtlNanos);
-            if (expiryNanos == Long.MIN_VALUE) {
-                return;
-            }
-        }
-        // Update the cache.
-        synchronized (map) {
-            map.put(hostname, new AddressCacheEntry(addresses, expiryNanos));
-        }
+        cache.put(hostname, new AddressCacheEntry(addresses));
     }
 
     /**
      * Records that 'hostname' is known not to have any associated addresses. (I.e. insert a
      * negative cache entry.)
      */
-    public void putUnknownHost(String hostname) {
-        put(hostname, NO_ADDRESSES);
-    }
-
-    private long customTtl(String propertyName, long defaultTtlNanos) {
-        String ttlString = AccessController.doPrivileged(new PriviAction<String>(propertyName, null));
-        if (ttlString == null) {
-            return System.nanoTime() + defaultTtlNanos;
-        }
-        try {
-            long ttlS = Long.parseLong(ttlString);
-            // For the system properties, -1 means "cache forever" and 0 means "don't cache".
-            if (ttlS == -1) {
-                return Long.MAX_VALUE;
-            } else if (ttlS == 0) {
-                return Long.MIN_VALUE;
-            } else {
-                return System.nanoTime() + ttlS * 1000000000L;
-            }
-        } catch (NumberFormatException ex) {
-            return System.nanoTime() + defaultTtlNanos;
-        }
+    public void putUnknownHost(String hostname, String detailMessage) {
+        cache.put(hostname, new AddressCacheEntry(detailMessage));
     }
 }

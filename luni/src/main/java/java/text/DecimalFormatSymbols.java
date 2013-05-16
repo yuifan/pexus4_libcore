@@ -17,8 +17,6 @@
 
 package java.text;
 
-import com.ibm.icu4jni.util.ICU;
-import com.ibm.icu4jni.util.LocaleData;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -26,6 +24,8 @@ import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.util.Currency;
 import java.util.Locale;
+import libcore.icu.ICU;
+import libcore.icu.LocaleData;
 
 /**
  * Encapsulates the set of symbols (such as the decimal separator, the grouping
@@ -83,7 +83,7 @@ public class DecimalFormatSymbols implements Cloneable, Serializable {
     public DecimalFormatSymbols(Locale locale) {
         LocaleData localeData = LocaleData.get(locale);
         this.zeroDigit = localeData.zeroDigit;
-        this.digit = localeData.digit;
+        this.digit = '#';
         this.decimalSeparator = localeData.decimalSeparator;
         this.groupingSeparator = localeData.groupingSeparator;
         this.patternSeparator = localeData.patternSeparator;
@@ -127,7 +127,7 @@ public class DecimalFormatSymbols implements Cloneable, Serializable {
      */
     public static DecimalFormatSymbols getInstance(Locale locale) {
         if (locale == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("locale == null");
         }
         return new DecimalFormatSymbols(locale);
     }
@@ -389,7 +389,7 @@ public class DecimalFormatSymbols implements Cloneable, Serializable {
      */
     public void setCurrency(Currency currency) {
         if (currency == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("currency == null");
         }
         if (currency == this.currency) {
             return;
@@ -558,28 +558,28 @@ public class DecimalFormatSymbols implements Cloneable, Serializable {
      */
     public void setExponentSeparator(String value) {
         if (value == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("value == null");
         }
         this.exponentSeparator = value;
     }
 
-    private static ObjectStreamField[] serialPersistentFields = {
+    private static final ObjectStreamField[] serialPersistentFields = {
         new ObjectStreamField("currencySymbol", String.class),
-        new ObjectStreamField("decimalSeparator", Character.TYPE),
-        new ObjectStreamField("digit", Character.TYPE),
-        new ObjectStreamField("exponential", Character.TYPE),
+        new ObjectStreamField("decimalSeparator", char.class),
+        new ObjectStreamField("digit", char.class),
+        new ObjectStreamField("exponential", char.class),
         new ObjectStreamField("exponentialSeparator", String.class),
-        new ObjectStreamField("groupingSeparator", Character.TYPE),
+        new ObjectStreamField("groupingSeparator", char.class),
         new ObjectStreamField("infinity", String.class),
         new ObjectStreamField("intlCurrencySymbol", String.class),
-        new ObjectStreamField("minusSign", Character.TYPE),
-        new ObjectStreamField("monetarySeparator", Character.TYPE),
+        new ObjectStreamField("minusSign", char.class),
+        new ObjectStreamField("monetarySeparator", char.class),
         new ObjectStreamField("NaN", String.class),
-        new ObjectStreamField("patternSeparator", Character.TYPE),
-        new ObjectStreamField("percent", Character.TYPE),
-        new ObjectStreamField("perMill", Character.TYPE),
-        new ObjectStreamField("serialVersionOnStream", Integer.TYPE),
-        new ObjectStreamField("zeroDigit", Character.TYPE),
+        new ObjectStreamField("patternSeparator", char.class),
+        new ObjectStreamField("percent", char.class),
+        new ObjectStreamField("perMill", char.class),
+        new ObjectStreamField("serialVersionOnStream", int.class),
+        new ObjectStreamField("zeroDigit", char.class),
         new ObjectStreamField("locale", Locale.class),
     };
 

@@ -92,7 +92,7 @@ public class Vector<E> extends AbstractList<E> implements List<E>,
      */
     public Vector(int capacity, int capacityIncrement) {
         if (capacity < 0) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("capacity < 0: " + capacity);
         }
         elementData = newElementArray(capacity);
         elementCount = 0;
@@ -173,9 +173,8 @@ public class Vector<E> extends AbstractList<E> implements List<E>,
      *                if {@code location < 0} or {@code location > size()}.
      */
     @Override
-    public synchronized boolean addAll(int location,
-            Collection<? extends E> collection) {
-        if (0 <= location && location <= elementCount) {
+    public synchronized boolean addAll(int location, Collection<? extends E> collection) {
+        if (location >= 0 && location <= elementCount) {
             int size = collection.size();
             if (size == 0) {
                 return false;
@@ -197,7 +196,7 @@ public class Vector<E> extends AbstractList<E> implements List<E>,
             modCount++;
             return true;
         }
-        throw new ArrayIndexOutOfBoundsException(location);
+        throw arrayIndexOutOfBoundsException(location, elementCount);
     }
 
     /**
@@ -263,7 +262,7 @@ public class Vector<E> extends AbstractList<E> implements List<E>,
             vector.elementData = elementData.clone();
             return vector;
         } catch (CloneNotSupportedException e) {
-            throw new AssertionError(e); // android-changed
+            throw new AssertionError(e);
         }
     }
 
@@ -326,7 +325,7 @@ public class Vector<E> extends AbstractList<E> implements List<E>,
         if (location < elementCount) {
             return (E) elementData[location];
         }
-        throw new ArrayIndexOutOfBoundsException(location);
+        throw arrayIndexOutOfBoundsException(location, elementCount);
     }
 
     /**
@@ -446,7 +445,7 @@ public class Vector<E> extends AbstractList<E> implements List<E>,
     private void grow(int newCapacity) {
         E[] newData = newElementArray(newCapacity);
         // Assumes elementCount is <= newCapacity
-        assert elementCount <= newCapacity;
+        // assert elementCount <= newCapacity;
         System.arraycopy(elementData, 0, newData, 0, elementCount);
         elementData = newData;
     }
@@ -575,7 +574,7 @@ public class Vector<E> extends AbstractList<E> implements List<E>,
      * @see #size
      */
     public synchronized void insertElementAt(E object, int location) {
-        if (0 <= location && location <= elementCount) {
+        if (location >= 0 && location <= elementCount) {
             if (elementCount == elementData.length) {
                 growByOne();
             }
@@ -588,7 +587,7 @@ public class Vector<E> extends AbstractList<E> implements List<E>,
             elementCount++;
             modCount++;
         } else {
-            throw new ArrayIndexOutOfBoundsException(location);
+            throw arrayIndexOutOfBoundsException(location, elementCount);
         }
     }
 
@@ -675,7 +674,7 @@ public class Vector<E> extends AbstractList<E> implements List<E>,
             }
             return -1;
         }
-        throw new ArrayIndexOutOfBoundsException(location);
+        throw arrayIndexOutOfBoundsException(location, elementCount);
     }
 
     /**
@@ -704,7 +703,7 @@ public class Vector<E> extends AbstractList<E> implements List<E>,
             modCount++;
             return result;
         }
-        throw new ArrayIndexOutOfBoundsException(location);
+        throw arrayIndexOutOfBoundsException(location, elementCount);
     }
 
     /**
@@ -793,7 +792,7 @@ public class Vector<E> extends AbstractList<E> implements List<E>,
      * @see #size
      */
     public synchronized void removeElementAt(int location) {
-        if (0 <= location && location < elementCount) {
+        if (location >= 0 && location < elementCount) {
             elementCount--;
             int size = elementCount - location;
             if (size > 0) {
@@ -803,7 +802,7 @@ public class Vector<E> extends AbstractList<E> implements List<E>,
             elementData[elementCount] = null;
             modCount++;
         } else {
-            throw new ArrayIndexOutOfBoundsException(location);
+            throw arrayIndexOutOfBoundsException(location, elementCount);
         }
     }
 
@@ -877,7 +876,7 @@ public class Vector<E> extends AbstractList<E> implements List<E>,
             elementData[location] = object;
             return result;
         }
-        throw new ArrayIndexOutOfBoundsException(location);
+        throw arrayIndexOutOfBoundsException(location, elementCount);
     }
 
     /**
@@ -896,8 +895,16 @@ public class Vector<E> extends AbstractList<E> implements List<E>,
         if (location < elementCount) {
             elementData[location] = object;
         } else {
-            throw new ArrayIndexOutOfBoundsException(location);
+            throw arrayIndexOutOfBoundsException(location, elementCount);
         }
+    }
+
+    /**
+     * This method was extracted to encourage VM to inline callers.
+     * TODO: when we have a VM that can actually inline, move the test in here too!
+     */
+    private static ArrayIndexOutOfBoundsException arrayIndexOutOfBoundsException(int index, int size) {
+        throw new ArrayIndexOutOfBoundsException(size, index);
     }
 
     /**

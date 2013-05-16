@@ -25,9 +25,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.Hashtable;
+import libcore.io.IoUtils;
 
 /**
  * A {@code FileHandler} writes logging records into a specified file or a
@@ -145,12 +144,6 @@ public class FileHandler extends StreamHandler {
      *
      * @throws IOException
      *             if any I/O error occurs.
-     * @throws SecurityException
-     *             if a security manager exists and it determines that the
-     *             caller does not have the required permissions to control this
-     *             handler; required permissions include
-     *             {@code LogPermission("control")},
-     *             {@code FilePermission("write")} etc.
      */
     public FileHandler() throws IOException {
         init(null, null, null, null);
@@ -181,7 +174,7 @@ public class FileHandler extends StreamHandler {
                  * if current process has held lock for this fileName continue
                  * to find next file
                  */
-                if (null != allLocks.get(fileName)) {
+                if (allLocks.get(fileName) != null) {
                     continue;
                 }
                 if (files[0].exists()
@@ -202,12 +195,8 @@ public class FileHandler extends StreamHandler {
                  * undead cycle
                  */
                 lock = channel.tryLock();
-                if (null == lock) {
-                    try {
-                        fileStream.close();
-                    } catch (Exception e) {
-                        // ignore
-                    }
+                if (lock == null) {
+                    IoUtils.closeQuietly(fileStream);
                     continue;
                 }
                 allLocks.put(fileName, lock);
@@ -219,21 +208,22 @@ public class FileHandler extends StreamHandler {
         setOutputStream(output);
     }
 
-    @SuppressWarnings("nls")
     private void initProperties(String p, Boolean a, Integer l, Integer c) {
         super.initProperties("ALL", null, "java.util.logging.XMLFormatter",
                 null);
         String className = this.getClass().getName();
-        pattern = (null == p) ? getStringProperty(className + ".pattern",
+        pattern = (p == null) ? getStringProperty(className + ".pattern",
                 DEFAULT_PATTERN) : p;
-        if (pattern == null || pattern.isEmpty()) {
-            throw new NullPointerException("Pattern cannot be empty or null");
+        if (pattern == null) {
+            throw new NullPointerException("pattern == null");
+        } else if (pattern.isEmpty()) {
+            throw new NullPointerException("pattern.isEmpty()");
         }
-        append = (null == a) ? getBooleanProperty(className + ".append",
+        append = (a == null) ? getBooleanProperty(className + ".append",
                 DEFAULT_APPEND) : a.booleanValue();
-        count = (null == c) ? getIntProperty(className + ".count",
+        count = (c == null) ? getIntProperty(className + ".count",
                 DEFAULT_COUNT) : c.intValue();
-        limit = (null == l) ? getIntProperty(className + ".limit",
+        limit = (l == null) ? getIntProperty(className + ".limit",
                 DEFAULT_LIMIT) : l.intValue();
         count = count < 1 ? DEFAULT_COUNT : count;
         limit = limit < 0 ? DEFAULT_LIMIT : limit;
@@ -341,7 +331,7 @@ public class FileHandler extends StreamHandler {
     // value
     private boolean getBooleanProperty(String key, boolean defaultValue) {
         String property = manager.getProperty(key);
-        if (null == property) {
+        if (property == null) {
             return defaultValue;
         }
         boolean result = defaultValue;
@@ -363,7 +353,7 @@ public class FileHandler extends StreamHandler {
     private int getIntProperty(String key, int defaultValue) {
         String property = manager.getProperty(key);
         int result = defaultValue;
-        if (null != property) {
+        if (property != null) {
             try {
                 result = Integer.parseInt(property);
             } catch (Exception e) {
@@ -384,12 +374,6 @@ public class FileHandler extends StreamHandler {
      *            the name pattern for the output file.
      * @throws IOException
      *             if any I/O error occurs.
-     * @throws SecurityException
-     *             if a security manager exists and it determines that the
-     *             caller does not have the required permissions to control this
-     *             handler; required permissions include
-     *             {@code LogPermission("control")},
-     *             {@code FilePermission("write")} etc.
      * @throws IllegalArgumentException
      *             if the pattern is empty.
      * @throws NullPointerException
@@ -416,12 +400,6 @@ public class FileHandler extends StreamHandler {
      *            the append mode.
      * @throws IOException
      *             if any I/O error occurs.
-     * @throws SecurityException
-     *             if a security manager exists and it determines that the
-     *             caller does not have the required permissions to control this
-     *             handler; required permissions include
-     *             {@code LogPermission("control")},
-     *             {@code FilePermission("write")} etc.
      * @throws IllegalArgumentException
      *             if {@code pattern} is empty.
      * @throws NullPointerException
@@ -452,12 +430,6 @@ public class FileHandler extends StreamHandler {
      *            the maximum number of files to use, can not be less than one.
      * @throws IOException
      *             if any I/O error occurs.
-     * @throws SecurityException
-     *             if a security manager exists and it determines that the
-     *             caller does not have the required permissions to control this
-     *             handler; required permissions include
-     *             {@code LogPermission("control")},
-     *             {@code FilePermission("write")} etc.
      * @throws IllegalArgumentException
      *             if {@code pattern} is empty, {@code limit < 0} or
      *             {@code count < 1}.
@@ -494,12 +466,6 @@ public class FileHandler extends StreamHandler {
      *            the append mode.
      * @throws IOException
      *             if any I/O error occurs.
-     * @throws SecurityException
-     *             if a security manager exists and it determines that the
-     *             caller does not have the required permissions to control this
-     *             handler; required permissions include
-     *             {@code LogPermission("control")},
-     *             {@code FilePermission("write")} etc.
      * @throws IllegalArgumentException
      *             if {@code pattern} is empty, {@code limit < 0} or
      *             {@code count < 1}.
@@ -518,13 +484,6 @@ public class FileHandler extends StreamHandler {
 
     /**
      * Flushes and closes all opened files.
-     *
-     * @throws SecurityException
-     *             if a security manager exists and it determines that the
-     *             caller does not have the required permissions to control this
-     *             handler; required permissions include
-     *             {@code LogPermission("control")},
-     *             {@code FilePermission("write")} etc.
      */
     @Override
     public void close() {
@@ -553,12 +512,7 @@ public class FileHandler extends StreamHandler {
         super.publish(record);
         flush();
         if (limit > 0 && output.getLength() >= limit) {
-            AccessController.doPrivileged(new PrivilegedAction<Object>() {
-                public Object run() {
-                    findNextGeneration();
-                    return null;
-                }
-            });
+            findNextGeneration();
         }
     }
 
@@ -586,12 +540,6 @@ public class FileHandler extends StreamHandler {
         public void write(int oneByte) throws IOException {
             wrapped.write(oneByte);
             length++;
-        }
-
-        @Override
-        public void write(byte[] bytes) throws IOException {
-            wrapped.write(bytes);
-            length += bytes.length;
         }
 
         @Override

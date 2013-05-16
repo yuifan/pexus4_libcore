@@ -47,6 +47,27 @@ public final class VMRuntime {
     }
 
     /**
+     * Returns a copy of the VM's command-line property settings.
+     * These are in the form "name=value" rather than "-Dname=value".
+     */
+    public native String[] properties();
+
+    /**
+     * Returns the VM's boot class path.
+     */
+    public native String bootClassPath();
+
+    /**
+     * Returns the VM's class path.
+     */
+    public native String classPath();
+
+    /**
+     * Returns the VM's version.
+     */
+    public native String vmVersion();
+
+    /**
      * Gets the current ideal heap utilization, represented as a number
      * between zero and one.  After a GC happens, the Dalvik heap may
      * be resized so that (size of live objects) / (size of heap) is
@@ -70,7 +91,7 @@ public final class VMRuntime {
      * @throws IllegalArgumentException if newTarget is &lt;= 0.0 or &gt;= 1.0
      */
     public float setTargetHeapUtilization(float newTarget) {
-        if (newTarget <= 0.0 || newTarget >= 1.0) {
+        if (newTarget <= 0.0f || newTarget >= 1.0f) {
             throw new IllegalArgumentException(newTarget +
                     " out of range (0,1)");
         }
@@ -86,54 +107,47 @@ public final class VMRuntime {
     }
 
     /**
-     * Returns the minimum heap size, or zero if no minimum is in effect.
-     *
-     * @return the minimum heap size value
+     * Sets the target SDK version. Should only be called before the
+     * app starts to run, because it may change the VM's behavior in
+     * dangerous ways. Use 0 to mean "current" (since callers won't
+     * necessarily know the actual current SDK version, and the
+     * allocated version numbers start at 1).
      */
+    public native void setTargetSdkVersion(int targetSdkVersion);
+
+    /**
+     * This method exists for binary compatibility.  It was part of a
+     * heap sizing API which was removed in Honeycomb.
+     */
+    @Deprecated
     public long getMinimumHeapSize() {
-        return nativeMinimumHeapSize(0, false);
+        return 0;
     }
 
     /**
-     * Sets the desired minimum heap size, and returns the
-     * old minimum size.  If size is larger than the maximum
-     * size, the maximum size will be used.  If size is zero
-     * or negative, the minimum size constraint will be removed.
-     *
-     * <p>Synchronized to make the order of the exchange reliable.
-     *
-     * <p>This is only a hint to the garbage collector and may be ignored.
-     *
-     * @param size the new suggested minimum heap size, in bytes
-     * @return the old minimum heap size value
+     * This method exists for binary compatibility.  It was part of a
+     * heap sizing API which was removed in Honeycomb.
      */
-    public synchronized long setMinimumHeapSize(long size) {
-        return nativeMinimumHeapSize(size, true);
+    @Deprecated
+    public long setMinimumHeapSize(long size) {
+        return 0;
     }
 
     /**
-     * If set is true, sets the new minimum heap size to size; always
-     * returns the current (or previous) size.
-     *
-     * @param size the new suggested minimum heap size, in bytes
-     * @param set if true, set the size based on the size parameter,
-     *            otherwise ignore it
-     * @return the old or current minimum heap size value
+     * This method exists for binary compatibility.  It used to
+     * perform a garbage collection that cleared SoftReferences.
      */
-    private native long nativeMinimumHeapSize(long size, boolean set);
+    @Deprecated
+    public void gcSoftReferences() {}
 
     /**
-     * Requests that the virtual machine collect available memory,
-     * and collects any SoftReferences that are not strongly-reachable.
+     * This method exists for binary compatibility.  It is equivalent
+     * to {@link System#runFinalization}.
      */
-    public native void gcSoftReferences();
-
-    /**
-     * Does not return until any pending finalizers have been called.
-     * This may or may not happen in the context of the calling thread.
-     * No exceptions will escape.
-     */
-    public native void runFinalizationSync();
+    @Deprecated
+    public void runFinalizationSync() {
+        System.runFinalization();
+    }
 
     /**
      * Implements setTargetHeapUtilization().
@@ -144,62 +158,63 @@ public final class VMRuntime {
     private native void nativeSetTargetHeapUtilization(float newTarget);
 
     /**
-     * Asks the VM if &lt;size&gt; bytes can be allocated in an external heap.
-     * This information may be used to limit the amount of memory available
-     * to Dalvik threads.  Returns false if the VM would rather that the caller
-     * did not allocate that much memory.  If the call returns false, the VM
-     * will not update its internal counts.  May cause one or more GCs as a
-     * side-effect.
-     *
-     * Called by JNI code.
-     *
-     * {@hide}
-     *
-     * @param size The number of bytes that have been allocated.
-     * @return true if the VM thinks there's enough process memory
-     *         to satisfy this request, or false if not.
+     * This method exists for binary compatibility.  It was part of
+     * the external allocation API which was removed in Honeycomb.
      */
     @Deprecated
-    public native boolean trackExternalAllocation(long size);
+    public boolean trackExternalAllocation(long size) {
+        return true;
+    }
 
     /**
-     * Tells the VM that &lt;size&gt; bytes have been freed in an external
-     * heap.  This information may be used to control the amount of memory
-     * available to Dalvik threads.
-     *
-     * Called by JNI code.
-     *
-     * {@hide}
-     *
-     * @param size The number of bytes that have been freed.  This same number
-     *             should have been passed to trackExternalAlloc() when
-     *             the underlying memory was originally allocated.
+     * This method exists for binary compatibility.  It was part of
+     * the external allocation API which was removed in Honeycomb.
      */
     @Deprecated
-    public native void trackExternalFree(long size);
+    public void trackExternalFree(long size) {}
 
     /**
-     * Returns the number of externally-allocated bytes being tracked by
-     * trackExternalAllocation/Free().
-     *
-     * @return the number of bytes
+     * This method exists for binary compatibility.  It was part of
+     * the external allocation API which was removed in Honeycomb.
      */
     @Deprecated
-    public native long getExternalBytesAllocated();
+    public long getExternalBytesAllocated() {
+        return 0;
+    }
 
     /**
      * Tells the VM to enable the JIT compiler. If the VM does not have a JIT
      * implementation, calling this method should have no effect.
-     *
-     * {@hide}
      */
     public native void startJitCompilation();
 
     /**
      * Tells the VM to disable the JIT compiler. If the VM does not have a JIT
      * implementation, calling this method should have no effect.
-     *
-     * {@hide}
      */
     public native void disableJitCompilation();
+
+    /**
+     * Returns an array allocated in an area of the Java heap where it will never be moved.
+     * This is used to implement native allocations on the Java heap, such as DirectByteBuffers
+     * and Bitmaps.
+     */
+    public native Object newNonMovableArray(Class<?> componentType, int length);
+
+    /**
+     * Returns the address of array[0]. This differs from using JNI in that JNI might lie and
+     * give you the address of a copy of the array when in forcecopy mode.
+     */
+    public native long addressOf(Object array);
+
+    /**
+     * Removes any growth limits, allowing the application to allocate
+     * up to the maximum heap size.
+     */
+    public native void clearGrowthLimit();
+
+    /**
+     * Returns true if either a Java debugger or native debugger is active.
+     */
+    public native boolean isDebuggerActive();
 }

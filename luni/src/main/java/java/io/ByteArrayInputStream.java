@@ -17,6 +17,8 @@
 
 package java.io;
 
+import java.util.Arrays;
+
 /**
  * A specialized {@link InputStream } for reading the contents of a byte array.
  *
@@ -71,9 +73,6 @@ public class ByteArrayInputStream extends InputStream {
      *            the number of bytes available for streaming.
      */
     public ByteArrayInputStream(byte[] buf, int offset, int length) {
-        // BEGIN android-note
-        // changed array notation to be consistent with the rest of harmony
-        // END android-note
         this.buf = buf;
         pos = offset;
         mark = offset;
@@ -98,7 +97,7 @@ public class ByteArrayInputStream extends InputStream {
      */
     @Override
     public void close() throws IOException {
-        // Do nothing on close, this matches JDK behaviour.
+        // Do nothing on close, this matches JDK behavior.
     }
 
     /**
@@ -165,22 +164,8 @@ public class ByteArrayInputStream extends InputStream {
      */
     @Override
     public synchronized int read(byte[] buffer, int offset, int length) {
-        // BEGIN android-note
-        // changed array notation to be consistent with the rest of harmony
-        // END android-note
-        // BEGIN android-changed
-        if (buffer == null) {
-            throw new NullPointerException("buffer == null");
-        }
-        // avoid int overflow
-        // Exception priorities (in case of multiple errors) differ from
-        // RI, but are spec-compliant.
-        // removed redundant check, used (offset | length) < 0 instead of
-        // (offset < 0) || (length < 0) to safe one operation
-        if ((offset | length) < 0 || length > buffer.length - offset) {
-            throw new IndexOutOfBoundsException();
-        }
-        // END android-changed
+        Arrays.checkOffsetAndCount(buffer.length, offset, length);
+
         // Are there any bytes available?
         if (this.pos >= this.count) {
             return -1;
@@ -208,22 +193,20 @@ public class ByteArrayInputStream extends InputStream {
     }
 
     /**
-     * Skips {@code count} number of bytes in this InputStream. Subsequent
-     * {@code read()}s will not return these bytes unless {@code reset()} is
-     * used. This implementation skips {@code count} number of bytes in the
-     * target stream. It does nothing and returns 0 if {@code n} is negative.
+     * Skips {@code byteCount} bytes in this InputStream. Subsequent
+     * calls to {@code read} will not return these bytes unless {@code reset} is
+     * used. This implementation skips {@code byteCount} number of bytes in the
+     * target stream. It does nothing and returns 0 if {@code byteCount} is negative.
      *
-     * @param n
-     *            the number of bytes to skip.
      * @return the number of bytes actually skipped.
      */
     @Override
-    public synchronized long skip(long n) {
-        if (n <= 0) {
+    public synchronized long skip(long byteCount) {
+        if (byteCount <= 0) {
             return 0;
         }
         int temp = pos;
-        pos = this.count - pos < n ? this.count : (int) (pos + n);
+        pos = this.count - pos < byteCount ? this.count : (int) (pos + byteCount);
         return pos - temp;
     }
 }

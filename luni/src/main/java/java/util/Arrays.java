@@ -26,15 +26,6 @@ import java.lang.reflect.Array;
  * @since 1.2
  */
 public class Arrays {
-    // BEGIN android-changed
-    // Replaced Bentely-McIlroy-based sort w/ DualPivotQuicksort
-    // BEGIN android-changed
-
-    // BEGIN android-removed
-    /* Specifies when to switch to insertion sort */
-    // private static final int SIMPLE_LENGTH = 7;
-    // END android-removed
-
     private static class ArrayList<E> extends AbstractList<E> implements
             List<E>, Serializable, RandomAccess {
 
@@ -44,7 +35,7 @@ public class Arrays {
 
         ArrayList(E[] storage) {
             if (storage == null) {
-                throw new NullPointerException();
+                throw new NullPointerException("storage == null");
             }
             a = storage;
         }
@@ -72,7 +63,7 @@ public class Arrays {
             try {
                 return a[location];
             } catch (ArrayIndexOutOfBoundsException e) {
-                throw new IndexOutOfBoundsException();
+                throw java.util.ArrayList.throwIndexOutOfBoundsException(location, a.length);
             }
         }
 
@@ -114,15 +105,9 @@ public class Arrays {
 
         @Override
         public E set(int location, E object) {
-            try {
-                E result = a[location];
-                a[location] = object;
-                return result;
-            } catch (ArrayIndexOutOfBoundsException e) {
-                throw new IndexOutOfBoundsException();
-            } catch (ArrayStoreException e) {
-                throw new ClassCastException();
-            }
+            E result = a[location];
+            a[location] = object;
+            return result;
         }
 
         @Override
@@ -703,7 +688,7 @@ public class Arrays {
      *                if {@code start < 0} or {@code end > array.length}.
      */
     public static void fill(byte[] array, int start, int end, byte value) {
-        checkFillBounds(array.length, start, end);
+        Arrays.checkStartAndEnd(array.length, start, end);
         for (int i = start; i < end; i++) {
             array[i] = value;
         }
@@ -740,7 +725,7 @@ public class Arrays {
      *                if {@code start < 0} or {@code end > array.length}.
      */
     public static void fill(short[] array, int start, int end, short value) {
-        checkFillBounds(array.length, start, end);
+        Arrays.checkStartAndEnd(array.length, start, end);
         for (int i = start; i < end; i++) {
             array[i] = value;
         }
@@ -777,7 +762,7 @@ public class Arrays {
      *                if {@code start < 0} or {@code end > array.length}.
      */
     public static void fill(char[] array, int start, int end, char value) {
-        checkFillBounds(array.length, start, end);
+        Arrays.checkStartAndEnd(array.length, start, end);
         for (int i = start; i < end; i++) {
             array[i] = value;
         }
@@ -814,7 +799,7 @@ public class Arrays {
      *                if {@code start < 0} or {@code end > array.length}.
      */
     public static void fill(int[] array, int start, int end, int value) {
-        checkFillBounds(array.length, start, end);
+        Arrays.checkStartAndEnd(array.length, start, end);
         for (int i = start; i < end; i++) {
             array[i] = value;
         }
@@ -851,7 +836,7 @@ public class Arrays {
      *                if {@code start < 0} or {@code end > array.length}.
      */
     public static void fill(long[] array, int start, int end, long value) {
-        checkFillBounds(array.length, start, end);
+        Arrays.checkStartAndEnd(array.length, start, end);
         for (int i = start; i < end; i++) {
             array[i] = value;
         }
@@ -888,7 +873,7 @@ public class Arrays {
      *                if {@code start < 0} or {@code end > array.length}.
      */
     public static void fill(float[] array, int start, int end, float value) {
-        checkFillBounds(array.length, start, end);
+        Arrays.checkStartAndEnd(array.length, start, end);
         for (int i = start; i < end; i++) {
             array[i] = value;
         }
@@ -925,7 +910,7 @@ public class Arrays {
      *                if {@code start < 0} or {@code end > array.length}.
      */
     public static void fill(double[] array, int start, int end, double value) {
-        checkFillBounds(array.length, start, end);
+        Arrays.checkStartAndEnd(array.length, start, end);
         for (int i = start; i < end; i++) {
             array[i] = value;
         }
@@ -962,7 +947,7 @@ public class Arrays {
      *                if {@code start < 0} or {@code end > array.length}.
      */
     public static void fill(boolean[] array, int start, int end, boolean value) {
-        checkFillBounds(array.length, start, end);
+        Arrays.checkStartAndEnd(array.length, start, end);
         for (int i = start; i < end; i++) {
             array[i] = value;
         }
@@ -999,7 +984,7 @@ public class Arrays {
      *                if {@code start < 0} or {@code end > array.length}.
      */
     public static void fill(Object[] array, int start, int end, Object value) {
-        checkFillBounds(array.length, start, end);
+        Arrays.checkStartAndEnd(array.length, start, end);
         for (int i = start; i < end; i++) {
             array[i] = value;
         }
@@ -1012,8 +997,8 @@ public class Arrays {
      * that the return value of {@code Arrays.hashCode(a)} equals {@code Arrays.hashCode(b)}.
      * <p>
      * The value returned by this method is the same value as the
-     * {@link List#hashCode()}} method which is invoked on a {@link List}}
-     * containing a sequence of {@link Boolean}} instances representing the
+     * {@link List#hashCode()} method which is invoked on a {@link List}
+     * containing a sequence of {@link Boolean} instances representing the
      * elements of array in the same order. If the array is {@code null}, the return
      * value is 0.
      *
@@ -1040,8 +1025,8 @@ public class Arrays {
      * that the return value of {@code Arrays.hashCode(a)} equals {@code Arrays.hashCode(b)}.
      * <p>
      * The value returned by this method is the same value as the
-     * {@link List#hashCode()}} method which is invoked on a {@link List}}
-     * containing a sequence of {@link Integer}} instances representing the
+     * {@link List#hashCode()} method which is invoked on a {@link List}
+     * containing a sequence of {@link Integer} instances representing the
      * elements of array in the same order. If the array is {@code null}, the return
      * value is 0.
      *
@@ -1068,8 +1053,8 @@ public class Arrays {
      * that the return value of {@code Arrays.hashCode(a)} equals {@code Arrays.hashCode(b)}.
      * <p>
      * The value returned by this method is the same value as the
-     * {@link List#hashCode()}} method which is invoked on a {@link List}}
-     * containing a sequence of {@link Short}} instances representing the
+     * {@link List#hashCode()} method which is invoked on a {@link List}
+     * containing a sequence of {@link Short} instances representing the
      * elements of array in the same order. If the array is {@code null}, the return
      * value is 0.
      *
@@ -1096,8 +1081,8 @@ public class Arrays {
      * that the return value of {@code Arrays.hashCode(a)} equals {@code Arrays.hashCode(b)}.
      * <p>
      * The value returned by this method is the same value as the
-     * {@link List#hashCode()}} method which is invoked on a {@link List}}
-     * containing a sequence of {@link Character}} instances representing the
+     * {@link List#hashCode()} method which is invoked on a {@link List}
+     * containing a sequence of {@link Character} instances representing the
      * elements of array in the same order. If the array is {@code null}, the return
      * value is 0.
      *
@@ -1124,8 +1109,8 @@ public class Arrays {
      * that the return value of {@code Arrays.hashCode(a)} equals {@code Arrays.hashCode(b)}.
      * <p>
      * The value returned by this method is the same value as the
-     * {@link List#hashCode()}} method which is invoked on a {@link List}}
-     * containing a sequence of {@link Byte}} instances representing the
+     * {@link List#hashCode()} method which is invoked on a {@link List}
+     * containing a sequence of {@link Byte} instances representing the
      * elements of array in the same order. If the array is {@code null}, the return
      * value is 0.
      *
@@ -1152,8 +1137,8 @@ public class Arrays {
      * that the return value of {@code Arrays.hashCode(a)} equals {@code Arrays.hashCode(b)}.
      * <p>
      * The value returned by this method is the same value as the
-     * {@link List#hashCode()}} method which is invoked on a {@link List}}
-     * containing a sequence of {@link Long}} instances representing the
+     * {@link List#hashCode()} method which is invoked on a {@link List}
+     * containing a sequence of {@link Long} instances representing the
      * elements of array in the same order. If the array is {@code null}, the return
      * value is 0.
      *
@@ -1184,8 +1169,8 @@ public class Arrays {
      * that the return value of {@code Arrays.hashCode(a)} equals {@code Arrays.hashCode(b)}.
      * <p>
      * The value returned by this method is the same value as the
-     * {@link List#hashCode()}} method which is invoked on a {@link List}}
-     * containing a sequence of {@link Float}} instances representing the
+     * {@link List#hashCode()} method which is invoked on a {@link List}
+     * containing a sequence of {@link Float} instances representing the
      * elements of array in the same order. If the array is {@code null}, the return
      * value is 0.
      *
@@ -1215,8 +1200,8 @@ public class Arrays {
      * that the return value of {@code Arrays.hashCode(a)} equals {@code Arrays.hashCode(b)}.
      * <p>
      * The value returned by this method is the same value as the
-     * {@link List#hashCode()}} method which is invoked on a {@link List}}
-     * containing a sequence of {@link Double}} instances representing the
+     * {@link List#hashCode()} method which is invoked on a {@link List}
+     * containing a sequence of {@link Double} instances representing the
      * elements of array in the same order. If the array is {@code null}, the return
      * value is 0.
      *
@@ -1292,8 +1277,8 @@ public class Arrays {
      * {@code Arrays.deepHashCode(b)}.
      * <p>
      * The computation of the value returned by this method is similar to that
-     * of the value returned by {@link List#hashCode()}} invoked on a
-     * {@link List}} containing a sequence of instances representing the
+     * of the value returned by {@link List#hashCode()} invoked on a
+     * {@link List} containing a sequence of instances representing the
      * elements of array in the same order. The difference is: If an element e
      * of array is itself an array, its hash code is computed by calling the
      * appropriate overloading of {@code Arrays.hashCode(e)} if e is an array of a
@@ -1735,16 +1720,32 @@ public class Arrays {
         DualPivotQuicksort.sort(array, start, end);
     }
 
-    private static void checkFillBounds(int arrLength, int start, int end) {
+    /**
+     * Checks that the range described by {@code offset} and {@code count} doesn't exceed
+     * {@code arrayLength}.
+     *
+     * @hide
+     */
+    public static void checkOffsetAndCount(int arrayLength, int offset, int count) {
+        if ((offset | count) < 0 || offset > arrayLength || arrayLength - offset < count) {
+            throw new ArrayIndexOutOfBoundsException(arrayLength, offset,
+                    count);
+        }
+    }
+
+    /**
+     * Checks that the range described by {@code start} and {@code end} doesn't exceed
+     * {@code len}.
+     *
+     * @hide
+     */
+    public static void checkStartAndEnd(int len, int start, int end) {
+        if (start < 0 || end > len) {
+            throw new ArrayIndexOutOfBoundsException("start < 0 || end > len."
+                    + " start=" + start + ", end=" + end + ", len=" + len);
+        }
         if (start > end) {
-            throw new IllegalArgumentException("start < end: " + start + " < " + end);
-        }
-        if (start < 0) {
-            throw new ArrayIndexOutOfBoundsException("start < 0: " + start);
-        }
-        if (end > arrLength) {
-            throw new ArrayIndexOutOfBoundsException("end > array length: " +
-                    end + " > " + arrLength);
+            throw new IllegalArgumentException("start > end: " + start + " > " + end);
         }
     }
 
@@ -1931,7 +1932,7 @@ public class Arrays {
      *    {@code ((Comparable)first).compareTo(Second)}.
      * If not, you are better off deleting ComparableTimSort to eliminate the
      * code duplication.  In other words, the commented out code below
-     * is the preferable implementation for sorting arrays of comparbles if it
+     * is the preferable implementation for sorting arrays of Comparables if it
      * offers sufficient performance.
      */
 
@@ -1939,10 +1940,9 @@ public class Arrays {
 //     * A comparator that implements the natural order of a group of
 //     * mutually comparable elements.  Using this comparator saves us
 //     * from duplicating most of the code in this file (one version for
-//     * commparables, one for explicit comparators).
+//     * Comparables, one for explicit comparators).
 //     */
-//    private static final Comparator<Object> NATURAL_ORDER =
-//            new Comparator<Object>() {
+//    private static final Comparator<Object> NATURAL_ORDER = new Comparator<Object>() {
 //        @SuppressWarnings("unchecked")
 //        public int compare(Object first, Object second) {
 //            return ((Comparable<Object>)first).compareTo(second);
@@ -1970,9 +1970,7 @@ public class Arrays {
      * @see #sort(Object[], int, int)
      */
     public static void sort(Object[] array) {
-        // BEGIN android-changed
         ComparableTimSort.sort(array);
-        // END android-changed
     }
 
     /**
@@ -1996,54 +1994,8 @@ public class Arrays {
      *                if {@code start < 0} or {@code end > array.length}.
      */
     public static void sort(Object[] array, int start, int end) {
-        // BEGIN android-changed
         ComparableTimSort.sort(array, start, end);
-        // END android-changed
     }
-
-    // BEGIN android-removed
-    /*
-    private static void sort(int start, int end, Object[] array) {
-            ...
-    }
-    private static void swap(int a, int b, Object[] arr) {
-            ...
-    }
-    private static void mergeSort(Object[] in, Object[] out, int start,
-            int end) {
-            ...
-    }
-    private static void mergeSort(Object[] in, Object[] out, int start,
-            int end, Comparator c) {
-            ...
-    }
-    private static int find(Object[] arr, Comparable val, int bnd, int l, int r) {
-            ...
-    }
-    private static int find(Object[] arr, Object val, int bnd, int l, int r,
-            Comparator c) {
-            ...
-    }
-    private static int medChar(int a, int b, int c, String[] arr, int id) {
-            ...
-    }
-    private static int charAt(String str, int i) {
-            ...
-    }
-    private static void copySwap(Object[] src, int from, Object[] dst, int to,
-            int len) {
-            ...
-    }
-    private static void stableStringSort(String[] arr, int start,
-            int end) {
-            ...
-    }
-    private static void stableStringSort(String[] arr, String[] src,
-            String[] dst, int start, int end, int chId) {
-            ...
-    }
-    */
-    // END android-removed
 
     /**
      * Sorts the specified range in the array using the specified {@code Comparator}.
@@ -2066,11 +2018,8 @@ public class Arrays {
      * @throws ArrayIndexOutOfBoundsException
      *                if {@code start < 0} or {@code end > array.length}.
      */
-    public static <T> void sort(T[] array, int start, int end,
-            Comparator<? super T> comparator) {
-        // BEGIN android-changed
+    public static <T> void sort(T[] array, int start, int end, Comparator<? super T> comparator) {
         TimSort.sort(array, start, end, comparator);
-        // END android-changed
     }
 
     /**
@@ -2086,17 +2035,15 @@ public class Arrays {
      *                using the {@code Comparator}.
      */
     public static <T> void sort(T[] array, Comparator<? super T> comparator) {
-        // BEGIN android-changed
         TimSort.sort(array, comparator);
-        // END android-changed
     }
 
     /**
      * Creates a {@code String} representation of the {@code boolean[]} passed.
-     * The result is surrounded by brackets ({@code &quot;[]&quot;}), each
+     * The result is surrounded by brackets ({@code "[]"}), each
      * element is converted to a {@code String} via the
-     * {@link String#valueOf(boolean)} and separated by {@code &quot;, &quot;}.
-     * If the array is {@code null}, then {@code &quot;null&quot;} is returned.
+     * {@link String#valueOf(boolean)} and separated by {@code ", "}.
+     * If the array is {@code null}, then {@code "null"} is returned.
      *
      * @param array
      *            the {@code boolean} array to convert.
@@ -2110,7 +2057,7 @@ public class Arrays {
         if (array.length == 0) {
             return "[]";
         }
-        StringBuilder sb = new StringBuilder(array.length * 7); // android-changed
+        StringBuilder sb = new StringBuilder(array.length * 7);
         sb.append('[');
         sb.append(array[0]);
         for (int i = 1; i < array.length; i++) {
@@ -2123,10 +2070,10 @@ public class Arrays {
 
     /**
      * Creates a {@code String} representation of the {@code byte[]} passed. The
-     * result is surrounded by brackets ({@code &quot;[]&quot;}), each element
+     * result is surrounded by brackets ({@code "[]"}), each element
      * is converted to a {@code String} via the {@link String#valueOf(int)} and
-     * separated by {@code &quot;, &quot;}. If the array is {@code null}, then
-     * {@code &quot;null&quot;} is returned.
+     * separated by {@code ", "}. If the array is {@code null}, then
+     * {@code "null"} is returned.
      *
      * @param array
      *            the {@code byte} array to convert.
@@ -2140,7 +2087,7 @@ public class Arrays {
         if (array.length == 0) {
             return "[]";
         }
-        StringBuilder sb = new StringBuilder(array.length * 6); // android-changed
+        StringBuilder sb = new StringBuilder(array.length * 6);
         sb.append('[');
         sb.append(array[0]);
         for (int i = 1; i < array.length; i++) {
@@ -2153,10 +2100,10 @@ public class Arrays {
 
     /**
      * Creates a {@code String} representation of the {@code char[]} passed. The
-     * result is surrounded by brackets ({@code &quot;[]&quot;}), each element
+     * result is surrounded by brackets ({@code "[]"}), each element
      * is converted to a {@code String} via the {@link String#valueOf(char)} and
-     * separated by {@code &quot;, &quot;}. If the array is {@code null}, then
-     * {@code &quot;null&quot;} is returned.
+     * separated by {@code ", "}. If the array is {@code null}, then
+     * {@code "null"} is returned.
      *
      * @param array
      *            the {@code char} array to convert.
@@ -2170,7 +2117,7 @@ public class Arrays {
         if (array.length == 0) {
             return "[]";
         }
-        StringBuilder sb = new StringBuilder(array.length * 3); // android-changed
+        StringBuilder sb = new StringBuilder(array.length * 3);
         sb.append('[');
         sb.append(array[0]);
         for (int i = 1; i < array.length; i++) {
@@ -2183,10 +2130,10 @@ public class Arrays {
 
     /**
      * Creates a {@code String} representation of the {@code double[]} passed.
-     * The result is surrounded by brackets ({@code &quot;[]&quot;}), each
+     * The result is surrounded by brackets ({@code "[]"}), each
      * element is converted to a {@code String} via the
-     * {@link String#valueOf(double)} and separated by {@code &quot;, &quot;}.
-     * If the array is {@code null}, then {@code &quot;null&quot;} is returned.
+     * {@link String#valueOf(double)} and separated by {@code ", "}.
+     * If the array is {@code null}, then {@code "null"} is returned.
      *
      * @param array
      *            the {@code double} array to convert.
@@ -2200,7 +2147,7 @@ public class Arrays {
         if (array.length == 0) {
             return "[]";
         }
-        StringBuilder sb = new StringBuilder(array.length * 7); // android-changed
+        StringBuilder sb = new StringBuilder(array.length * 7);
         sb.append('[');
         sb.append(array[0]);
         for (int i = 1; i < array.length; i++) {
@@ -2213,10 +2160,10 @@ public class Arrays {
 
     /**
      * Creates a {@code String} representation of the {@code float[]} passed.
-     * The result is surrounded by brackets ({@code &quot;[]&quot;}), each
+     * The result is surrounded by brackets ({@code "[]"}), each
      * element is converted to a {@code String} via the
-     * {@link String#valueOf(float)} and separated by {@code &quot;, &quot;}.
-     * If the array is {@code null}, then {@code &quot;null&quot;} is returned.
+     * {@link String#valueOf(float)} and separated by {@code ", "}.
+     * If the array is {@code null}, then {@code "null"} is returned.
      *
      * @param array
      *            the {@code float} array to convert.
@@ -2230,7 +2177,7 @@ public class Arrays {
         if (array.length == 0) {
             return "[]";
         }
-        StringBuilder sb = new StringBuilder(array.length * 7); // android-changed
+        StringBuilder sb = new StringBuilder(array.length * 7);
         sb.append('[');
         sb.append(array[0]);
         for (int i = 1; i < array.length; i++) {
@@ -2243,10 +2190,10 @@ public class Arrays {
 
     /**
      * Creates a {@code String} representation of the {@code int[]} passed. The
-     * result is surrounded by brackets ({@code &quot;[]&quot;}), each element
+     * result is surrounded by brackets ({@code "[]"}), each element
      * is converted to a {@code String} via the {@link String#valueOf(int)} and
-     * separated by {@code &quot;, &quot;}. If the array is {@code null}, then
-     * {@code &quot;null&quot;} is returned.
+     * separated by {@code ", "}. If the array is {@code null}, then
+     * {@code "null"} is returned.
      *
      * @param array
      *            the {@code int} array to convert.
@@ -2260,7 +2207,7 @@ public class Arrays {
         if (array.length == 0) {
             return "[]";
         }
-        StringBuilder sb = new StringBuilder(array.length * 6); // android-changed
+        StringBuilder sb = new StringBuilder(array.length * 6);
         sb.append('[');
         sb.append(array[0]);
         for (int i = 1; i < array.length; i++) {
@@ -2273,10 +2220,10 @@ public class Arrays {
 
     /**
      * Creates a {@code String} representation of the {@code long[]} passed. The
-     * result is surrounded by brackets ({@code &quot;[]&quot;}), each element
+     * result is surrounded by brackets ({@code "[]"}), each element
      * is converted to a {@code String} via the {@link String#valueOf(long)} and
-     * separated by {@code &quot;, &quot;}. If the array is {@code null}, then
-     * {@code &quot;null&quot;} is returned.
+     * separated by {@code ", "}. If the array is {@code null}, then
+     * {@code "null"} is returned.
      *
      * @param array
      *            the {@code long} array to convert.
@@ -2290,7 +2237,7 @@ public class Arrays {
         if (array.length == 0) {
             return "[]";
         }
-        StringBuilder sb = new StringBuilder(array.length * 6); // android-changed
+        StringBuilder sb = new StringBuilder(array.length * 6);
         sb.append('[');
         sb.append(array[0]);
         for (int i = 1; i < array.length; i++) {
@@ -2303,10 +2250,10 @@ public class Arrays {
 
     /**
      * Creates a {@code String} representation of the {@code short[]} passed.
-     * The result is surrounded by brackets ({@code &quot;[]&quot;}), each
+     * The result is surrounded by brackets ({@code "[]"}), each
      * element is converted to a {@code String} via the
-     * {@link String#valueOf(int)} and separated by {@code &quot;, &quot;}. If
-     * the array is {@code null}, then {@code &quot;null&quot;} is returned.
+     * {@link String#valueOf(int)} and separated by {@code ", "}. If
+     * the array is {@code null}, then {@code "null"} is returned.
      *
      * @param array
      *            the {@code short} array to convert.
@@ -2320,7 +2267,7 @@ public class Arrays {
         if (array.length == 0) {
             return "[]";
         }
-        StringBuilder sb = new StringBuilder(array.length * 6); // android-changed
+        StringBuilder sb = new StringBuilder(array.length * 6);
         sb.append('[');
         sb.append(array[0]);
         for (int i = 1; i < array.length; i++) {
@@ -2333,10 +2280,10 @@ public class Arrays {
 
     /**
      * Creates a {@code String} representation of the {@code Object[]} passed.
-     * The result is surrounded by brackets ({@code &quot;[]&quot;}), each
+     * The result is surrounded by brackets ({@code "[]"}), each
      * element is converted to a {@code String} via the
-     * {@link String#valueOf(Object)} and separated by {@code &quot;, &quot;}.
-     * If the array is {@code null}, then {@code &quot;null&quot;} is returned.
+     * {@link String#valueOf(Object)} and separated by {@code ", "}.
+     * If the array is {@code null}, then {@code "null"} is returned.
      *
      * @param array
      *            the {@code Object} array to convert.
@@ -2350,7 +2297,7 @@ public class Arrays {
         if (array.length == 0) {
             return "[]";
         }
-        StringBuilder sb = new StringBuilder(array.length * 7); // android-changed
+        StringBuilder sb = new StringBuilder(array.length * 7);
         sb.append('[');
         sb.append(array[0]);
         for (int i = 1; i < array.length; i++) {
@@ -2384,7 +2331,7 @@ public class Arrays {
             return "null";
         }
         // delegate this to the recursive method
-        StringBuilder buf = new StringBuilder(array.length * 9); // android-changed
+        StringBuilder buf = new StringBuilder(array.length * 9);
         deepToStringImpl(array, new Object[] { array }, buf);
         return buf.toString();
     }
@@ -2453,7 +2400,7 @@ public class Arrays {
                         }
                     } else {
                         // element is an Object[], so we assert that
-                        assert elem instanceof Object[];
+                        // assert elem instanceof Object[];
                         if (deepToStringImplContains(origArrays, elem)) {
                             sb.append("[...]");
                         } else {
@@ -2512,7 +2459,7 @@ public class Arrays {
      */
     public static boolean[] copyOf(boolean[] original, int newLength) {
         if (newLength < 0) {
-            throw new NegativeArraySizeException();
+            throw new NegativeArraySizeException(Integer.toString(newLength));
         }
         return copyOfRange(original, 0, newLength);
     }
@@ -2531,7 +2478,7 @@ public class Arrays {
      */
     public static byte[] copyOf(byte[] original, int newLength) {
         if (newLength < 0) {
-            throw new NegativeArraySizeException();
+            throw new NegativeArraySizeException(Integer.toString(newLength));
         }
         return copyOfRange(original, 0, newLength);
     }
@@ -2550,7 +2497,7 @@ public class Arrays {
      */
     public static char[] copyOf(char[] original, int newLength) {
         if (newLength < 0) {
-            throw new NegativeArraySizeException();
+            throw new NegativeArraySizeException(Integer.toString(newLength));
         }
         return copyOfRange(original, 0, newLength);
     }
@@ -2569,7 +2516,7 @@ public class Arrays {
      */
     public static double[] copyOf(double[] original, int newLength) {
         if (newLength < 0) {
-            throw new NegativeArraySizeException();
+            throw new NegativeArraySizeException(Integer.toString(newLength));
         }
         return copyOfRange(original, 0, newLength);
     }
@@ -2588,7 +2535,7 @@ public class Arrays {
      */
     public static float[] copyOf(float[] original, int newLength) {
         if (newLength < 0) {
-            throw new NegativeArraySizeException();
+            throw new NegativeArraySizeException(Integer.toString(newLength));
         }
         return copyOfRange(original, 0, newLength);
     }
@@ -2607,7 +2554,7 @@ public class Arrays {
      */
     public static int[] copyOf(int[] original, int newLength) {
         if (newLength < 0) {
-            throw new NegativeArraySizeException();
+            throw new NegativeArraySizeException(Integer.toString(newLength));
         }
         return copyOfRange(original, 0, newLength);
     }
@@ -2626,7 +2573,7 @@ public class Arrays {
      */
     public static long[] copyOf(long[] original, int newLength) {
         if (newLength < 0) {
-            throw new NegativeArraySizeException();
+            throw new NegativeArraySizeException(Integer.toString(newLength));
         }
         return copyOfRange(original, 0, newLength);
     }
@@ -2645,7 +2592,7 @@ public class Arrays {
      */
     public static short[] copyOf(short[] original, int newLength) {
         if (newLength < 0) {
-            throw new NegativeArraySizeException();
+            throw new NegativeArraySizeException(Integer.toString(newLength));
         }
         return copyOfRange(original, 0, newLength);
     }
@@ -2664,10 +2611,10 @@ public class Arrays {
      */
     public static <T> T[] copyOf(T[] original, int newLength) {
         if (original == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("original == null");
         }
         if (newLength < 0) {
-            throw new NegativeArraySizeException();
+            throw new NegativeArraySizeException(Integer.toString(newLength));
         }
         return copyOfRange(original, 0, newLength);
     }
@@ -2689,7 +2636,7 @@ public class Arrays {
     public static <T, U> T[] copyOf(U[] original, int newLength, Class<? extends T[]> newType) {
         // We use the null pointer check in copyOfRange for exception priority compatibility.
         if (newLength < 0) {
-            throw new NegativeArraySizeException();
+            throw new NegativeArraySizeException(Integer.toString(newLength));
         }
         return copyOfRange(original, 0, newLength, newType);
     }

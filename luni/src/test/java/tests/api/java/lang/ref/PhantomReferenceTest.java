@@ -17,19 +17,14 @@
 
 package tests.api.java.lang.ref;
 
-import dalvik.annotation.TestTargets;
-import dalvik.annotation.TestLevel;
-import dalvik.annotation.TestTargetNew;
-import dalvik.annotation.TestTargetClass;
-
 import java.lang.ref.PhantomReference;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
+import libcore.java.lang.ref.FinalizationTester;
 
 //TODO: write a test to verify that the referent's finalize() happens
 //      before the PhantomReference is enqueued.
 
-@TestTargetClass(PhantomReference.class)
 public class PhantomReferenceTest extends junit.framework.TestCase {
     static Boolean bool;
     public boolean isCalled = false;
@@ -38,14 +33,8 @@ public class PhantomReferenceTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.lang.ref.PhantomReference#get()
+     * java.lang.ref.PhantomReference#get()
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "get",
-        args = {}
-    )
     public void test_get() {
         ReferenceQueue rq = new ReferenceQueue();
         bool = new Boolean(false);
@@ -58,14 +47,8 @@ public class PhantomReferenceTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.lang.Runtime#gc()
+     * java.lang.Runtime#gc()
      */
-    @TestTargetNew(
-        level = TestLevel.PARTIAL,
-        notes = "Interaction test with Runtime.getRuntime().gc().",
-        method = "get",
-        args = {}
-    )
     public void test_gcInteraction() {
         class TestPhantomReference<T> extends PhantomReference<T> {
             public TestPhantomReference(T referent,
@@ -99,8 +82,8 @@ public class PhantomReferenceTest extends junit.framework.TestCase {
             Thread t = new TestThread();
             t.start();
             t.join();
-            System.gc();
-            System.runFinalization();
+
+            FinalizationTester.induceFinalization();
 
             assertNull("get() should return null.", tprs[0].get());
             assertNull("get() should return null.", tprs[1].get());
@@ -124,15 +107,9 @@ public class PhantomReferenceTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.lang.ref.PhantomReference#PhantomReference(java.lang.Object,
+     * java.lang.ref.PhantomReference#PhantomReference(java.lang.Object,
      *        java.lang.ref.ReferenceQueue)
      */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "PhantomReference",
-        args = {java.lang.Object.class, java.lang.ref.ReferenceQueue.class}
-    )
     public void test_ConstructorLjava_lang_ObjectLjava_lang_ref_ReferenceQueue() {
         ReferenceQueue rq = new ReferenceQueue();
         bool = new Boolean(true);

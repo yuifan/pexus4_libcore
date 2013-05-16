@@ -17,8 +17,6 @@
 
 package java.text;
 
-import com.ibm.icu4jni.util.ICU;
-import com.ibm.icu4jni.util.LocaleData;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
@@ -28,6 +26,8 @@ import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.util.Currency;
 import java.util.Locale;
+import libcore.icu.ICU;
+import libcore.icu.LocaleData;
 
 /**
  * The abstract base class for all number formats. This class provides the
@@ -165,11 +165,7 @@ public abstract class NumberFormat extends Format {
     }
 
     /**
-     * Returns a new {@code NumberFormat} with the same properties as this
-     * {@code NumberFormat}.
-     *
-     * @return a shallow copy of this {@code NumberFormat}.
-     * @see java.lang.Cloneable
+     * Returns a new {@code NumberFormat} with the same properties.
      */
     @Override
     public Object clone() {
@@ -305,7 +301,7 @@ public abstract class NumberFormat extends Format {
             double dv = ((Number) object).doubleValue();
             return format(dv, buffer, field);
         }
-        throw new IllegalArgumentException();
+        throw new IllegalArgumentException("Bad class: " + object.getClass());
     }
 
     /**
@@ -340,7 +336,7 @@ public abstract class NumberFormat extends Format {
      *
      * @return a {@code NumberFormat} for handling currency values.
      */
-    public final static NumberFormat getCurrencyInstance() {
+    public static final NumberFormat getCurrencyInstance() {
         return getCurrencyInstance(Locale.getDefault());
     }
 
@@ -363,7 +359,7 @@ public abstract class NumberFormat extends Format {
      *
      * @return a {@code NumberFormat} for handling integers.
      */
-    public final static NumberFormat getIntegerInstance() {
+    public static final NumberFormat getIntegerInstance() {
         return getIntegerInstance(Locale.getDefault());
     }
 
@@ -387,7 +383,7 @@ public abstract class NumberFormat extends Format {
      *
      * @return a {@code NumberFormat} for handling {@code Number} objects.
      */
-    public final static NumberFormat getInstance() {
+    public static final NumberFormat getInstance() {
         return getNumberInstance();
     }
 
@@ -403,11 +399,9 @@ public abstract class NumberFormat extends Format {
         return getNumberInstance(locale);
     }
 
-    // BEGIN android-added
     private static NumberFormat getInstance(String pattern, Locale locale) {
         return new DecimalFormat(pattern, locale);
     }
-    // END android-added
 
     /**
      * Returns the maximum number of fraction digits that are printed when
@@ -458,7 +452,7 @@ public abstract class NumberFormat extends Format {
      *
      * @return a {@code NumberFormat} for handling {@code Number} objects.
      */
-    public final static NumberFormat getNumberInstance() {
+    public static final NumberFormat getNumberInstance() {
         return getNumberInstance(Locale.getDefault());
     }
 
@@ -484,7 +478,7 @@ public abstract class NumberFormat extends Format {
      * A value such as 0.53 will be treated as 53%, but 53.0 (or the integer 53) will be
      * treated as 5,300%, which is rarely what you intended.
      */
-    public final static NumberFormat getPercentInstance() {
+    public static final NumberFormat getPercentInstance() {
         return getPercentInstance(Locale.getDefault());
     }
 
@@ -544,7 +538,7 @@ public abstract class NumberFormat extends Format {
         ParsePosition pos = new ParsePosition(0);
         Number number = parse(string, pos);
         if (pos.getIndex() == 0) {
-            throw new ParseException("Unparseable number" + string, pos.getErrorIndex());
+            throw new ParseException("Unparseable number: \"" + string + "\"", pos.getErrorIndex());
         }
         return number;
     }
@@ -572,7 +566,7 @@ public abstract class NumberFormat extends Format {
     @Override
     public final Object parseObject(String string, ParsePosition position) {
         if (position == null) {
-            throw new NullPointerException("position is null");
+            throw new NullPointerException("position == null");
         }
         try {
             return parse(string, position);
@@ -682,17 +676,18 @@ public abstract class NumberFormat extends Format {
     }
 
     private static final ObjectStreamField[] serialPersistentFields = {
-            new ObjectStreamField("groupingUsed", Boolean.TYPE),
-            new ObjectStreamField("maxFractionDigits", Byte.TYPE),
-            new ObjectStreamField("maximumFractionDigits", Integer.TYPE),
-            new ObjectStreamField("maximumIntegerDigits", Integer.TYPE),
-            new ObjectStreamField("maxIntegerDigits", Byte.TYPE),
-            new ObjectStreamField("minFractionDigits", Byte.TYPE),
-            new ObjectStreamField("minimumFractionDigits", Integer.TYPE),
-            new ObjectStreamField("minimumIntegerDigits", Integer.TYPE),
-            new ObjectStreamField("minIntegerDigits", Byte.TYPE),
-            new ObjectStreamField("parseIntegerOnly", Boolean.TYPE),
-            new ObjectStreamField("serialVersionOnStream", Integer.TYPE), };
+        new ObjectStreamField("groupingUsed", boolean.class),
+        new ObjectStreamField("maxFractionDigits", byte.class),
+        new ObjectStreamField("maximumFractionDigits", int.class),
+        new ObjectStreamField("maximumIntegerDigits", int.class),
+        new ObjectStreamField("maxIntegerDigits", byte.class),
+        new ObjectStreamField("minFractionDigits", byte.class),
+        new ObjectStreamField("minimumFractionDigits", int.class),
+        new ObjectStreamField("minimumIntegerDigits", int.class),
+        new ObjectStreamField("minIntegerDigits", byte.class),
+        new ObjectStreamField("parseIntegerOnly", boolean.class),
+        new ObjectStreamField("serialVersionOnStream", int.class),
+    };
 
     private void writeObject(ObjectOutputStream stream) throws IOException {
         ObjectOutputStream.PutField fields = stream.putFields();
@@ -820,52 +815,6 @@ public abstract class NumberFormat extends Format {
          */
         protected Field(String fieldName) {
             super(fieldName);
-        }
-
-        /**
-         * Resolves instances that are deserialized to the constant
-         * {@code NumberFormat.Field} values.
-         *
-         * @return the resolved field object.
-         * @throws InvalidObjectException
-         *             if an error occurs while resolving the field object.
-         */
-        @Override
-        protected Object readResolve() throws InvalidObjectException {
-            if (this.equals(INTEGER)) {
-                return INTEGER;
-            }
-            if (this.equals(FRACTION)) {
-                return FRACTION;
-            }
-            if (this.equals(EXPONENT)) {
-                return EXPONENT;
-            }
-            if (this.equals(EXPONENT_SIGN)) {
-                return EXPONENT_SIGN;
-            }
-            if (this.equals(EXPONENT_SYMBOL)) {
-                return EXPONENT_SYMBOL;
-            }
-            if (this.equals(CURRENCY)) {
-                return CURRENCY;
-            }
-            if (this.equals(DECIMAL_SEPARATOR)) {
-                return DECIMAL_SEPARATOR;
-            }
-            if (this.equals(GROUPING_SEPARATOR)) {
-                return GROUPING_SEPARATOR;
-            }
-            if (this.equals(PERCENT)) {
-                return PERCENT;
-            }
-            if (this.equals(PERMILLE)) {
-                return PERMILLE;
-            }
-            if (this.equals(SIGN)) {
-                return SIGN;
-            }
-            throw new InvalidObjectException("Unknown attribute");
         }
     }
 

@@ -29,14 +29,12 @@ import java.util.TimeZone;
 
 import org.apache.harmony.testframework.serialization.SerializationTest;
 
-import tests.support.Support_Locale;
-
 public class CalendarTest extends junit.framework.TestCase {
 	
 	Locale defaultLocale;
 
 	/**
-	 * @tests java.util.Calendar#set(int, int)
+	 * java.util.Calendar#set(int, int)
 	 */
 	public void test_setII() {
 		// Test for correct result defined by the last set field
@@ -396,7 +394,7 @@ public class CalendarTest extends junit.framework.TestCase {
 	}
 
 	/**
-	 * @tests java.util.Calendar#setTime(java.util.Date)
+	 * java.util.Calendar#setTime(java.util.Date)
 	 */
 	public void test_setTimeLjava_util_Date() {
 		Calendar cal = Calendar.getInstance();
@@ -411,7 +409,7 @@ public class CalendarTest extends junit.framework.TestCase {
 	}
 
 	/**
-	 * @tests java.util.Calendar#compareTo(Calendar)
+	 * java.util.Calendar#compareTo(Calendar)
 	 */
 	public void test_compareToLjava_util_Calendar_null() {
 		Calendar cal = Calendar.getInstance();
@@ -424,7 +422,7 @@ public class CalendarTest extends junit.framework.TestCase {
 	}
 
 	/**
-	 * @tests java.util.Calendar#compareTo(Calendar)
+	 * java.util.Calendar#compareTo(Calendar)
 	 */
 	public void test_compareToLjava_util_Calendar() {
         Calendar cal = Calendar.getInstance();
@@ -448,7 +446,7 @@ public class CalendarTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.util.Calendar#clone()
+     * java.util.Calendar#clone()
      */
     public void test_clone() {
         // Regression for HARMONY-475
@@ -461,7 +459,7 @@ public class CalendarTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.util.Calendar#getTimeInMillis()
+     * java.util.Calendar#getTimeInMillis()
      */
     public void test_getTimeInMillis() {
         Calendar cal = Calendar.getInstance();
@@ -485,8 +483,8 @@ public class CalendarTest extends junit.framework.TestCase {
 			Locale.CHINA, Locale.CANADA, Locale.FRANCE };
 
     /**
-     * @tests java.util.Calendar#before(Object)
-     * @tests java.util.Calendar#after(Object)
+     * java.util.Calendar#before(Object)
+     * java.util.Calendar#after(Object)
      */
     public void test_before_after() {
         Calendar early = Calendar.getInstance();
@@ -565,8 +563,8 @@ public class CalendarTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.util.Calendar#clear()
-     * @tests java.util.Calendar#clear(int)
+     * java.util.Calendar#clear()
+     * java.util.Calendar#clear(int)
      */
     public void test_clear() {
         Calendar calendar = Calendar.getInstance();
@@ -623,7 +621,7 @@ public class CalendarTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.util.Calendar#isSet(int)
+     * java.util.Calendar#isSet(int)
      */
     public void test_isSet() {
         Calendar calendar = Calendar.getInstance();
@@ -634,7 +632,7 @@ public class CalendarTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.util.Calendar#getAvailableLocales()
+     * java.util.Calendar#getAvailableLocales()
      */
     public void test_getAvailableLocales() {
         Locale[] locales = Calendar.getAvailableLocales();
@@ -650,21 +648,17 @@ public class CalendarTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.util.Calendar#getInstance(Locale)
-     * @tests java.util.Calendar#getInstance(TimeZone, Locale)
+     * java.util.Calendar#getInstance(Locale)
+     * java.util.Calendar#getInstance(TimeZone, Locale)
      */
     public void test_getInstance() {
         // test getInstance(Locale)
-        if (Support_Locale.areLocalesAvailable(Locale.US)) {
-            Calendar us_calendar = Calendar.getInstance(Locale.US);
-            assertEquals(Calendar.SUNDAY, us_calendar
-                    .getFirstDayOfWeek());
-        }
-        if (Support_Locale.areLocalesAvailable(Locale.CHINESE)) {
-            Calendar ch_calendar = Calendar.getInstance(Locale.CHINESE);
-            assertEquals(Calendar.MONDAY, ch_calendar
-                    .getFirstDayOfWeek());
-        }
+        Calendar us_calendar = Calendar.getInstance(Locale.US);
+        Calendar de_calendar = Calendar.getInstance(Locale.GERMAN);
+        assertEquals(Calendar.SUNDAY, us_calendar
+                .getFirstDayOfWeek());
+        assertEquals(Calendar.MONDAY, de_calendar
+                .getFirstDayOfWeek());
 
         // test getInstance(Locale, TimeZone)
         Calendar gmt_calendar = Calendar.getInstance(TimeZone
@@ -678,7 +672,7 @@ public class CalendarTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.util.Calendar#internalGet(int)
+     * java.util.Calendar#internalGet(int)
      */
     public void test_internalGet() {
         MockGregorianCalendar c = new MockGregorianCalendar();
@@ -687,7 +681,7 @@ public class CalendarTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.util.Calendar#hashCode()
+     * java.util.Calendar#hashCode()
      */
     public void test_hashcode() {
         Calendar calendar = Calendar.getInstance(Locale.JAPAN);
@@ -695,7 +689,7 @@ public class CalendarTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.util.Calendar#roll(int, int)
+     * java.util.Calendar#roll(int, int)
      */
     public void test_roll() {
         Calendar calendar = Calendar.getInstance();
@@ -721,7 +715,7 @@ public class CalendarTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.util.Calendar#toString()
+     * java.util.Calendar#toString()
      */
     public void test_toString() {
         Calendar calendar = Calendar.getInstance();
@@ -734,7 +728,7 @@ public class CalendarTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests serialization/deserialization.
+     * serialization/deserialization.
      */
     public void testSerializationSelf() throws Exception {
         Calendar calendar = Calendar.getInstance();
@@ -794,7 +788,7 @@ public class CalendarTest extends junit.framework.TestCase {
     }
 
 	/**
-	 * @tests {@link java.util.Calendar#getDisplayName(int, int, Locale)}
+	 * {@link java.util.Calendar#getDisplayName(int, int, Locale)}
 	 * @since 1.6
 	 */
 	public void test_getDisplayNameIILjava_util_Locale() {
@@ -947,7 +941,7 @@ public class CalendarTest extends junit.framework.TestCase {
 	}
 
 	/**
-	 * @tests {@link java.util.Calendar#getDisplayNames(int, int, Locale)}
+	 * {@link java.util.Calendar#getDisplayNames(int, int, Locale)}
 	 * @since 1.6
 	 */
 	public void test_getDisplayNamesIILjava_util_Locale() {
@@ -1079,7 +1073,7 @@ public class CalendarTest extends junit.framework.TestCase {
 	}
 
 	/**
-	 * @tests {@link java.util.Calendar#getActualMaximum(int)}
+	 * {@link java.util.Calendar#getActualMaximum(int)}
 	 */
 	public void test_getActualMaximum_I() {
 		Calendar c = new MockCalendar();
@@ -1087,7 +1081,7 @@ public class CalendarTest extends junit.framework.TestCase {
 	}
 
 	/**
-	 * @tests {@link java.util.Calendar#getActualMinimum(int)}
+	 * {@link java.util.Calendar#getActualMinimum(int)}
 	 */
 	public void test_getActualMinimum_I() {
 		Calendar c = new MockCalendar();

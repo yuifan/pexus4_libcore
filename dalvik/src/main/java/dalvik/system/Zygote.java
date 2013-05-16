@@ -16,6 +16,11 @@
 
 package dalvik.system;
 
+import libcore.io.ErrnoException;
+import libcore.io.Libcore;
+
+import java.io.File;
+
 /**
  * Provides access to the Dalvik "zygote" feature, which allows a VM instance to
  * be partially initialized and then fork()'d from the partially initialized
@@ -36,16 +41,50 @@ public class Zygote {
     public static final int DEBUG_ENABLE_ASSERT     = 1 << 2;
     /** disable the JIT compiler */
     public static final int DEBUG_ENABLE_SAFEMODE   = 1 << 3;
+    /** Enable logging of third-party JNI activity. */
+    public static final int DEBUG_ENABLE_JNI_LOGGING = 1 << 4;
+
+    /** No external storage should be mounted. */
+    public static final int MOUNT_EXTERNAL_NONE = 0;
+    /** Single-user external storage should be mounted. */
+    public static final int MOUNT_EXTERNAL_SINGLEUSER = 1;
+    /** Multi-user external storage should be mounted. */
+    public static final int MOUNT_EXTERNAL_MULTIUSER = 2;
+    /** All multi-user external storage should be mounted. */
+    public static final int MOUNT_EXTERNAL_MULTIUSER_ALL = 3;
 
     /**
      * When set by the system server, all subsequent apps will be launched in
      * VM safe mode.
-     *
-     * @hide
      */
     public static boolean systemInSafeMode = false;
 
     private Zygote() {}
+
+    private static void preFork() {
+        Daemons.stop();
+        waitUntilAllThreadsStopped();
+    }
+
+    /**
+     * We must not fork until we're single-threaded again. Wait until /proc shows we're
+     * down to just one thread.
+     */
+    private static void waitUntilAllThreadsStopped() {
+        File tasks = new File("/proc/self/task");
+        while (tasks.list().length > 1) {
+            try {
+                // Experimentally, booting and playing about with a stingray, I never saw us
+                // go round this loop more than once with a 10ms sleep.
+                Thread.sleep(10);
+            } catch (InterruptedException ignored) {
+            }
+        }
+    }
+
+    private static void postFork() {
+        Daemons.start();
+    }
 
     /**
      * Forks a new Zygote instance, but does not leave the zygote mode.
@@ -55,7 +94,14 @@ public class Zygote {
      * @return 0 if this is the child, pid of the child
      * if this is the parent, or -1 on error
      */
-    native public static int fork();
+    public static int fork() {
+        preFork();
+        int pid = nativeFork();
+        postFork();
+        return pid;
+    }
+
+    native public static int nativeFork();
 
     /**
      * Forks a new VM instance.  The current VM must have been started
@@ -73,23 +119,24 @@ public class Zygote {
      * dimension having a length of 3 and representing
      * (resource, rlim_cur, rlim_max). These are set via the posix
      * setrlimit(2) call.
+     * @param seInfo null-ok a string specifying SELinux information for
+     * the new process.
+     * @param niceName null-ok a string specifying the process name.
      *
      * @return 0 if this is the child, pid of the child
      * if this is the parent, or -1 on error.
      */
-    native public static int forkAndSpecialize(int uid, int gid, int[] gids,
-            int debugFlags, int[][] rlimits);
-
-    /**
-     * Forks a new VM instance.
-     * @deprecated use {@link Zygote#forkAndSpecialize(int, int, int[], int, int[][])}
-     */
-    @Deprecated
-    public static int forkAndSpecialize(int uid, int gid, int[] gids,
-            boolean enableDebugger, int[][] rlimits) {
-        int debugFlags = enableDebugger ? DEBUG_ENABLE_DEBUGGER : 0;
-        return forkAndSpecialize(uid, gid, gids, debugFlags, rlimits);
+    public static int forkAndSpecialize(int uid, int gid, int[] gids, int debugFlags,
+            int[][] rlimits, int mountExternal, String seInfo, String niceName) {
+        preFork();
+        int pid = nativeForkAndSpecialize(
+                uid, gid, gids, debugFlags, rlimits, mountExternal, seInfo, niceName);
+        postFork();
+        return pid;
     }
+
+    native public static int nativeForkAndSpecialize(int uid, int gid, int[] gids, int debugFlags,
+            int[][] rlimits, int mountExternal, String seInfo, String niceName);
 
     /**
      * Special method to start the system server process. In addition to the
@@ -114,18 +161,46 @@ public class Zygote {
      * @return 0 if this is the child, pid of the child
      * if this is the parent, or -1 on error.
      */
-    native public static int forkSystemServer(int uid, int gid,
-            int[] gids, int debugFlags, int[][] rlimits,
-            long permittedCapabilities, long effectiveCapabilities);
+    public static int forkSystemServer(int uid, int gid, int[] gids, int debugFlags,
+            int[][] rlimits, long permittedCapabilities, long effectiveCapabilities) {
+        preFork();
+        int pid = nativeForkSystemServer(
+                uid, gid, gids, debugFlags, rlimits, permittedCapabilities, effectiveCapabilities);
+        postFork();
+        return pid;
+    }
+
+    native public static int nativeForkSystemServer(int uid, int gid, int[] gids, int debugFlags,
+            int[][] rlimits, long permittedCapabilities, long effectiveCapabilities);
 
     /**
-     * Special method to start the system server process.
-     * @deprecated use {@link Zygote#forkSystemServer(int, int, int[], int, int[][])}
+     * Executes "/system/bin/sh -c &lt;command&gt;" using the exec() system call.
+     * This method throws a runtime exception if exec() failed, otherwise, this
+     * method never returns.
+     *
+     * @param command The shell command to execute.
      */
-    @Deprecated
-    public static int forkSystemServer(int uid, int gid, int[] gids,
-            boolean enableDebugger, int[][] rlimits) {
-        int debugFlags = enableDebugger ? DEBUG_ENABLE_DEBUGGER : 0;
-        return forkAndSpecialize(uid, gid, gids, debugFlags, rlimits);
+    public static void execShell(String command) {
+        String[] args = { "/system/bin/sh", "-c", command };
+        try {
+            Libcore.os.execv(args[0], args);
+        } catch (ErrnoException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Appends quotes shell arguments to the specified string builder.
+     * The arguments are quoted using single-quotes, escaped if necessary,
+     * prefixed with a space, and appended to the command.
+     *
+     * @param command A string builder for the shell command being constructed.
+     * @param args An array of argument strings to be quoted and appended to the command.
+     * @see #execShell(String)
+     */
+    public static void appendQuotedShellArgs(StringBuilder command, String[] args) {
+        for (String arg : args) {
+            command.append(" '").append(arg.replace("'", "'\\''")).append("'");
+        }
     }
 }

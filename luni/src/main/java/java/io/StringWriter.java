@@ -17,6 +17,8 @@
 
 package java.io;
 
+import java.util.Arrays;
+
 /**
  * A specialized {@link Writer} that writes characters to a {@code StringBuffer}
  * in a sequential manner, appending them in the process. The result can later
@@ -36,7 +38,6 @@ public class StringWriter extends Writer {
      * writer.
      */
     public StringWriter() {
-        super();
         buf = new StringBuffer(16);
         lock = buf;
     }
@@ -48,11 +49,11 @@ public class StringWriter extends Writer {
      * writer.
      *
      * @param initialSize
-     *            the intial size of the target string buffer.
+     *            the initial size of the target string buffer.
      */
     public StringWriter(int initialSize) {
         if (initialSize < 0) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("initialSize < 0: " + initialSize);
         }
         buf = new StringBuffer(initialSize);
         lock = buf;
@@ -115,19 +116,7 @@ public class StringWriter extends Writer {
      */
     @Override
     public void write(char[] chars, int offset, int count) {
-        // avoid int overflow
-        // BEGIN android-changed
-        // Exception priorities (in case of multiple errors) differ from
-        // RI, but are spec-compliant.
-        // removed redundant check, added null check, used (offset | count) < 0
-        // instead of (offset < 0) || (count < 0) to safe one operation
-        if (chars == null) {
-            throw new NullPointerException("chars == null");
-        }
-        if ((offset | count) < 0 || count > chars.length - offset) {
-            throw new IndexOutOfBoundsException();
-        }
-        // END android-changed
+        Arrays.checkOffsetAndCount(chars.length, offset, count);
         if (count == 0) {
             return;
         }
@@ -204,11 +193,10 @@ public class StringWriter extends Writer {
      */
     @Override
     public StringWriter append(CharSequence csq) {
-        if (null == csq) {
-            write(TOKEN_NULL);
-        } else {
-            write(csq.toString());
+        if (csq == null) {
+            csq = "null";
         }
+        write(csq.toString());
         return this;
     }
 
@@ -235,8 +223,8 @@ public class StringWriter extends Writer {
      */
     @Override
     public StringWriter append(CharSequence csq, int start, int end) {
-        if (null == csq) {
-            csq = TOKEN_NULL;
+        if (csq == null) {
+            csq = "null";
         }
         String output = csq.subSequence(start, end).toString();
         write(output, 0, output.length());

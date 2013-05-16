@@ -15,10 +15,6 @@
  *  limitations under the License.
  */
 
-// BEGIN android-note
-// New implementation: simpler and faster than Harmony implementation.
-// BEGIN android-note
-
 package java.util;
 
 import java.io.IOException;
@@ -27,6 +23,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Array;
+import libcore.util.EmptyArray;
 
 /**
  * ArrayList is an implementation of {@link List}, backed by an array.
@@ -44,13 +41,7 @@ import java.lang.reflect.Array;
  * @param <E> The element type of this list.
  * @since 1.2
  */
-public class ArrayList<E> extends AbstractList<E>
-        implements Cloneable, Serializable, RandomAccess {
-    /**
-     * An empty array of objects (to be shared among all empty lists).
-     */
-    private static final Object[] EMPTY_OBJECT_ARRAY = new Object[0];
-
+public class ArrayList<E> extends AbstractList<E> implements Cloneable, Serializable, RandomAccess {
     /**
      * The minimum amount by which the capacity of an ArrayList will increase.
      * This tuning parameter controls a time-space tradeoff. This value (12)
@@ -79,16 +70,16 @@ public class ArrayList<E> extends AbstractList<E>
      */
     public ArrayList(int capacity) {
         if (capacity < 0) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("capacity < 0: " + capacity);
         }
-        array = (capacity == 0 ? EMPTY_OBJECT_ARRAY : new Object[capacity]);
+        array = (capacity == 0 ? EmptyArray.OBJECT : new Object[capacity]);
     }
 
     /**
      * Constructs a new {@code ArrayList} instance with zero initial capacity.
      */
     public ArrayList() {
-        array = EMPTY_OBJECT_ARRAY;
+        array = EmptyArray.OBJECT;
     }
 
     /**
@@ -99,6 +90,10 @@ public class ArrayList<E> extends AbstractList<E>
      *            the collection of elements to add.
      */
     public ArrayList(Collection<? extends E> collection) {
+        if (collection == null) {
+            throw new NullPointerException("collection == null");
+        }
+
         Object[] a = collection.toArray();
         if (a.getClass() != Object[].class) {
             Object[] newArray = new Object[a.length];
@@ -143,7 +138,7 @@ public class ArrayList<E> extends AbstractList<E>
      * @param object
      *            the object to add.
      * @throws IndexOutOfBoundsException
-     *             when {@code location < 0 || > size()}
+     *             when {@code location < 0 || location > size()}
      */
     @Override public void add(int index, E object) {
         Object[] a = array;
@@ -222,7 +217,7 @@ public class ArrayList<E> extends AbstractList<E>
      * @return {@code true} if this {@code ArrayList} is modified, {@code false}
      *         otherwise.
      * @throws IndexOutOfBoundsException
-     *             when {@code location < 0 || > size()}
+     *             when {@code location < 0 || location > size()}
      */
     @Override
     public boolean addAll(int index, Collection<? extends E> collection) {
@@ -252,10 +247,12 @@ public class ArrayList<E> extends AbstractList<E>
         return true;
     }
 
-    /** This method was extracted to encourage VM to inline callers. */
-    private static void throwIndexOutOfBoundsException(int index, int size) {
-        throw new IndexOutOfBoundsException("Invalid index " + index
-                + ", size is " + size);
+    /**
+     * This method was extracted to encourage VM to inline callers.
+     * TODO: when we have a VM that can actually inline, move the test in here too!
+     */
+    static IndexOutOfBoundsException throwIndexOutOfBoundsException(int index, int size) {
+        throw new IndexOutOfBoundsException("Invalid index " + index + ", size is " + size);
     }
 
     /**
@@ -397,7 +394,7 @@ public class ArrayList<E> extends AbstractList<E>
      *            the index of the object to remove.
      * @return the removed object.
      * @throws IndexOutOfBoundsException
-     *             when {@code location < 0 || >= size()}
+     *             when {@code location < 0 || location >= size()}
      */
     @Override public E remove(int index) {
         Object[] a = array;
@@ -476,7 +473,7 @@ public class ArrayList<E> extends AbstractList<E>
      *            the object to add.
      * @return the previous element at the index.
      * @throws IndexOutOfBoundsException
-     *             when {@code location < 0 || >= size()}
+     *             when {@code location < 0 || location >= size()}
      */
     @Override public E set(int index, E object) {
         Object[] a = array;
@@ -542,7 +539,7 @@ public class ArrayList<E> extends AbstractList<E>
             return;
         }
         if (s == 0) {
-            array = EMPTY_OBJECT_ARRAY;
+            array = EmptyArray.OBJECT;
         } else {
             Object[] newArray = new Object[s];
             System.arraycopy(array, 0, newArray, 0, s);
@@ -652,15 +649,14 @@ public class ArrayList<E> extends AbstractList<E>
         }
     }
 
-    private void readObject(ObjectInputStream stream) throws IOException,
-            ClassNotFoundException {
+    private void readObject(ObjectInputStream stream) throws IOException, ClassNotFoundException {
         stream.defaultReadObject();
         int cap = stream.readInt();
         if (cap < size) {
             throw new InvalidObjectException(
                     "Capacity: " + cap + " < size: " + size);
         }
-        array = (cap == 0 ? EMPTY_OBJECT_ARRAY : new Object[cap]);
+        array = (cap == 0 ? EmptyArray.OBJECT : new Object[cap]);
         for (int i = 0; i < size; i++) {
             array[i] = stream.readObject();
         }

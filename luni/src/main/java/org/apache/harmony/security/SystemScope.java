@@ -50,7 +50,6 @@ public class SystemScope extends IdentityScope {
      * @see java.security.IdentityScope#IdentityScope()
      */
     public SystemScope() {
-        super();
     }
 
     /**
@@ -80,7 +79,7 @@ public class SystemScope extends IdentityScope {
      */
     public synchronized Identity getIdentity(String name) {
         if (name == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("name == null");
         }
         return (Identity) names.get(name);
     }

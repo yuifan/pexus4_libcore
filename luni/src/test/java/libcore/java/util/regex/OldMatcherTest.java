@@ -17,35 +17,15 @@
 
 package libcore.java.util.regex;
 
-import dalvik.annotation.TestLevel;
-import dalvik.annotation.TestTargetClass;
-import dalvik.annotation.TestTargetNew;
+import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import junit.framework.TestCase;
 
-@TestTargetClass(
-        value = Matcher.class,
-        untestedMethods= {
-            @TestTargetNew(
-                level = TestLevel.NOT_FEASIBLE,
-                notes = "finalize is hard to test since the implementation only calls a native function",
-                method = "finalize",
-                args = {}
-            )
-        }
-
-)
 public class OldMatcherTest extends TestCase {
     String[] groupPatterns = { "(a|b)*aabb", "((a)|b)*aabb", "((a|b)*)a(abb)",
             "(((a)|(b))*)aabb", "(((a)|(b))*)aa(b)b", "(((a)|(b))*)a(a(b)b)" };
 
-    @TestTargetNew(
-        level = TestLevel.PARTIAL_COMPLETE,
-        notes = "",
-        method = "appendReplacement",
-        args = {java.lang.StringBuffer.class, java.lang.String.class}
-    )
     public void testAppendReplacement() {
         Pattern pat = Pattern.compile("XX");
         Matcher m = pat.matcher("Today is XX-XX-XX ...");
@@ -78,16 +58,6 @@ public class OldMatcherTest extends TestCase {
         assertNotNull(t);
     }
 
-    /**
-     * @test java.util.regex.Matcher#reset(String)
-     * test reset(String) method.
-     */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "Verifies the reset(CharSequence input) method.",
-        method = "reset",
-        args = {java.lang.CharSequence.class}
-    )
     public void test_resetLjava_lang_String() {
         String testPattern = "(abb)";
         String testString1 = "babbabbcccabbabbabbabbabb";
@@ -102,12 +72,6 @@ public class OldMatcherTest extends TestCase {
         assertTrue("After reset matcher should find pattern in given input", mat.find());
     }
 
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "appendTail",
-        args = {java.lang.StringBuffer.class}
-    )
     public void testAppendTail() {
         Pattern p = Pattern.compile("cat");
         Matcher m = p.matcher("one-cat-two-cats-in-the-yard");
@@ -143,16 +107,6 @@ public class OldMatcherTest extends TestCase {
         assertNotNull(t);
     }
 
-    /**
-     * @test java.util.regex.Matcher#reset()
-     * test reset() method.
-     */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "Verifies the reset() method. ",
-        method = "reset",
-        args = {}
-    )
     public void test_reset() {
         String testPattern = "(abb)";
         String testString = "babbabbcccabbabbabbabbabb";
@@ -164,16 +118,6 @@ public class OldMatcherTest extends TestCase {
         assertTrue("After reset matcher should find pattern in given input", mat.find());
     }
 
-    /**
-     * @test java.util.regex.Matcher#hasAnchoringBounds()
-     * test hasAnchoringBounds() method.
-     */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "Verifies that hasAnchoringBounds method returns correct value.",
-        method = "hasAnchoringBounds",
-        args = {}
-    )
     public void test_hasAnchoringBounds() {
         String testPattern = "abb";
         String testString = "abb";
@@ -192,16 +136,6 @@ public class OldMatcherTest extends TestCase {
                 mu.hasAnchoringBounds());
     }
 
-    /**
-     * @test java.util.regex.Matcher#hasTransparentBounds()
-     * test hasTransparentBounds() method.
-     */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "Verifies that hasTransparentBound method returns correct value.",
-        method = "hasTransparentBounds",
-        args = {}
-    )
     public void test_hasTransparentBounds() {
         String testPattern = "abb";
         String testString = "ab\nb";
@@ -220,16 +154,6 @@ public class OldMatcherTest extends TestCase {
                 mu.hasTransparentBounds());
     }
 
-    /**
-     * @test java.util.regex.Matcher#start(int)
-     * test start(int) method.
-     */
-    @TestTargetNew(
-        level = TestLevel.PARTIAL_COMPLETE,
-        notes = "Verifies the start(int group) method.",
-        method = "start",
-        args = {int.class}
-    )
     public void test_startI() {
         String testPattern = "(((abb)a)(bb))";
         String testString = "cccabbabbabbabbabb";
@@ -252,16 +176,6 @@ public class OldMatcherTest extends TestCase {
         }
     }
 
-    /**
-     * @test java.util.regex.Matcher#end(int)
-     * test end(int) method.
-     */
-    @TestTargetNew(
-        level = TestLevel.PARTIAL_COMPLETE,
-        notes = "Verifies the basic functionality of end(int group) method.",
-        method = "end",
-        args = {int.class}
-    )
     public void test_endI() {
         String testPattern = "(((abb)a)(bb))";
         String testString = "cccabbabbabbabbabb";
@@ -285,16 +199,6 @@ public class OldMatcherTest extends TestCase {
     }
 
 
-    /**
-     * @test java.util.regex.Matcher#lookingAt()
-     * test lookingAt() method.
-     */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "Verifies that lookingAt() method returns correct value.",
-        method = "lookingAt",
-        args = {}
-    )
     public void test_lookingAt() {
         String testPattern = "(((abb)a)(bb))";
         String testString1 = "babbabbcccabbabbabbabbabb";
@@ -309,16 +213,6 @@ public class OldMatcherTest extends TestCase {
         assertTrue("Should find given pattern in 2 string", mat2.lookingAt());
     }
 
-    /**
-     * @test java.util.regex.Matcher#find(int)
-     * test find (int) method. Created via modifying method for find
-     */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "find",
-        args = {int.class}
-    )
     public void test_findI() {
         String testPattern = "(abb)";
         String testString = "cccabbabbabbabbabb";
@@ -354,26 +248,38 @@ public class OldMatcherTest extends TestCase {
             }
         }
 
-        // Starting index out of region
+        String string3 = "Brave new world";
         Pattern pat3 = Pattern.compile("new");
-        Matcher mat3 = pat3.matcher("Brave new world");
+        Matcher mat3 = pat3.matcher(string3);
 
-        assertTrue(mat3.find(-1));
+        // find(int) throws for out of range indexes.
+        try {
+            mat3.find(-1);
+            fail();
+        } catch (IndexOutOfBoundsException expected) {
+        }
+        assertFalse(mat3.find(string3.length()));
+        try {
+            mat3.find(string3.length() + 1);
+            fail();
+        } catch (IndexOutOfBoundsException expected) {
+        }
+
         assertTrue(mat3.find(6));
         assertFalse(mat3.find(7));
 
         mat3.region(7, 10);
+        assertFalse(mat3.find()); // No "new" in the region.
 
-        assertFalse(mat3.find(3));
-        assertFalse(mat3.find(6));
-        assertFalse(mat3.find(7));
+        assertTrue(mat3.find(3)); // find(int) ignores the region.
+        assertTrue(mat3.find(6)); // find(int) ignores the region.
+        assertFalse(mat3.find(7)); // No "new" >= 7.
+
+        mat3.region(1, 4);
+        assertFalse(mat3.find()); // No "new" in the region.
+        assertTrue(mat3.find(5)); // find(int) ignores the region.
     }
-    @TestTargetNew(
-        level = TestLevel.PARTIAL_COMPLETE,
-        notes = "Verifies matches() method for predefined.",
-        method = "replaceFirst",
-        args = {java.lang.String.class}
-    )
+
     public void testSEOLsymbols() {
         Pattern pat = Pattern.compile("^a\\(bb\\[$");
         Matcher mat = pat.matcher("a(bb[");
@@ -381,16 +287,6 @@ public class OldMatcherTest extends TestCase {
         assertTrue(mat.matches());
     }
 
-    /**
-     * @test java.util.regex.Matcher#start()
-     * test start() method.
-     */
-    @TestTargetNew(
-        level = TestLevel.PARTIAL_COMPLETE,
-        notes = "Verifies the start() method.",
-        method = "start",
-        args = {}
-    )
     public void test_start() {
         String testPattern = "(abb)";
         String testString = "cccabbabbabbabbabb";
@@ -410,16 +306,6 @@ public class OldMatcherTest extends TestCase {
         }
     }
 
-    /**
-     * @test java.util.regex.Matcher#end()
-     * test end() method.
-     */
-    @TestTargetNew(
-        level = TestLevel.PARTIAL_COMPLETE,
-        notes = "Verifies the basic functionality of end() method. ",
-        method = "end",
-        args = {}
-    )
     public void test_end() {
         String testPattern = "(abb)";
         String testString = "cccabbabbabbabbabb";
@@ -438,12 +324,7 @@ public class OldMatcherTest extends TestCase {
             }
         }
     }
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "Verifies groupCount() method.",
-        method = "groupCount",
-        args = {}
-    )
+
     public void testGroupCount() {
         for (int i = 0; i < groupPatterns.length; i++) {
             Pattern test = Pattern.compile(groupPatterns[i]);
@@ -454,12 +335,6 @@ public class OldMatcherTest extends TestCase {
     }
 
 
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "region",
-        args = {int.class, int.class}
-    )
     public void testRegion() {
         Pattern p = Pattern.compile("abba");
         Matcher m = p.matcher("Gabba gabba hey");
@@ -495,12 +370,6 @@ public class OldMatcherTest extends TestCase {
     }
 
 
-    @TestTargetNew(
-        level = TestLevel.PARTIAL_COMPLETE,
-        notes = "Verifies matches method for input sequence specified by URL.",
-        method = "matches",
-        args = {}
-    )
     public void testMatchesURI() {
         Pattern pat = Pattern.
                 compile("^(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?");
@@ -511,22 +380,10 @@ public class OldMatcherTest extends TestCase {
     }
 
 
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "quoteReplacement",
-        args = {java.lang.String.class}
-    )
     public void testQuoteReplacement() {
         assertEquals("\\$dollar and slash\\\\", Matcher.quoteReplacement("$dollar and slash\\"));
     }
 
-    @TestTargetNew(
-        level = TestLevel.PARTIAL_COMPLETE,
-        notes = "",
-        method = "matches",
-        args = {}
-    )
     public void testUnicode() {
 
         assertTrue(Pattern.compile("\\x61a").matcher("aa").matches());
@@ -535,12 +392,7 @@ public class OldMatcherTest extends TestCase {
         assertTrue(Pattern.compile("\\0777").matcher("?7").matches());
 
     }
-    @TestTargetNew(
-        level = TestLevel.PARTIAL_COMPLETE,
-        notes = "",
-        method = "matches",
-        args = {}
-    )
+
     public void testUnicodeCategory() {
         assertTrue(Pattern.compile("\\p{Ll}").matcher("k").matches()); // Unicode lower case
         assertTrue(Pattern.compile("\\P{Ll}").matcher("K").matches()); // Unicode non-lower
@@ -569,61 +421,6 @@ public class OldMatcherTest extends TestCase {
 
     }
 
-    // BEGIN android-note
-    // Test took ages, now going in steps of 16 code points to speed things up.
-    // END android-note
-    @TestTargetNew(
-        level = TestLevel.PARTIAL_COMPLETE,
-        notes = "The stress test for matches(String regex) method from String class.",
-        clazz = String.class,
-        method = "matches",
-        args = {java.lang.String.class}
-    )
-    public void testAllCodePoints() {
-        // Regression for HARMONY-3145
-        int[] codePoint = new int[1];
-        Pattern p = Pattern.compile("(\\p{all})+");
-        boolean res = true;
-        int cnt = 0;
-        String s;
-        for (int i = 0; i < 0x110000; i = i + 0x10) {
-            codePoint[0] = i;
-            s = new String(codePoint, 0, 1);
-            if (!s.matches(p.toString())) {
-                cnt++;
-                res = false;
-            }
-        }
-        assertTrue(res);
-        assertEquals(0, cnt);
-
-        p = Pattern.compile("(\\P{all})+");
-        res = true;
-        cnt = 0;
-
-        for (int i = 0; i < 0x110000; i = i + 0x10) {
-            codePoint[0] = i;
-            s = new String(codePoint, 0, 1);
-            if (!s.matches(p.toString())) {
-                cnt++;
-                res = false;
-            }
-        }
-
-        assertFalse(res);
-        assertEquals(0x110000 / 0x10, cnt);
-    }
-
-    /**
-     * @test java.util.regex.Matcher#regionStart()
-     * test regionStart() method.
-     */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "Verifies the regionStart() method.",
-        method = "regionStart",
-        args = {}
-    )
     public void test_regionStart() {
         String testPattern = "(abb)";
         String testString = "cccabbabbabbabbabb";
@@ -637,16 +434,6 @@ public class OldMatcherTest extends TestCase {
         assertEquals("Region sould start from 0 position after reset", 0, mat.regionStart());
     }
 
-    /**
-     * @test java.util.regex.Matcher#regionEnd()
-     * test regionEnd() method.
-     */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "Verifies the regionEnd() method.",
-        method = "regionEnd",
-        args = {}
-    )
     public void test_regionEnd() {
         String testPattern = "(abb)";
         String testString = "cccabbabbabbabbabb";
@@ -660,16 +447,6 @@ public class OldMatcherTest extends TestCase {
         assertEquals("Region end value should be equal to string length after reset", testString.length(), mat.regionEnd());
     }
 
-    /**
-     * @test java.util.regex.Matcher#toMatchResult()
-     * test toMatchResult() method.
-     */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "Verifies the toMatchResult method.",
-        method = "toMatchResult",
-        args = {}
-    )
     public void test_toMatchResult() {
         String testPattern = "(((abb)a)(bb))";
         String testString = "babbabbcccabbabbabbabbabb";
@@ -687,16 +464,6 @@ public class OldMatcherTest extends TestCase {
         assertEquals("Total number of groups does not matched with given pattern", 4, mat.toMatchResult().groupCount());
    }
 
-    /**
-     * @test java.util.regex.Matcher#usePattern(Pattern newPattern)
-     * test usePattern(Pattern newPattern) method.
-     */
-    @TestTargetNew(
-        level = TestLevel.PARTIAL_COMPLETE,
-        notes = "Verifies the usePattern(Pattern newPattern) method.",
-        method = "usePattern",
-        args = {java.util.regex.Pattern.class}
-    )
     public void test_usePatternLjava_util_regex_Pattern() {
         String testPattern1 = "(((abb)a)(bb))";
         String testPattern2 = "(abbabb)";
@@ -713,16 +480,6 @@ public class OldMatcherTest extends TestCase {
         assertFalse("matcher should not find pattern in given region", mat.matches());
    }
 
-    /**
-     * @test java.util.regex.Matcher#useAchoringBounds()
-     * test useAchoringBounds() method.
-     */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "useAnchoringBounds",
-        args = {boolean.class}
-    )
     public void test_anchoringBounds() {
         String testPattern = "^ro$";
         String testString = "android";
@@ -738,16 +495,6 @@ public class OldMatcherTest extends TestCase {
         assertFalse("Should find pattern with anchoring bounds", mat.find(0));
     }
 
-    /**
-     * @test java.util.regex.Matcher#useTransparentBounds()
-     * test useTransparentBounds() method.
-     */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "Verifies the useTransparentBounds(boolean b) method.",
-        method = "useTransparentBounds",
-        args = {boolean.class}
-    )
     public void test_transparentBounds() {
         String testPattern = "and(?=roid)";
         String testString = "android";
@@ -774,16 +521,6 @@ public class OldMatcherTest extends TestCase {
         assertFalse("Shouldn't find pattern transparent bounds", mat.matches()); // ***
     }
 
-    /**
-     * @test java.util.regex.Matcher#hitEnd()
-     * test hitEnd() method.
-     */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "Verifies that hitEnd() method returns correct value. ",
-        method = "hitEnd",
-        args = {}
-    )
     public void test_hitEnd() {
         String testPattern = "abb";
         String testString = "babbabbcccabbabbabbabbabb";
@@ -796,16 +533,6 @@ public class OldMatcherTest extends TestCase {
         assertTrue("hitEnd should return true after finding last match", mat.hitEnd()); // ***
     }
 
-    /**
-     * @test java.util.regex.Matcher#requireEnd()
-     * test requireEnd() method.
-     */
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "Verifies the requireEnd() method.",
-        method = "requireEnd",
-        args = {}
-    )
     public void test_requireEnd() {
         String testPattern = "bba";
         String testString = "abbbbba";
@@ -827,15 +554,63 @@ public class OldMatcherTest extends TestCase {
     /*
      * Regression test for HARMONY-674
      */
-    @TestTargetNew(
-        level = TestLevel.PARTIAL_COMPLETE,
-        notes = "Special regression test for matches() method.",
-        method = "matches",
-        args = {}
-    )
     public void testPatternMatcher() throws Exception {
         Pattern pattern = Pattern.compile("(?:\\d+)(?:pt)");
         assertTrue(pattern.matcher("14pt").matches());
     }
 
+    public void testUnicodeCharacterClasses() throws Exception {
+        // http://code.google.com/p/android/issues/detail?id=21176
+        // We use the Unicode TR-18 definitions: http://www.unicode.org/reports/tr18/#Compatibility_Properties
+        assertTrue("\u0666".matches("\\d")); // ARABIC-INDIC DIGIT SIX
+        assertFalse("\u0666".matches("\\D")); // ARABIC-INDIC DIGIT SIX
+        assertTrue("\u1680".matches("\\s")); // OGHAM SPACE MARK
+        assertFalse("\u1680".matches("\\S")); // OGHAM SPACE MARK
+        assertTrue("\u00ea".matches("\\w")); // LATIN SMALL LETTER E WITH CIRCUMFLEX
+        assertFalse("\u00ea".matches("\\W")); // LATIN SMALL LETTER E WITH CIRCUMFLEX
+    }
+
+    // http://code.google.com/p/android/issues/detail?id=41143
+    public void testConcurrentMatcherAccess() throws Exception {
+        final Pattern p = Pattern.compile("(^|\\W)([a-z])");
+        final Matcher m = p.matcher("");
+
+        ArrayList<Thread> threads = new ArrayList<Thread>();
+        for (int i = 0; i < 10; ++i) {
+            Thread t = new Thread(new Runnable() {
+                public void run() {
+                    for (int i = 0; i < 4096; ++i) {
+                        String s = "some example text";
+                        m.reset(s);
+                        try {
+                            StringBuffer sb = new StringBuffer(s.length());
+                            while (m.find()) {
+                                m.appendReplacement(sb, m.group(1) + m.group(2));
+                            }
+                            m.appendTail(sb);
+                        } catch (Exception expected) {
+                            // This code is inherently unsafe and crazy;
+                            // we're just trying to provoke native crashes!
+                        }
+                    }
+                }
+            });
+            threads.add(t);
+        }
+
+        for (Thread t : threads) {
+            t.start();
+        }
+        for (Thread t : threads) {
+            t.join();
+        }
+    }
+
+    // https://code.google.com/p/android/issues/detail?id=33040
+    public void test33040() throws Exception {
+        Pattern p = Pattern.compile("ma");
+        // replaceFirst resets the region; apparently, this was broken in Android 1.6.
+        String result = p.matcher("mama").region(2, 4).replaceFirst("mi");
+        assertEquals("mima", result);
+    }
 }

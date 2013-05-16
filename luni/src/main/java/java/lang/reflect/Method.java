@@ -33,7 +33,9 @@
 package java.lang.reflect;
 
 import java.lang.annotation.Annotation;
+import java.util.Arrays;
 import java.util.Comparator;
+import libcore.util.EmptyArray;
 import org.apache.harmony.kernel.vm.StringUtils;
 import org.apache.harmony.luni.lang.reflect.GenericSignatureParser;
 import org.apache.harmony.luni.lang.reflect.ListOfTypes;
@@ -46,7 +48,7 @@ import org.apache.harmony.luni.lang.reflect.Types;
 public final class Method extends AccessibleObject implements GenericDeclaration, Member {
 
     /**
-     * Orders methods by their name and parameters.
+     * Orders methods by their name, parameters and return type.
      *
      * @hide
      */
@@ -67,7 +69,12 @@ public final class Method extends AccessibleObject implements GenericDeclaration
                 }
             }
 
-            return aParameters.length - bParameters.length;
+            if (aParameters.length != bParameters.length) {
+                return aParameters.length - bParameters.length;
+            }
+
+            // this is necessary for methods that have covariant return types.
+            return a.getReturnType().getName().compareTo(b.getReturnType().getName());
         }
     };
 
@@ -148,8 +155,7 @@ public final class Method extends AccessibleObject implements GenericDeclaration
      * Returns the Signature annotation for this method. Returns {@code null} if
      * not found.
      */
-    native private Object[] getSignatureAnnotation(Class declaringClass,
-            int slot);
+    static native Object[] getSignatureAnnotation(Class declaringClass, int slot);
 
     /**
      * Returns the string representation of the method's declaration, including
@@ -174,7 +180,7 @@ public final class Method extends AccessibleObject implements GenericDeclaration
             for (int i = 0; i < formalTypeParameters.length; i++) {
                 appendGenericType(sb, formalTypeParameters[i]);
                 if (i < formalTypeParameters.length - 1) {
-                    sb.append(", ");
+                    sb.append(",");
                 }
             }
             sb.append("> ");
@@ -183,8 +189,8 @@ public final class Method extends AccessibleObject implements GenericDeclaration
         appendGenericType(sb, Types.getType(genericReturnType));
         sb.append(' ');
         // append method name
-        appendArrayType(sb, getDeclaringClass());
-        sb.append("."+getName());
+        appendTypeName(sb, getDeclaringClass());
+        sb.append(".").append(getName());
         // append parameters
         sb.append('(');
         appendArrayGenericType(sb,
@@ -261,8 +267,25 @@ public final class Method extends AccessibleObject implements GenericDeclaration
     public Annotation[] getDeclaredAnnotations() {
         return getDeclaredAnnotations(declaringClass, slot);
     }
-    native private Annotation[] getDeclaredAnnotations(Class declaringClass,
-        int slot);
+    static native Annotation[] getDeclaredAnnotations(Class<?> declaringClass, int slot);
+
+    @Override public <A extends Annotation> A getAnnotation(Class<A> annotationType) {
+        if (annotationType == null) {
+            throw new NullPointerException("annotationType == null");
+        }
+        return getAnnotation(declaringClass, slot, annotationType);
+    }
+    static native <A extends Annotation> A getAnnotation(
+            Class<?> declaringClass, int slot, Class<A> annotationType);
+
+    @Override public boolean isAnnotationPresent(Class<? extends Annotation> annotationType) {
+        if (annotationType == null) {
+            throw new NullPointerException("annotationType == null");
+        }
+        return isAnnotationPresent(declaringClass, slot, annotationType);
+    }
+    static native boolean isAnnotationPresent(
+            Class<?> declaringClass, int slot, Class<? extends Annotation> annotationType);
 
     private static final Annotation[] NO_ANNOTATIONS = new Annotation[0];
 
@@ -294,8 +317,7 @@ public final class Method extends AccessibleObject implements GenericDeclaration
         return parameterAnnotations;
     }
 
-    native private Annotation[][] getParameterAnnotations(Class declaringClass,
-        int slot);
+    static native Annotation[][] getParameterAnnotations(Class declaringClass, int slot);
 
     /**
      * Indicates whether or not this method takes a variable number argument.
@@ -358,7 +380,20 @@ public final class Method extends AccessibleObject implements GenericDeclaration
      */
     @Override
     public boolean equals(Object object) {
-        return object instanceof Method && toString().equals(object.toString());
+        if (this == object) {
+            return true;
+        }
+        if (!(object instanceof Method)) {
+            return false;
+        }
+        Method rhs = (Method) object;
+        // We don't compare exceptionTypes because two methods
+        // can't differ only by their declared exceptions.
+        return declaringClass.equals(rhs.declaringClass) &&
+            name.equals(rhs.name) &&
+            getModifiers() == rhs.getModifiers() &&
+            returnType.equals(rhs.returnType) &&
+            Arrays.equals(parameterTypes, rhs.parameterTypes);
     }
 
     /**
@@ -378,9 +413,8 @@ public final class Method extends AccessibleObject implements GenericDeclaration
      */
     public Class<?>[] getExceptionTypes() {
         if (exceptionTypes == null) {
-            return new Class[0];
+            return EmptyArray.CLASS;
         }
-
         return exceptionTypes.clone();
     }
 
@@ -396,7 +430,7 @@ public final class Method extends AccessibleObject implements GenericDeclaration
         return getMethodModifiers(declaringClass, slot);
     }
 
-    private native int getMethodModifiers(Class<?> decl_class, int slot);
+    static native int getMethodModifiers(Class<?> declaringClass, int slot);
 
     /**
      * Returns the name of the method represented by this {@code Method}
@@ -444,73 +478,57 @@ public final class Method extends AccessibleObject implements GenericDeclaration
     }
 
     /**
-     * Returns the result of dynamically invoking this method. This reproduces
-     * the effect of {@code receiver.methodName(arg1, arg2, ... , argN)} This
-     * method performs the following:
-     * <ul>
-     * <li>If this method is static, the receiver argument is ignored.</li>
-     * <li>Otherwise, if the receiver is null, a NullPointerException is thrown.
-     * </li>
-     * <li>If the receiver is not an instance of the declaring class of the
-     * method, an IllegalArgumentException is thrown.</li>
-     * <li>If this Method object is enforcing access control (see
-     * AccessibleObject) and this method is not accessible from the current
-     * context, an IllegalAccessException is thrown.</li>
-     * <li>If the number of arguments passed and the number of parameters do not
-     * match, an IllegalArgumentException is thrown.</li>
-     * <li>For each argument passed:
-     * <ul>
-     * <li>If the corresponding parameter type is a primitive type, the argument
-     * is unwrapped. If the unwrapping fails, an IllegalArgumentException is
-     * thrown.</li>
-     * <li>If the resulting argument cannot be converted to the parameter type
-     * via a widening conversion, an IllegalArgumentException is thrown.</li>
-     * </ul>
-     * <li>If this method is static, it is invoked directly. If it is
-     * non-static, this method and the receiver are then used to perform a
-     * standard dynamic method lookup. The resulting method is then invoked.</li>
-     * <li>If an exception is thrown during the invocation it is caught and
-     * wrapped in an InvocationTargetException. This exception is then thrown.</li>
-     * <li>If the invocation completes normally, the return value itself is
+     * Returns the result of dynamically invoking this method. Equivalent to
+     * {@code receiver.methodName(arg1, arg2, ... , argN)}.
+     *
+     * <p>If the method is static, the receiver argument is ignored (and may be null).
+     *
+     * <p>If the method takes no arguments, you can pass {@code (Object[]) null} instead of
+     * allocating an empty array.
+     *
+     * <p>If you're calling a varargs method, you need to pass an {@code Object[]} for the
+     * varargs parameter: that conversion is usually done in {@code javac}, not the VM, and
+     * the reflection machinery does not do this for you. (It couldn't, because it would be
+     * ambiguous.)
+     *
+     * <p>Reflective method invocation follows the usual process for method lookup.
+     *
+     * <p>If an exception is thrown during the invocation it is caught and
+     * wrapped in an InvocationTargetException. This exception is then thrown.
+     *
+     * <p>If the invocation completes normally, the return value itself is
      * returned. If the method is declared to return a primitive type, the
-     * return value is first wrapped. If the return type is void, null is
-     * returned.</li>
-     * </ul>
+     * return value is boxed. If the return type is void, null is returned.
      *
      * @param receiver
-     *            the object on which to call this method
+     *            the object on which to call this method (or null for static methods)
      * @param args
      *            the arguments to the method
-     *
-     * @return the new, initialized, object
+     * @return the result
      *
      * @throws NullPointerException
-     *             if the receiver is null for a non-static method
+     *             if {@code receiver == null} for a non-static method
      * @throws IllegalAccessException
-     *             if this method is not accessible
+     *             if this method is not accessible (see {@link AccessibleObject})
      * @throws IllegalArgumentException
-     *             if an incorrect number of arguments are passed, the receiver
-     *             is incompatible with the declaring class, or an argument
-     *             could not be converted by a widening conversion
+     *             if the number of arguments doesn't match the number of parameters, the receiver
+     *             is incompatible with the declaring class, or an argument could not be unboxed
+     *             or converted by a widening conversion to the corresponding parameter type
      * @throws InvocationTargetException
      *             if an exception was thrown by the invoked method
-     *
-     * @see AccessibleObject
      */
     public Object invoke(Object receiver, Object... args)
-            throws IllegalAccessException, IllegalArgumentException,
-            InvocationTargetException {
+            throws IllegalAccessException, IllegalArgumentException, InvocationTargetException {
         if (args == null) {
-            args = new Object[0];
+            args = EmptyArray.OBJECT;
         }
-
-        return invokeNative (receiver, args, declaringClass, parameterTypes, returnType, slot, flag);
+        return invokeNative(receiver, args, declaringClass, parameterTypes, returnType, slot, flag);
     }
 
-    private native Object invokeNative(Object obj, Object[] args, Class<?> declaringClass, Class<?>[] parameterTypes, Class<?> returnType, int slot, boolean noAccessCheck)
-    throws IllegalAccessException,
-             IllegalArgumentException,
-             InvocationTargetException;
+    private native Object invokeNative(Object obj, Object[] args, Class<?> declaringClass,
+            Class<?>[] parameterTypes, Class<?> returnType, int slot, boolean noAccessCheck)
+                    throws IllegalAccessException, IllegalArgumentException,
+                            InvocationTargetException;
 
     /**
      * Returns a string containing a concise, human-readable description of this
@@ -567,7 +585,7 @@ public final class Method extends AccessibleObject implements GenericDeclaration
         StringBuilder result = new StringBuilder();
 
         result.append('(');
-        for(int i = 0; i < parameterTypes.length; i++) {
+        for (int i = 0; i < parameterTypes.length; i++) {
             result.append(getSignature(parameterTypes[i]));
         }
         result.append(')');

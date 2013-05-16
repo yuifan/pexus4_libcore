@@ -19,6 +19,7 @@ package java.lang;
 
 import java.io.InvalidObjectException;
 import java.util.Arrays;
+import libcore.util.EmptyArray;
 
 /**
  * A modifiable {@link CharSequence sequence of characters} for use in creating
@@ -59,7 +60,7 @@ abstract class AbstractStringBuilder {
      */
     final void set(char[] val, int len) throws InvalidObjectException {
         if (val == null) {
-            val = new char[0];
+            val = EmptyArray.CHAR;
         }
         if (val.length < len) {
             throw new InvalidObjectException("count out of range");
@@ -76,7 +77,7 @@ abstract class AbstractStringBuilder {
 
     AbstractStringBuilder(int capacity) {
         if (capacity < 0) {
-            throw new NegativeArraySizeException();
+            throw new NegativeArraySizeException(Integer.toString(capacity));
         }
         value = new char[capacity];
     }
@@ -85,9 +86,7 @@ abstract class AbstractStringBuilder {
         count = string.length();
         shared = false;
         value = new char[count + INITIAL_CAPACITY];
-        // BEGIN android-changed
         string._getChars(0, count, value, 0);
-        // END android-changed
     }
 
     private void enlargeBuffer(int min) {
@@ -119,14 +118,7 @@ abstract class AbstractStringBuilder {
     }
 
     final void append0(char[] chars, int offset, int length) {
-        // Force null check of chars first!
-        if (offset > chars.length || offset < 0) {
-            throw new ArrayIndexOutOfBoundsException("Offset out of bounds: " + offset);
-        }
-        if (length < 0 || chars.length - offset < length) {
-            throw new ArrayIndexOutOfBoundsException("Length out of bounds: " + length);
-        }
-
+        Arrays.checkOffsetAndCount(chars.length, offset, length);
         int newCount = count + length;
         if (newCount > value.length) {
             enlargeBuffer(newCount);
@@ -160,7 +152,7 @@ abstract class AbstractStringBuilder {
         if (s == null) {
             s = "null";
         }
-        if (start < 0 || end < 0 || start > end || end > s.length()) {
+        if ((start | end) < 0 || start > end || end > s.length()) {
             throw new IndexOutOfBoundsException();
         }
 
@@ -211,9 +203,17 @@ abstract class AbstractStringBuilder {
      */
     public char charAt(int index) {
         if (index < 0 || index >= count) {
-            throw new StringIndexOutOfBoundsException(index);
+            throw indexAndLength(index);
         }
         return value[index];
+    }
+
+    private StringIndexOutOfBoundsException indexAndLength(int index) {
+        throw new StringIndexOutOfBoundsException(count, index);
+    }
+
+    private StringIndexOutOfBoundsException startEndAndLength(int start, int end) {
+        throw new StringIndexOutOfBoundsException(count, start, end - start);
     }
 
     final void delete0(int start, int end) {
@@ -241,23 +241,21 @@ abstract class AbstractStringBuilder {
                 return;
             }
         }
-        throw new StringIndexOutOfBoundsException();
+        throw startEndAndLength(start, end);
     }
 
-    final void deleteCharAt0(int location) {
-        if (0 > location || location >= count) {
-            throw new StringIndexOutOfBoundsException(location);
+    final void deleteCharAt0(int index) {
+        if (index < 0 || index >= count) {
+            throw indexAndLength(index);
         }
-        int length = count - location - 1;
+        int length = count - index - 1;
         if (length > 0) {
             if (!shared) {
-                System.arraycopy(value, location + 1, value, location, length);
+                System.arraycopy(value, index + 1, value, index, length);
             } else {
                 char[] newData = new char[value.length];
-                System.arraycopy(value, 0, newData, 0, location);
-                System
-                        .arraycopy(value, location + 1, newData, location,
-                                length);
+                System.arraycopy(value, 0, newData, 0, index);
+                System.arraycopy(value, index + 1, newData, index, length);
                 value = newData;
                 shared = false;
             }
@@ -279,8 +277,8 @@ abstract class AbstractStringBuilder {
      */
     public void ensureCapacity(int min) {
         if (min > value.length) {
-            int twice = (value.length << 1) + 2;
-            enlargeBuffer(twice > min ? twice : min);
+            int ourMin = value.length*2 + 2;
+            enlargeBuffer(Math.max(ourMin, min));
         }
     }
 
@@ -305,14 +303,14 @@ abstract class AbstractStringBuilder {
      */
     public void getChars(int start, int end, char[] dst, int dstStart) {
         if (start > count || end > count || start > end) {
-            throw new StringIndexOutOfBoundsException();
+            throw startEndAndLength(start, end);
         }
         System.arraycopy(value, start, dst, dstStart, end - start);
     }
 
     final void insert0(int index, char[] chars) {
-        if (0 > index || index > count) {
-            throw new StringIndexOutOfBoundsException(index);
+        if (index < 0 || index > count) {
+            throw indexAndLength(index);
         }
         if (chars.length != 0) {
             move(chars.length, index);
@@ -322,9 +320,9 @@ abstract class AbstractStringBuilder {
     }
 
     final void insert0(int index, char[] chars, int start, int length) {
-        if (0 <= index && index <= count) {
+        if (index >= 0 && index <= count) {
             // start + length could overflow, start/length maybe MaxInt
-            if (start >= 0 && 0 <= length && length <= chars.length - start) {
+            if (start >= 0 && length >= 0 && length <= chars.length - start) {
                 if (length != 0) {
                     move(length, index);
                     System.arraycopy(chars, start, value, index, length);
@@ -332,17 +330,16 @@ abstract class AbstractStringBuilder {
                 }
                 return;
             }
-            throw new StringIndexOutOfBoundsException("offset " + start
-                    + ", length " + length
-                    + ", char[].length " + chars.length);
         }
-        throw new StringIndexOutOfBoundsException(index);
+        throw new StringIndexOutOfBoundsException("this.length=" + count
+                + "; index=" + index + "; chars.length=" + chars.length
+                + "; start=" + start + "; length=" + length);
     }
 
     final void insert0(int index, char ch) {
-        if (0 > index || index > count) {
+        if (index < 0 || index > count) {
             // RI compatible exception type
-            throw new ArrayIndexOutOfBoundsException(index);
+            throw new ArrayIndexOutOfBoundsException(count, index);
         }
         move(1, index);
         value[index] = ch;
@@ -350,20 +347,18 @@ abstract class AbstractStringBuilder {
     }
 
     final void insert0(int index, String string) {
-        if (0 <= index && index <= count) {
+        if (index >= 0 && index <= count) {
             if (string == null) {
                 string = "null";
             }
             int min = string.length();
             if (min != 0) {
                 move(min, index);
-                // BEGIN android-changed
                 string._getChars(0, min, value, index);
-                // END android-changed
                 count += min;
             }
         } else {
-            throw new StringIndexOutOfBoundsException(index);
+            throw indexAndLength(index);
         }
     }
 
@@ -371,7 +366,7 @@ abstract class AbstractStringBuilder {
         if (s == null) {
             s = "null";
         }
-        if (index < 0 || index > count || start < 0 || end < 0 || start > end || end > s.length()) {
+        if ((index | start | end) < 0 || index > count || start > end || end > s.length()) {
             throw new IndexOutOfBoundsException();
         }
         insert0(index, s.subSequence(start, end).toString());
@@ -390,14 +385,13 @@ abstract class AbstractStringBuilder {
         int newCount;
         if (value.length - count >= size) {
             if (!shared) {
-                System.arraycopy(value, index, value, index + size, count
-                        - index); // index == count case is no-op
+                // index == count case is no-op
+                System.arraycopy(value, index, value, index + size, count - index);
                 return;
             }
             newCount = value.length;
         } else {
-            int a = count + size, b = (value.length << 1) + 2;
-            newCount = a > b ? a : b;
+            newCount = Math.max(count + size, value.length*2 + 2);
         }
 
         char[] newData = new char[newCount];
@@ -437,21 +431,19 @@ abstract class AbstractStringBuilder {
                     value = value.clone();
                     shared = false;
                 }
-                // BEGIN android-changed
                 string._getChars(0, stringLength, value, start);
-                // END android-changed
                 count -= diff;
                 return;
             }
             if (start == end) {
                 if (string == null) {
-                    throw new NullPointerException();
+                    throw new NullPointerException("string == null");
                 }
                 insert0(start, string);
                 return;
             }
         }
-        throw new StringIndexOutOfBoundsException();
+        throw startEndAndLength(start, end);
     }
 
     final void reverse0() {
@@ -543,8 +535,8 @@ abstract class AbstractStringBuilder {
      *             current {@link #length()}.
      */
     public void setCharAt(int index, char ch) {
-        if (0 > index || index >= count) {
-            throw new StringIndexOutOfBoundsException(index);
+        if (index < 0 || index >= count) {
+            throw indexAndLength(index);
         }
         if (shared) {
             value = value.clone();
@@ -566,7 +558,7 @@ abstract class AbstractStringBuilder {
      */
     public void setLength(int length) {
         if (length < 0) {
-            throw new StringIndexOutOfBoundsException(length);
+            throw new StringIndexOutOfBoundsException("length < 0: " + length);
         }
         if (length > value.length) {
             enlargeBuffer(length);
@@ -597,7 +589,7 @@ abstract class AbstractStringBuilder {
      *             {@link #length()}.
      */
     public String substring(int start) {
-        if (0 <= start && start <= count) {
+        if (start >= 0 && start <= count) {
             if (start == count) {
                 return "";
             }
@@ -605,7 +597,7 @@ abstract class AbstractStringBuilder {
             // Remove String sharing for more performance
             return new String(value, start, count - start);
         }
-        throw new StringIndexOutOfBoundsException(start);
+        throw indexAndLength(start);
     }
 
     /**
@@ -622,7 +614,7 @@ abstract class AbstractStringBuilder {
      *             {@code end} is greater than the current {@link #length()}.
      */
     public String substring(int start, int end) {
-        if (0 <= start && start <= end && end <= count) {
+        if (start >= 0 && start <= end && end <= count) {
             if (start == end) {
                 return "";
             }
@@ -630,7 +622,7 @@ abstract class AbstractStringBuilder {
             // Remove String sharing for more performance
             return new String(value, start, end - start);
         }
-        throw new StringIndexOutOfBoundsException();
+        throw startEndAndLength(start, end);
     }
 
     /**
@@ -835,7 +827,7 @@ abstract class AbstractStringBuilder {
      */
     public int codePointAt(int index) {
         if (index < 0 || index >= count) {
-            throw new StringIndexOutOfBoundsException(index);
+            throw indexAndLength(index);
         }
         return Character.codePointAt(value, index, count);
     }
@@ -855,34 +847,33 @@ abstract class AbstractStringBuilder {
      */
     public int codePointBefore(int index) {
         if (index < 1 || index > count) {
-            throw new StringIndexOutOfBoundsException(index);
+            throw indexAndLength(index);
         }
         return Character.codePointBefore(value, index);
     }
 
     /**
-     * Calculates the number of Unicode code points between {@code beginIndex}
-     * and {@code endIndex}.
+     * Calculates the number of Unicode code points between {@code start}
+     * and {@code end}.
      *
-     * @param beginIndex
+     * @param start
      *            the inclusive beginning index of the subsequence.
-     * @param endIndex
+     * @param end
      *            the exclusive end index of the subsequence.
      * @return the number of Unicode code points in the subsequence.
      * @throws IndexOutOfBoundsException
-     *             if {@code beginIndex} is negative or greater than
-     *             {@code endIndex} or {@code endIndex} is greater than
+     *             if {@code start} is negative or greater than
+     *             {@code end} or {@code end} is greater than
      *             {@link #length()}.
      * @see Character
      * @see Character#codePointCount(char[], int, int)
      * @since 1.5
      */
-    public int codePointCount(int beginIndex, int endIndex) {
-        if (beginIndex < 0 || endIndex > count || beginIndex > endIndex) {
-            throw new StringIndexOutOfBoundsException();
+    public int codePointCount(int start, int end) {
+        if (start < 0 || end > count || start > end) {
+            throw startEndAndLength(start, end);
         }
-        return Character.codePointCount(value, beginIndex, endIndex
-                - beginIndex);
+        return Character.codePointCount(value, start, end - start);
     }
 
     /**

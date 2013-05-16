@@ -33,43 +33,30 @@
 package java.lang;
 
 import dalvik.system.VMStack;
-import java.security.AccessController;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import org.apache.harmony.security.fortress.SecurityUtils;
+import libcore.util.EmptyArray;
 
 /**
  * A {@code Thread} is a concurrent unit of execution. It has its own call stack
- * for methods being invoked, their arguments and local variables. Each virtual
- * machine instance has at least one main {@code Thread} running when it is
- * started; typically, there are several others for housekeeping. The
- * application might decide to launch additional {@code Thread}s for specific
- * purposes.
- * <p>
- * {@code Thread}s in the same VM interact and synchronize by the use of shared
- * objects and monitors associated with these objects. Synchronized methods and
- * part of the API in {@link Object} also allow {@code Thread}s to cooperate.
- * <p>
- * There are basically two main ways of having a {@code Thread} execute
- * application code. One is providing a new class that extends {@code Thread}
- * and overriding its {@link #run()} method. The other is providing a new
- * {@code Thread} instance with a {@link Runnable} object during its creation.
- * In both cases, the {@link #start()} method must be called to actually execute
+ * for methods being invoked, their arguments and local variables. Each application
+ * has at least one thread running when it is started, the main thread, in the main
+ * {@link ThreadGroup}. The runtime keeps its own threads in the system thread
+ * group.
+ *
+ * <p>There are two ways to execute code in a new thread.
+ * You can either subclass {@code Thread} and overriding its {@link #run()} method,
+ * or construct a new {@code Thread} and pass a {@link Runnable} to the constructor.
+ * In either case, the {@link #start()} method must be called to actually execute
  * the new {@code Thread}.
- * <p>
- * Each {@code Thread} has an integer priority that basically determines the
- * amount of CPU time the {@code Thread} gets. It can be set using the
- * {@link #setPriority(int)} method. A {@code Thread} can also be made a daemon,
- * which makes it run in the background. The latter also affects VM termination
- * behavior: the VM does not terminate automatically as long as there are
- * non-daemon threads running.
  *
- * @see java.lang.Object
- * @see java.lang.ThreadGroup
- *
+ * <p>Each {@code Thread} has an integer priority that affect how the thread is
+ * scheduled by the OS. A new thread inherits the priority of its parent.
+ * A thread's priority can be set using the {@link #setPriority(int)} method.
  */
 public class Thread implements Runnable {
-
     private static final int NANOS_PER_MILLI = 1000000;
 
     /** Park states */
@@ -117,18 +104,25 @@ public class Thread implements Runnable {
 
     /**
      * The maximum priority value allowed for a thread.
+     * This corresponds to (but does not have the same value as)
+     * {@code android.os.Process.THREAD_PRIORITY_URGENT_DISPLAY}.
      */
-    public final static int MAX_PRIORITY = 10;
+    public static final int MAX_PRIORITY = 10;
 
     /**
      * The minimum priority value allowed for a thread.
+     * This corresponds to (but does not have the same value as)
+     * {@code android.os.Process.THREAD_PRIORITY_LOWEST}.
      */
-    public final static int MIN_PRIORITY = 1;
+    public static final int MIN_PRIORITY = 1;
 
     /**
-     * The normal (default) priority value assigned to threads.
+     * The normal (default) priority value assigned to the main thread.
+     * This corresponds to (but does not have the same value as)
+     * {@code android.os.Process.THREAD_PRIORITY_DEFAULT}.
+
      */
-    public final static int NORM_PRIORITY = 5;
+    public static final int NORM_PRIORITY = 5;
 
     /* some of these are accessed directly by the VM; do not rename them */
     volatile VMThread vmThread;
@@ -156,13 +150,8 @@ public class Thread implements Runnable {
      */
     ThreadLocal.Values inheritableValues;
 
-    /**
-     * Holds the interrupt action for this Thread, if any.
-     * <p>
-     * This is required internally by NIO, so even if it looks like it's
-     * useless, don't delete it!
-     */
-    private Runnable interruptAction;
+    /** Callbacks to run on interruption. */
+    private final List<Runnable> interruptActions = new ArrayList<Runnable>();
 
     /**
      * Holds the class loader for this Thread, in case there is one.
@@ -237,7 +226,7 @@ public class Thread implements Runnable {
      */
     public Thread(Runnable runnable, String threadName) {
         if (threadName == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("threadName == null");
         }
 
         create(null, runnable, threadName, 0);
@@ -257,7 +246,7 @@ public class Thread implements Runnable {
      */
     public Thread(String threadName) {
         if (threadName == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("threadName == null");
         }
 
         create(null, null, threadName, 0);
@@ -274,15 +263,10 @@ public class Thread implements Runnable {
      * @param runnable
      *            a {@code Runnable} whose method <code>run</code> will be
      *            executed by the new {@code Thread}
-     * @throws SecurityException
-     *             if <code>group.checkAccess()</code> fails with a
-     *             SecurityException
      * @throws IllegalThreadStateException
      *             if <code>group.destroy()</code> has already been done
      * @see java.lang.ThreadGroup
      * @see java.lang.Runnable
-     * @see java.lang.SecurityException
-     * @see java.lang.SecurityManager
      */
     public Thread(ThreadGroup group, Runnable runnable) {
         create(group, runnable, null, 0);
@@ -299,19 +283,14 @@ public class Thread implements Runnable {
      *            executed by the new {@code Thread}
      * @param threadName
      *            the name for the {@code Thread} being created
-     * @throws SecurityException
-     *             if <code>group.checkAccess()</code> fails with a
-     *             SecurityException
      * @throws IllegalThreadStateException
      *             if <code>group.destroy()</code> has already been done
      * @see java.lang.ThreadGroup
      * @see java.lang.Runnable
-     * @see java.lang.SecurityException
-     * @see java.lang.SecurityManager
      */
     public Thread(ThreadGroup group, Runnable runnable, String threadName) {
         if (threadName == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("threadName == null");
         }
 
         create(group, runnable, threadName, 0);
@@ -325,19 +304,14 @@ public class Thread implements Runnable {
      *            {@code ThreadGroup} to which the new {@code Thread} will belong
      * @param threadName
      *            the name for the {@code Thread} being created
-     * @throws SecurityException
-     *             if <code>group.checkAccess()</code> fails with a
-     *             SecurityException
      * @throws IllegalThreadStateException
      *             if <code>group.destroy()</code> has already been done
      * @see java.lang.ThreadGroup
      * @see java.lang.Runnable
-     * @see java.lang.SecurityException
-     * @see java.lang.SecurityManager
      */
     public Thread(ThreadGroup group, String threadName) {
         if (threadName == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("threadName == null");
         }
 
         create(group, null, threadName, 0);
@@ -359,19 +333,14 @@ public class Thread implements Runnable {
      *            a stack size for the new {@code Thread}. This has a highly
      *            platform-dependent interpretation. It may even be ignored
      *            completely.
-     * @throws SecurityException
-     *             if <code>group.checkAccess()</code> fails with a
-     *             SecurityException
      * @throws IllegalThreadStateException
      *             if <code>group.destroy()</code> has already been done
      * @see java.lang.ThreadGroup
      * @see java.lang.Runnable
-     * @see java.lang.SecurityException
-     * @see java.lang.SecurityManager
      */
     public Thread(ThreadGroup group, Runnable runnable, String threadName, long stackSize) {
         if (threadName == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("threadName == null");
         }
         create(group, runnable, threadName, stackSize);
     }
@@ -390,8 +359,9 @@ public class Thread implements Runnable {
 
         if (name == null) {
             this.name = "Thread-" + id;
-        } else
+        } else {
             this.name = name;
+        }
 
         if (group == null) {
             throw new InternalError("group not specified");
@@ -419,53 +389,17 @@ public class Thread implements Runnable {
      *        be executed by the new Thread
      * @param threadName Name for the Thread being created
      * @param stackSize Platform dependent stack size
-     * @throws SecurityException if <code>group.checkAccess()</code> fails
-     *         with a SecurityException
      * @throws IllegalThreadStateException if <code>group.destroy()</code> has
      *         already been done
      * @see java.lang.ThreadGroup
      * @see java.lang.Runnable
-     * @see java.lang.SecurityException
-     * @see java.lang.SecurityManager
      */
     private void create(ThreadGroup group, Runnable runnable, String threadName, long stackSize) {
-        SecurityManager smgr = System.getSecurityManager();
-        if (smgr != null) {
-            if (group == null) {
-                group = smgr.getThreadGroup();
-            }
-
-            /*
-             * Freaky security requirement: If the Thread's class is actually
-             * a subclass of Thread and it tries to override either
-             * getContextClassLoader() or setContextClassLoader(), the
-             * SecurityManager has to allow this.
-             */
-            if (getClass() != Thread.class) {
-                Class[] signature = new Class[] { ClassLoader.class };
-
-                try {
-                    getClass().getDeclaredMethod("getContextClassLoader", signature);
-                    smgr.checkPermission(new RuntimePermission("enableContextClassLoaderOverride"));
-                } catch (NoSuchMethodException ex) {
-                    // Ignore. Just interested in the method's existence.
-                }
-
-                try {
-                    getClass().getDeclaredMethod("setContextClassLoader", signature);
-                    smgr.checkPermission(new RuntimePermission("enableContextClassLoaderOverride"));
-                } catch (NoSuchMethodException ex) {
-                    // Ignore. Just interested in the method's existence.
-                }
-            }
-        }
-
         Thread currentThread = Thread.currentThread();
         if (group == null) {
             group = currentThread.getThreadGroup();
         }
 
-        group.checkAccess();
         if (group.isDestroyed()) {
             throw new IllegalThreadStateException("Group already destroyed");
         }
@@ -491,12 +425,8 @@ public class Thread implements Runnable {
 
         // Transfer over InheritableThreadLocals.
         if (currentThread.inheritableValues != null) {
-            inheritableValues
-                    = new ThreadLocal.Values(currentThread.inheritableValues);
+            inheritableValues = new ThreadLocal.Values(currentThread.inheritableValues);
         }
-
-        // store current AccessControlContext as inherited context for this thread
-        SecurityUtils.putContext(this, AccessController.getContext());
 
         // add ourselves to our ThreadGroup of choice
         this.group.addThread(this);
@@ -513,26 +443,9 @@ public class Thread implements Runnable {
     }
 
     /**
-     * Is used for operations that require approval from a SecurityManager. If
-     * there's none installed, this method is a no-op. If there's a
-     * SecurityManager installed, {@link SecurityManager#checkAccess(Thread)} is
-     * called for that SecurityManager.
-     *
-     * @throws SecurityException
-     *             if a SecurityManager is installed and it does not allow
-     *             access to the Thread.
-     *
-     * @see java.lang.SecurityException
-     * @see java.lang.SecurityManager
+     * Does nothing.
      */
     public final void checkAccess() {
-        // Forwards the message to the SecurityManager (if there's one) passing
-        // the receiver as parameter
-
-        SecurityManager currentManager = System.getSecurityManager();
-        if (currentManager != null) {
-            currentManager.checkAccess(this);
-        }
     }
 
     /**
@@ -558,13 +471,12 @@ public class Thread implements Runnable {
     }
 
     /**
-     * Destroys the receiver without any monitor cleanup.
-     *
+     * Throws {@code UnsupportedOperationException}.
      * @deprecated Not implemented.
      */
     @Deprecated
     public void destroy() {
-        throw new NoSuchMethodError("Thread.destroy()"); // TODO Externalize???
+        throw new UnsupportedOperationException();
     }
 
     /**
@@ -586,37 +498,16 @@ public class Thread implements Runnable {
      * @param threads
      *            array into which the Threads will be copied
      * @return How many Threads were copied over
-     * @throws SecurityException
-     *             if the installed SecurityManager fails
-     *             {@link SecurityManager#checkAccess(Thread)}
-     * @see java.lang.SecurityException
-     * @see java.lang.SecurityManager
      */
     public static int enumerate(Thread[] threads) {
         Thread thread = Thread.currentThread();
-        thread.checkAccess();
         return thread.getThreadGroup().enumerate(threads);
     }
 
     /**
-     * <p>
-     * Returns the stack traces of all the currently live threads and puts them
-     * into the given map.
-     * </p>
-     *
-     * @return A Map of current Threads to StackTraceElement arrays.
-     * @throws SecurityException
-     *             if the current SecurityManager fails the
-     *             {@link SecurityManager#checkPermission(java.security.Permission)}
-     *             call.
+     * Returns a map of all the currently live threads to their stack traces.
      */
     public static Map<Thread, StackTraceElement[]> getAllStackTraces() {
-        SecurityManager securityManager = System.getSecurityManager();
-        if (securityManager != null) {
-            securityManager.checkPermission(new RuntimePermission("getStackTrace"));
-            securityManager.checkPermission(new RuntimePermission("modifyThreadGroup"));
-        }
-
         Map<Thread, StackTraceElement[]> map = new HashMap<Thread, StackTraceElement[]>();
 
         // Find out how many live threads we have. Allocate a bit more
@@ -635,40 +526,12 @@ public class Thread implements Runnable {
 
     /**
      * Returns the context ClassLoader for this Thread.
-     * <p>
-     * If the conditions
-     * <ol>
-     * <li>there is a security manager
-     * <li>the caller's class loader is not null
-     * <li>the caller's class loader is not the same as the requested
-     * context class loader and not an ancestor thereof
-     * </ol>
-     * are satisfied, a security check for
-     * <code>RuntimePermission("getClassLoader")</code> is performed first.
      *
      * @return ClassLoader The context ClassLoader
      * @see java.lang.ClassLoader
      * @see #getContextClassLoader()
-     *
-     * @throws SecurityException
-     *             if the aforementioned security check fails.
      */
     public ClassLoader getContextClassLoader() {
-        // First, if the conditions
-        //    1) there is a security manager
-        //    2) the caller's class loader is not null
-        //    3) the caller's class loader is not the same as the context
-        //    class loader and not an ancestor thereof
-        // are satisfied we should perform a security check.
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            ClassLoader calling = VMStack.getCallingClassLoader();
-
-            if (calling != null && !calling.isAncestorOf(contextClassLoader)) {
-                sm.checkPermission(new RuntimePermission("getClassLoader"));
-            }
-        }
-
         return contextClassLoader;
     }
 
@@ -697,8 +560,6 @@ public class Thread implements Runnable {
 
     /**
      * Returns the name of the Thread.
-     *
-     * @return the Thread's name
      */
     public final String getName() {
         return name;
@@ -706,36 +567,17 @@ public class Thread implements Runnable {
 
     /**
      * Returns the priority of the Thread.
-     *
-     * @return the Thread's priority
-     * @see Thread#setPriority
      */
     public final int getPriority() {
         return priority;
     }
 
     /**
-     * Returns the a stack trace representing the current execution state of
-     * this Thread.
-     * <p>
-     * The <code>RuntimePermission("getStackTrace")</code> is checked before
-     * returning a result.
-     * </p>
-     *
-     * @return an array of StackTraceElements.
-     * @throws SecurityException
-     *             if the current SecurityManager fails the
-     *             {@link SecurityManager#checkPermission(java.security.Permission)}
-     *             call.
+     * Returns an array of {@link StackTraceElement} representing the current thread's stack.
      */
     public StackTraceElement[] getStackTrace() {
-        SecurityManager securityManager = System.getSecurityManager();
-        if (securityManager != null) {
-            securityManager.checkPermission(new RuntimePermission("getStackTrace"));
-        }
-
         StackTraceElement ste[] = VMStack.getThreadStackTrace(this);
-        return ste != null ? ste : new StackTraceElement[0];
+        return ste != null ? ste : EmptyArray.STACK_TRACE_ELEMENT;
     }
 
     /**
@@ -791,10 +633,7 @@ public class Thread implements Runnable {
     }
 
     /**
-     * Posts an interrupt request to this {@code Thread}. Unless the caller is
-     * the {@link #currentThread()}, the method {@code checkAccess()} is called
-     * for the installed {@code SecurityManager}, if any. This may result in a
-     * {@code SecurityException} being thrown. The further behavior depends on
+     * Posts an interrupt request to this {@code Thread}. The behavior depends on
      * the state of this {@code Thread}:
      * <ul>
      * <li>
@@ -814,23 +653,22 @@ public class Thread implements Runnable {
      * exception in this case.
      * <ul>
      *
-     * @throws SecurityException
-     *             if <code>checkAccess()</code> fails with a SecurityException
-     * @see java.lang.SecurityException
-     * @see java.lang.SecurityManager
      * @see Thread#interrupted
      * @see Thread#isInterrupted
      */
     public void interrupt() {
-        checkAccess();
-
-        if (interruptAction != null) {
-            interruptAction.run();
-        }
-
+        // Interrupt this thread before running actions so that other
+        // threads that observe the interrupt as a result of an action
+        // will see that this thread is in the interrupted state.
         VMThread vmt = this.vmThread;
         if (vmt != null) {
             vmt.interrupt();
+        }
+
+        synchronized (interruptActions) {
+            for (int i = interruptActions.size() - 1; i >= 0; i--) {
+                interruptActions.get(i).run();
+            }
         }
     }
 
@@ -863,14 +701,10 @@ public class Thread implements Runnable {
     }
 
     /**
-     * Returns a <code>boolean</code> indicating whether the receiver is a
-     * daemon Thread (<code>true</code>) or not (<code>false</code>) A
-     * daemon Thread only runs as long as there are non-daemon Threads running.
-     * When the last non-daemon Thread ends, the whole program ends no matter if
-     * it had daemon Threads still running or not.
-     *
-     * @return a <code>boolean</code> indicating whether the Thread is a daemon
-     * @see Thread#setDaemon
+     * Tests whether this is a daemon thread.
+     * A daemon thread only runs as long as there are non-daemon threads running.
+     * When the last non-daemon thread ends, the runtime will exit. This is not
+     * normally relevant to applications with a UI.
      */
     public final boolean isDaemon() {
         return daemon;
@@ -945,7 +779,7 @@ public class Thread implements Runnable {
      */
     public final void join(long millis, int nanos) throws InterruptedException {
         if (millis < 0 || nanos < 0 || nanos >= NANOS_PER_MILLI) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("bad timeout: millis=" + millis + ",nanos=" + nanos);
         }
 
         // avoid overflow: if total > 292,277 years, just wait forever
@@ -988,24 +822,12 @@ public class Thread implements Runnable {
     }
 
     /**
-     * Resumes a suspended Thread. This is a no-op if the receiver was never
-     * suspended, or suspended and already resumed. If the receiver is
-     * suspended, however, makes it resume to the point where it was when it was
-     * suspended.
-     *
-     * @throws SecurityException
-     *             if <code>checkAccess()</code> fails with a SecurityException
-     * @see Thread#suspend()
-     * @deprecated Used with deprecated method {@link Thread#suspend}
+     * Throws {@code UnsupportedOperationException}.
+     * @deprecated Only useful in conjunction with deprecated method {@link Thread#suspend}.
      */
     @Deprecated
     public final void resume() {
-        checkAccess();
-
-        VMThread vmt = this.vmThread;
-        if (vmt != null) {
-            vmt.resume();
-        }
+        throw new UnsupportedOperationException();
     }
 
     /**
@@ -1022,103 +844,94 @@ public class Thread implements Runnable {
 
     /**
      * Set the context ClassLoader for the receiver.
-     * <p>
-     * The <code>RuntimePermission("setContextClassLoader")</code>
-     * is checked prior to setting the handler.
-     * </p>
      *
      * @param cl The context ClassLoader
-     * @throws SecurityException if the current SecurityManager fails the
-     *         checkPermission call.
-     * @see java.lang.ClassLoader
      * @see #getContextClassLoader()
      */
     public void setContextClassLoader(ClassLoader cl) {
-        SecurityManager securityManager = System.getSecurityManager();
-        if (securityManager != null) {
-            securityManager.checkPermission(new RuntimePermission("setContextClassLoader"));
-        }
-
         contextClassLoader = cl;
     }
 
     /**
-     * Set if the receiver is a daemon Thread or not. This can only be done
-     * before the Thread starts running.
-     *
-     * @param isDaemon
-     *            indicates whether the Thread should be daemon or not
-     * @throws SecurityException
-     *             if <code>checkAccess()</code> fails with a SecurityException
-     * @see Thread#isDaemon
+     * Marks this thread as a daemon thread.
+     * A daemon thread only runs as long as there are non-daemon threads running.
+     * When the last non-daemon thread ends, the runtime will exit. This is not
+     * normally relevant to applications with a UI.
+     * @throws IllegalThreadStateException - if this thread has already started.
      */
     public final void setDaemon(boolean isDaemon) {
-        checkAccess();
-
-        if (hasBeenStarted) {
-            throw new IllegalThreadStateException("Thread already started."); // TODO Externalize?
-        }
-
+        checkNotStarted();
         if (vmThread == null) {
             daemon = isDaemon;
         }
     }
 
+    private void checkNotStarted() {
+        if (hasBeenStarted) {
+            throw new IllegalThreadStateException("Thread already started");
+        }
+    }
+
     /**
-     * <p>
      * Sets the default uncaught exception handler. This handler is invoked in
      * case any Thread dies due to an unhandled exception.
-     * </p>
-     * <p>
-     * The <code>RuntimePermission("setDefaultUncaughtExceptionHandler")</code>
-     * is checked prior to setting the handler.
-     * </p>
      *
      * @param handler
-     *            The handler to set or <code>null</code>.
-     * @throws SecurityException
-     *             if the current SecurityManager fails the checkPermission
-     *             call.
+     *            The handler to set or null.
      */
     public static void setDefaultUncaughtExceptionHandler(UncaughtExceptionHandler handler) {
-        SecurityManager securityManager = System.getSecurityManager();
-        if (securityManager != null) {
-            securityManager.checkPermission(new RuntimePermission ("setDefaultUncaughtExceptionHandler"));
-        }
-
         Thread.defaultUncaughtHandler = handler;
     }
 
     /**
-     * Set the action to be executed when interruption, which is probably be
-     * used to implement the interruptible channel. The action is null by
-     * default. And if this method is invoked by passing in a non-null value,
-     * this action's run() method will be invoked in <code>interrupt()</code>.
-     * <p>
-     * This is required internally by NIO, so even if it looks like it's
-     * useless, don't delete it!
+     * Adds a runnable to be invoked upon interruption. If this thread has
+     * already been interrupted, the runnable will be invoked immediately. The
+     * action should be idempotent as it may be invoked multiple times for a
+     * single interruption.
      *
-     * @param action the action to be executed when interruption
+     * <p>Each call to this method must be matched with a corresponding call to
+     * {@link #popInterruptAction$}.
+     *
+     * @hide used by NIO
      */
-    @SuppressWarnings("unused")
-    private void setInterruptAction(Runnable action) {
-        this.interruptAction = action;
+    public final void pushInterruptAction$(Runnable interruptAction) {
+        synchronized (interruptActions) {
+            interruptActions.add(interruptAction);
+        }
+
+        if (interruptAction != null && isInterrupted()) {
+            interruptAction.run();
+        }
+    }
+
+    /**
+     * Removes {@code interruptAction} so it is not invoked upon interruption.
+     *
+     * @param interruptAction the pushed action, used to check that the call
+     *     stack is correctly nested.
+     *
+     * @hide used by NIO
+     */
+    public final void popInterruptAction$(Runnable interruptAction) {
+        synchronized (interruptActions) {
+            Runnable removed = interruptActions.remove(interruptActions.size() - 1);
+            if (interruptAction != removed) {
+                throw new IllegalArgumentException(
+                        "Expected " + interruptAction + " but was " + removed);
+            }
+        }
     }
 
     /**
      * Sets the name of the Thread.
      *
      * @param threadName the new name for the Thread
-     * @throws SecurityException if <code>checkAccess()</code> fails with a
-     *         SecurityException
      * @see Thread#getName
      */
     public final void setName(String threadName) {
         if (threadName == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("threadName == null");
         }
-
-        checkAccess();
 
         name = threadName;
         VMThread vmt = this.vmThread;
@@ -1129,25 +942,16 @@ public class Thread implements Runnable {
     }
 
     /**
-     * Sets the priority of the Thread. Note that the final priority set may not
-     * be the parameter that was passed - it will depend on the receiver's
-     * ThreadGroup. The priority cannot be set to be higher than the receiver's
-     * ThreadGroup's maxPriority().
+     * Sets the priority of this thread. If the requested priority is greater than the
+     * parent thread group's {@link java.lang.ThreadGroup#getMaxPriority}, the group's maximum
+     * priority will be used instead.
      *
-     * @param priority
-     *            new priority for the Thread
-     * @throws SecurityException
-     *             if <code>checkAccess()</code> fails with a SecurityException
-     * @throws IllegalArgumentException
-     *             if the new priority is greater than Thread.MAX_PRIORITY or
-     *             less than Thread.MIN_PRIORITY
-     * @see Thread#getPriority
+     * @throws IllegalArgumentException - if the new priority is greater than {@link #MAX_PRIORITY}
+     *     or less than {@link #MIN_PRIORITY}
      */
     public final void setPriority(int priority) {
-        checkAccess();
-
         if (priority < Thread.MIN_PRIORITY || priority > Thread.MAX_PRIORITY) {
-            throw new IllegalArgumentException("Priority out of range"); // TODO Externalize?
+            throw new IllegalArgumentException("Priority out of range: " + priority);
         }
 
         if (priority > group.getMaxPriority()) {
@@ -1170,12 +974,8 @@ public class Thread implements Runnable {
      *
      * @param handler
      *            The handler to set or <code>null</code>.
-     * @throws SecurityException
-     *             if the current SecurityManager fails the checkAccess call.
      */
     public void setUncaughtExceptionHandler(UncaughtExceptionHandler handler) {
-        checkAccess();
-
         uncaughtHandler = handler;
     }
 
@@ -1218,14 +1018,11 @@ public class Thread implements Runnable {
      * the receiver will be called by the receiver Thread itself (and not the
      * Thread calling <code>start()</code>).
      *
-     * @throws IllegalThreadStateException if the Thread has been started before
-     *
+     * @throws IllegalThreadStateException - if this thread has already started.
      * @see Thread#run
      */
     public synchronized void start() {
-        if (hasBeenStarted) {
-            throw new IllegalThreadStateException("Thread already started."); // TODO Externalize?
-        }
+        checkNotStarted();
 
         hasBeenStarted = true;
 
@@ -1237,8 +1034,6 @@ public class Thread implements Runnable {
      * resumed if it was suspended and awakened if it was sleeping, so that it
      * can proceed to throw ThreadDeath.
      *
-     * @throws SecurityException if <code>checkAccess()</code> fails with a
-     *         SecurityException
      * @deprecated because stopping a thread in this manner is unsafe and can
      * leave your application and the VM in an unpredictable state.
      */
@@ -1248,59 +1043,22 @@ public class Thread implements Runnable {
     }
 
     /**
-     * Requests the receiver Thread to stop and throw the
-     * <code>throwable()</code>. The Thread is resumed if it was suspended
-     * and awakened if it was sleeping, so that it can proceed to throw the
-     * <code>throwable()</code>.
-     *
-     * @param throwable Throwable object to be thrown by the Thread
-     * @throws SecurityException if <code>checkAccess()</code> fails with a
-     *         SecurityException
-     * @throws NullPointerException if <code>throwable()</code> is
-     *         <code>null</code>
+     * Throws {@code UnsupportedOperationException}.
      * @deprecated because stopping a thread in this manner is unsafe and can
      * leave your application and the VM in an unpredictable state.
      */
     @Deprecated
     public final synchronized void stop(Throwable throwable) {
-        SecurityManager securityManager = System.getSecurityManager();
-        if (securityManager != null) {
-            securityManager.checkAccess(this);
-            if (Thread.currentThread() != this) {
-                securityManager.checkPermission(new RuntimePermission("stopThread"));
-            }
-        }
-
-        if (throwable == null) {
-            throw new NullPointerException();
-        }
-
-        VMThread vmt = this.vmThread;
-        if (vmt != null) {
-            vmt.stop(throwable);
-        }
+        throw new UnsupportedOperationException();
     }
 
     /**
-     * Suspends this Thread. This is a no-op if the receiver is suspended. If
-     * the receiver <code>isAlive()</code> however, suspended it until <code>
-     * resume()</code> is sent to it. Suspend requests are not queued, which
-     * means that N requests are equivalent to just one - only one resume
-     * request is needed in this case.
-     *
-     * @throws SecurityException
-     *             if <code>checkAccess()</code> fails with a SecurityException
-     * @see Thread#resume()
+     * Throws {@code UnsupportedOperationException}.
      * @deprecated May cause deadlocks.
      */
     @Deprecated
     public final void suspend() {
-        checkAccess();
-
-        VMThread vmt = this.vmThread;
-        if (vmt != null) {
-            vmt.suspend();
-        }
+        throw new UnsupportedOperationException();
     }
 
     /**
@@ -1353,9 +1111,18 @@ public class Thread implements Runnable {
     }
 
     /**
-     * Implementation of <code>unpark()</code>. See {@link LangAccessImpl}.
+     * Unparks this thread. This unblocks the thread it if it was
+     * previously parked, or indicates that the thread is "preemptively
+     * unparked" if it wasn't already parked. The latter means that the
+     * next time the thread is told to park, it will merely clear its
+     * latent park bit and carry on without blocking.
+     *
+     * <p>See {@link java.util.concurrent.locks.LockSupport} for more
+     * in-depth information of the behavior of this method.</p>
+     *
+     * @hide for Unsafe
      */
-    /*package*/ void unpark() {
+    public void unpark() {
         VMThread vmt = vmThread;
 
         if (vmt == null) {
@@ -1395,13 +1162,27 @@ public class Thread implements Runnable {
     }
 
     /**
-     * Implementation of <code>parkFor()</code>. See {@link LangAccessImpl}.
-     * This method must only be called when <code>this</code> is the current
+     * Parks the current thread for a particular number of nanoseconds, or
+     * indefinitely. If not indefinitely, this method unparks the thread
+     * after the given number of nanoseconds if no other thread unparks it
+     * first. If the thread has been "preemptively unparked," this method
+     * cancels that unparking and returns immediately. This method may
+     * also return spuriously (that is, without the thread being told to
+     * unpark and without the indicated amount of time elapsing).
+     *
+     * <p>See {@link java.util.concurrent.locks.LockSupport} for more
+     * in-depth information of the behavior of this method.</p>
+     *
+     * <p>This method must only be called when <code>this</code> is the current
      * thread.
      *
-     * @param nanos number of nanoseconds to park for
+     * @param nanos number of nanoseconds to park for or <code>0</code>
+     * to park indefinitely
+     * @throws IllegalArgumentException thrown if <code>nanos &lt; 0</code>
+     *
+     * @hide for Unsafe
      */
-    /*package*/ void parkFor(long nanos) {
+    public void parkFor(long nanos) {
         VMThread vmt = vmThread;
 
         if (vmt == null) {
@@ -1445,13 +1226,27 @@ public class Thread implements Runnable {
     }
 
     /**
-     * Implementation of <code>parkUntil()</code>. See {@link LangAccessImpl}.
-     * This method must only be called when <code>this</code> is the current
-     * thread.
+     * Parks the current thread until the specified system time. This
+     * method attempts to unpark the current thread immediately after
+     * <code>System.currentTimeMillis()</code> reaches the specified
+     * value, if no other thread unparks it first. If the thread has
+     * been "preemptively unparked," this method cancels that
+     * unparking and returns immediately. This method may also return
+     * spuriously (that is, without the thread being told to unpark
+     * and without the indicated amount of time elapsing).
      *
-     * @param time absolute milliseconds since the epoch to park until
+     * <p>See {@link java.util.concurrent.locks.LockSupport} for more
+     * in-depth information of the behavior of this method.</p>
+     *
+     * <p>This method must only be called when <code>this</code> is the
+     * current thread.
+     *
+     * @param time the time after which the thread should be unparked,
+     * in absolute milliseconds-since-the-epoch
+     *
+     * @hide for Unsafe
      */
-    /*package*/ void parkUntil(long time) {
+    public void parkUntil(long time) {
         VMThread vmt = vmThread;
 
         if (vmt == null) {

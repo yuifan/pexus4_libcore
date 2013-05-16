@@ -17,9 +17,10 @@
 package java.lang;
 
 import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.security.AccessController;
-import java.security.PrivilegedExceptionAction;
+import libcore.util.BasicLruCache;
+import libcore.util.EmptyArray;
 
 /**
  * The superclass of all enumerated types. Actual enumeration types inherit from
@@ -29,6 +30,24 @@ import java.security.PrivilegedExceptionAction;
 public abstract class Enum<E extends Enum<E>> implements Serializable, Comparable<E> {
 
     private static final long serialVersionUID = -4300926546619394005L;
+
+    private static final BasicLruCache<Class<? extends Enum>, Object[]> sharedConstantsCache
+            = new BasicLruCache<Class<? extends Enum>, Object[]>(64) {
+        @Override protected Object[] create(Class<? extends Enum> enumType) {
+            if (!enumType.isEnum()) {
+                return null;
+            }
+            Method method = (Method) Class.getDeclaredConstructorOrMethod(
+                    enumType, "values", EmptyArray.CLASS);
+            try {
+                return (Object[]) method.invoke((Object[]) null);
+            } catch (IllegalAccessException impossible) {
+                throw new AssertionError();
+            } catch (InvocationTargetException impossible) {
+                throw new AssertionError();
+            }
+        }
+    };
 
     private final String name;
 
@@ -162,21 +181,32 @@ public abstract class Enum<E extends Enum<E>> implements Serializable, Comparabl
      *             have a constant value called {@code name}.
      */
     public static <T extends Enum<T>> T valueOf(Class<T> enumType, String name) {
-        if (enumType == null || name == null) {
-            throw new NullPointerException("enumType == null || name == null");
+        if (enumType == null) {
+            throw new NullPointerException("enumType == null");
+        } else if (name == null) {
+            throw new NullPointerException("name == null");
         }
-
-        enumType.checkPublicMemberAccess();
-
-        T result = enumType.getClassCache().getEnumValue(name);
-        if (result == null) {
-            if (!enumType.isEnum()) {
-                throw new IllegalArgumentException(enumType + " is not an enum type");
-            } else {
-                throw new IllegalArgumentException(name + " is not a constant in " + enumType);
+        T[] values = getSharedConstants(enumType);
+        if (values == null) {
+            throw new IllegalArgumentException(enumType + " is not an enum type");
+        }
+        for (T value : values) {
+            if (name.equals(value.name())) {
+                return value;
             }
         }
-        return result;
+        throw new IllegalArgumentException(name + " is not a constant in " + enumType.getName());
+    }
+
+    /**
+     * Returns a shared, mutable array containing the constants of this enum. It
+     * is an error to modify the returned array.
+     *
+     * @hide
+     */
+    @SuppressWarnings("unchecked") // the cache always returns the type matching enumType
+    public static <T extends Enum<T>> T[] getSharedConstants(Class<T> enumType) {
+        return (T[]) sharedConstantsCache.get(enumType);
     }
 
     /**
@@ -187,27 +217,5 @@ public abstract class Enum<E extends Enum<E>> implements Serializable, Comparabl
     @Override
     @SuppressWarnings("FinalizeDoesntCallSuperFinalize")
     protected final void finalize() {
-    }
-
-    /*
-     * Helper to invoke the values() static method on T and answer the result.
-     * Returns null if there is a problem.
-     */
-    @SuppressWarnings("unchecked")
-    static <T extends Enum<T>> T[] getValues(final Class<T> enumType) {
-        try {
-            Method values = AccessController
-                    .doPrivileged(new PrivilegedExceptionAction<Method>() {
-                        public Method run() throws Exception {
-                            Method valsMethod = enumType.getMethod("values",
-                                    (Class[]) null);
-                            valsMethod.setAccessible(true);
-                            return valsMethod;
-                        }
-                    });
-            return (T[]) values.invoke(enumType, (Object[])null);
-        } catch (Exception e) {
-            return null;
-        }
     }
 }

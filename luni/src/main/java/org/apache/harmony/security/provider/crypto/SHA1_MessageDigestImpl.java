@@ -18,20 +18,18 @@
 
 package org.apache.harmony.security.provider.crypto;
 
-
 import java.security.DigestException;
 import java.security.MessageDigestSpi;
 import java.util.Arrays;
 
+import static org.apache.harmony.security.provider.crypto.SHA1Constants.*;
 
 /**
  * This class extends the MessageDigestSpi class implementing all its abstract methods;
  * it overrides the "Object clone()" and "int engineGetDigestLength()" methods. <BR>
  * The class implements the Cloneable interface.
  */
-
-
-public class SHA1_MessageDigestImpl extends MessageDigestSpi implements Cloneable, SHA1_Data {
+public class SHA1_MessageDigestImpl extends MessageDigestSpi implements Cloneable {
     private int[] buffer;        // buffer has the following structure:
                                  // -  0-16 - frame for accumulating a message
                                  // - 17-79 - for SHA1Impl methods
@@ -42,7 +40,7 @@ public class SHA1_MessageDigestImpl extends MessageDigestSpi implements Cloneabl
     private byte[] oneByte;      // one byte buffer needed to use in engineUpdate(byte)
                                  // having buffer as private field is just optimization
 
-    private int messageLength;   // total length of bytes supplied by user
+    private long messageLength;   // total length of bytes supplied by user
 
 
     /**
@@ -142,12 +140,9 @@ public class SHA1_MessageDigestImpl extends MessageDigestSpi implements Cloneabl
      *       a clone of this object
      */
     public Object clone() throws CloneNotSupportedException {
-
         SHA1_MessageDigestImpl cloneObj = (SHA1_MessageDigestImpl) super.clone();
-
-        cloneObj.buffer  = ( int[])buffer.clone();
-        cloneObj.oneByte = (byte[])oneByte.clone();
-
+        cloneObj.buffer = buffer.clone();
+        cloneObj.oneByte = oneByte.clone();
         return cloneObj;
     }
 
@@ -163,9 +158,7 @@ public class SHA1_MessageDigestImpl extends MessageDigestSpi implements Cloneabl
      *       byte array containing message digest value
      */
     protected byte[] engineDigest() {
-
         byte[] hash = new byte[DIGEST_LENGTH];
-
         processDigest(hash, 0);
         return hash;
     }
@@ -213,7 +206,7 @@ public class SHA1_MessageDigestImpl extends MessageDigestSpi implements Cloneabl
             throw new DigestException("len < DIGEST_LENGTH");
         }
         if (offset < 0) {
-            throw new ArrayIndexOutOfBoundsException(Integer.toString(offset));
+            throw new ArrayIndexOutOfBoundsException(offset);
         }
 
         processDigest(buf, offset);
@@ -300,7 +293,7 @@ public class SHA1_MessageDigestImpl extends MessageDigestSpi implements Cloneabl
             return;
         }
         if (offset < 0) {
-            throw new ArrayIndexOutOfBoundsException(Integer.toString(offset));
+            throw new ArrayIndexOutOfBoundsException(offset);
         }
         if (offset > input.length || len > input.length || (len + offset) > input.length) {
             throw new IllegalArgumentException();

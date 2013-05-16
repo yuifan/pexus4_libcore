@@ -82,39 +82,40 @@ public class PatternSyntaxException extends IllegalArgumentException {
     /**
      * Returns a detailed error message for the exception. The message is
      * potentially multi-line, and it might include a detailed description, the
-     * original regular expression, and the index at which the error occured.
+     * original regular expression, and the index at which the error occurred.
      *
      * @return the error message.
      */
     @Override
     public String getMessage() {
-        // BEGIN android-changed
-        StringBuilder builder = new StringBuilder("Syntax error");
-
+        StringBuilder sb = new StringBuilder();
         if (desc != null) {
-            builder.append(' ');
-            builder.append(desc);
+            sb.append(desc);
         }
 
         if (index >= 0) {
-            builder.append(" near index " + index + ":");
+            if (desc != null) {
+                sb.append(' ');
+            }
+            sb.append("near index ");
+            sb.append(index);
+            sb.append(':');
         }
 
         if (pattern != null) {
-            builder.append('\n');
-            builder.append(pattern);
+            sb.append('\n');
+            sb.append(pattern);
 
             if (index >= 0) {
                 char[] spaces = new char[index];
                 Arrays.fill(spaces, ' ');
-                builder.append('\n');
-                builder.append(spaces);
-                builder.append('^');
+                sb.append('\n');
+                sb.append(spaces);
+                sb.append('^');
             }
         }
 
-        return builder.toString();
-        // END android-changed
+        return sb.toString();
     }
 
     /**

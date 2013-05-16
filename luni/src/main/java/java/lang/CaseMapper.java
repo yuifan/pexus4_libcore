@@ -16,8 +16,8 @@
 
 package java.lang;
 
-import com.ibm.icu4jni.util.ICU;
 import java.util.Locale;
+import libcore.icu.ICU;
 
 /**
  * Performs case operations as described by http://unicode.org/reports/tr21/tr21-5.html.
@@ -54,7 +54,7 @@ class CaseMapper {
         int newCount = 0;
         for (int i = offset, end = offset + count; i < end; ++i) {
             char ch = value[i];
-            char newCh = ch;
+            char newCh;
             if (ch == LATIN_CAPITAL_I_WITH_DOT || Character.isHighSurrogate(ch)) {
                 // Punt these hard cases.
                 return ICU.toLowerCase(s, locale.toString());
@@ -73,14 +73,6 @@ class CaseMapper {
             }
         }
         return newValue != null ? new String(0, newCount, newValue) : s;
-    }
-
-    private static boolean followedBy(char[] value, int offset, int count, int index, char ch) {
-        return index + 1 < offset + count && value[index + 1] == ch;
-    }
-
-    private static boolean precededBy(char[] value, int offset, int count, int index, char ch) {
-        return index > offset && value[index - 1] == ch;
     }
 
     /**

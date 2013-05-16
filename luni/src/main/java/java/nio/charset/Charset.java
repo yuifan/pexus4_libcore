@@ -17,13 +17,10 @@
 
 package java.nio.charset;
 
-import com.ibm.icu4jni.charset.NativeConverter;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.spi.CharsetProvider;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -33,6 +30,7 @@ import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import libcore.icu.NativeConverter;
 
 /**
  * A charset is a named mapping between Unicode characters and byte sequences. Every
@@ -223,7 +221,7 @@ public abstract class Charset implements Comparable<Charset> {
         }
 
         // Add all charsets provided by all charset providers...
-        for (CharsetProvider charsetProvider : ServiceLoader.load(CharsetProvider.class, null)) {
+        for (CharsetProvider charsetProvider : ServiceLoader.load(CharsetProvider.class)) {
             Iterator<Charset> it = charsetProvider.charsets();
             while (it.hasNext()) {
                 Charset cs = it.next();
@@ -283,10 +281,11 @@ public abstract class Charset implements Comparable<Charset> {
             }
         }
 
-        // Is this a built-in charset supported by ICU?
         if (charsetName == null) {
-            throw new IllegalCharsetNameException(charsetName);
+            throw new IllegalCharsetNameException(null);
         }
+
+        // Is this a built-in charset supported by ICU?
         checkCharsetName(charsetName);
         cs = NativeConverter.charsetForName(charsetName);
         if (cs != null) {
@@ -294,7 +293,7 @@ public abstract class Charset implements Comparable<Charset> {
         }
 
         // Does a configured CharsetProvider have this charset?
-        for (CharsetProvider charsetProvider : ServiceLoader.load(CharsetProvider.class, null)) {
+        for (CharsetProvider charsetProvider : ServiceLoader.load(CharsetProvider.class)) {
             cs = charsetProvider.charsetForName(charsetName);
             if (cs != null) {
                 return cacheCharset(charsetName, cs);
@@ -308,7 +307,7 @@ public abstract class Charset implements Comparable<Charset> {
      * Equivalent to {@code forName} but only throws {@code UnsupportedEncodingException},
      * which is all pre-nio code claims to throw.
      *
-     * @hide
+     * @hide internal use only
      */
     public static Charset forNameUEE(String charsetName) throws UnsupportedEncodingException {
         try {
@@ -331,7 +330,7 @@ public abstract class Charset implements Comparable<Charset> {
      */
     public static boolean isSupported(String charsetName) {
         try {
-            Charset cs = forName(charsetName);
+            forName(charsetName);
             return true;
         } catch (UnsupportedCharsetException ex) {
             return false;
@@ -565,11 +564,7 @@ public abstract class Charset implements Comparable<Charset> {
     }
 
     private static Charset getDefaultCharset() {
-        String encoding = AccessController.doPrivileged(new PrivilegedAction<String>() {
-            public String run() {
-                return System.getProperty("file.encoding", "UTF-8");
-            }
-        });
+        String encoding = System.getProperty("file.encoding", "UTF-8");
         try {
             return Charset.forName(encoding);
         } catch (UnsupportedCharsetException e) {

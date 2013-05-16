@@ -35,6 +35,7 @@ import java.text.NumberFormat;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import libcore.io.IoUtils;
 
 /**
  * A parser that parses a text string of primitive types and strings with the
@@ -78,20 +79,10 @@ public final class Scanner implements Iterator<String> {
     private static final Pattern LINE_PATTERN;
 
     static {
-        String terminator = "\n|\r\n|\r|\u0085|\u2028|\u2029";
-
-        LINE_TERMINATOR = Pattern.compile(terminator);
-
-        // BEGIN android-note
-        // consider plain old string concatenation for better performance
-        // END android-note
-        StringBuilder multiTerminator = new StringBuilder();
-        MULTI_LINE_TERMINATOR = Pattern.compile(multiTerminator.append("(")
-                .append(terminator).append(")+").toString());
-        StringBuilder line = new StringBuilder();
-        LINE_PATTERN = Pattern.compile(line.append(".*(")
-                .append(terminator).append(")|.+(")
-                .append(terminator).append(")?").toString());
+        String NL = "\n|\r\n|\r|\u0085|\u2028|\u2029";
+        LINE_TERMINATOR = Pattern.compile(NL);
+        MULTI_LINE_TERMINATOR = Pattern.compile("(" + NL + ")+");
+        LINE_PATTERN = Pattern.compile(".*(" + NL + ")|.+(" + NL + ")?");
     }
 
     // The pattern matches anything.
@@ -191,11 +182,7 @@ public final class Scanner implements Iterator<String> {
         try {
             input = new InputStreamReader(fis, charsetName);
         } catch (UnsupportedEncodingException e) {
-            try {
-                fis.close();
-            } catch (IOException ioException) {
-                // ignore
-            }
+            IoUtils.closeQuietly(fis);
             throw new IllegalArgumentException(e.getMessage());
         }
         initialization();
@@ -253,8 +240,8 @@ public final class Scanner implements Iterator<String> {
      *            the {@code Readable} to be scanned.
      */
     public Scanner(Readable src) {
-        if (null == src) {
-            throw new NullPointerException();
+        if (src == null) {
+            throw new NullPointerException("src == null");
         }
         input = src;
         initialization();
@@ -445,9 +432,9 @@ public final class Scanner implements Iterator<String> {
      * The {@code Scanner}'s search will never go more than {@code horizon} code points from current
      * position. The position of {@code horizon} does have an effect on the result of the
      * match. For example, when the input is "123" and current position is at zero,
-     * {@code findWithinHorizon(Pattern.compile("\\p&#123;Digit&#125;&#123;3&#125;"), 2)}
-     * will return {@code null}. While
-     * {@code findWithinHorizon(Pattern.compile("\\p&#123;Digit&#125;&#123;3&#125;"), 3)}
+     * <code>findWithinHorizon(Pattern.compile("\\p{Digit}{3}"), 2)</code>
+     * will return {@code null}, while
+     * <code>findWithinHorizon(Pattern.compile("\\p{Digit}{3}"), 3)</code>
      * will return {@code "123"}. {@code horizon} is treated as a transparent,
      * non-anchoring bound. (refer to
      * {@link Matcher#useTransparentBounds(boolean)} and
@@ -516,7 +503,7 @@ public final class Scanner implements Iterator<String> {
                 resetMatcher();
             }
         }
-        if (null != result) {
+        if (result != null) {
             findStartIndex = matcher.end();
             matchSuccessful = true;
         } else {
@@ -1423,7 +1410,7 @@ public final class Scanner implements Iterator<String> {
             }
         }
         // Find text without line terminator here.
-        if (null != result) {
+        if (result != null) {
             Matcher terminatorMatcher = LINE_TERMINATOR.matcher(result);
             if (terminatorMatcher.find()) {
                 result = result.substring(0, terminatorMatcher.start());
@@ -1676,8 +1663,8 @@ public final class Scanner implements Iterator<String> {
      * @return this {@code Scanner}.
      */
     public Scanner useLocale(Locale l) {
-        if (null == l) {
-            throw new NullPointerException();
+        if (l == null) {
+            throw new NullPointerException("l == null");
         }
         this.locale = l;
         return this;
@@ -1736,8 +1723,8 @@ public final class Scanner implements Iterator<String> {
      * will be thrown out.
      */
     private void checkNull(Pattern pattern) {
-        if (null == pattern) {
-            throw new NullPointerException();
+        if (pattern == null) {
+            throw new NullPointerException("pattern == null");
         }
     }
 
@@ -1745,7 +1732,7 @@ public final class Scanner implements Iterator<String> {
      * Change the matcher's string after reading input
      */
     private void resetMatcher() {
-        if (null == matcher) {
+        if (matcher == null) {
             matcher = delimiter.matcher(buffer);
         } else {
             matcher.reset(buffer);
@@ -1955,7 +1942,7 @@ public final class Scanner implements Iterator<String> {
             }
         }
         // Token is NaN or Infinity
-        if (0 == result.length()) {
+        if (result.length() == 0) {
             result = tokenBuilder;
         }
         if (-1 != separatorIndex) {
@@ -1978,10 +1965,10 @@ public final class Scanner implements Iterator<String> {
         String negativePrefix = decimalFormat.getNegativePrefix();
         String negativeSuffix = decimalFormat.getNegativeSuffix();
 
-        if (0 == tokenBuilder.indexOf("+")) {
+        if (tokenBuilder.indexOf("+") == 0) {
             tokenBuilder.delete(0, 1);
         }
-        if (!positivePrefix.isEmpty() && 0 == tokenBuilder.indexOf(positivePrefix)) {
+        if (!positivePrefix.isEmpty() && tokenBuilder.indexOf(positivePrefix) == 0) {
             tokenBuilder.delete(0, positivePrefix.length());
         }
         if (!positiveSuffix.isEmpty()
@@ -1991,12 +1978,11 @@ public final class Scanner implements Iterator<String> {
                     tokenBuilder.length());
         }
         boolean negative = false;
-        if (0 == tokenBuilder.indexOf("-")) {
+        if (tokenBuilder.indexOf("-") == 0) {
             tokenBuilder.delete(0, 1);
             negative = true;
         }
-        if (!negativePrefix.isEmpty()
-                && 0 == tokenBuilder.indexOf(negativePrefix)) {
+        if (!negativePrefix.isEmpty() && tokenBuilder.indexOf(negativePrefix) == 0) {
             tokenBuilder.delete(0, negativePrefix.length());
             negative = true;
         }

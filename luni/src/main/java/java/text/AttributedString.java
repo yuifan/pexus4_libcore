@@ -105,7 +105,7 @@ public class AttributedString {
                 }
                 return clone;
             } catch (CloneNotSupportedException e) {
-                throw new AssertionError(e); // android-changed
+                throw new AssertionError(e);
             }
         }
 
@@ -506,15 +506,9 @@ public class AttributedString {
      */
     public AttributedString(AttributedCharacterIterator iterator, int start,
             int end, AttributedCharacterIterator.Attribute[] attributes) {
-        // BEGIN android-removed
-        // this(iterator, start, end, new HashSet<Attribute>(Arrays
-        //         .asList(attributes)));
-        // END android-removed
-        // BEGIN android-added
         this(iterator, start, end, (attributes == null
                 ? new HashSet<Attribute>()
                 : new HashSet<Attribute>(Arrays.asList(attributes))));
-        // END android-added
     }
 
     /**
@@ -525,7 +519,7 @@ public class AttributedString {
      */
     public AttributedString(String value) {
         if (value == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("value == null");
         }
         text = value;
         attributeMap = new HashMap<Attribute, List<Range>>(11);
@@ -548,7 +542,7 @@ public class AttributedString {
     public AttributedString(String value,
             Map<? extends AttributedCharacterIterator.Attribute, ?> attributes) {
         if (value == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("value == null");
         }
         if (value.length() == 0 && !attributes.isEmpty()) {
             throw new IllegalArgumentException("Cannot add attributes to empty string");
@@ -579,13 +573,12 @@ public class AttributedString {
      * @throws NullPointerException
      *             if {@code attribute} is {@code null}.
      */
-    public void addAttribute(AttributedCharacterIterator.Attribute attribute,
-            Object value) {
-        if (null == attribute) {
-            throw new NullPointerException();
+    public void addAttribute(AttributedCharacterIterator.Attribute attribute, Object value) {
+        if (attribute == null) {
+            throw new NullPointerException("attribute == null");
         }
-        if (text.length() == 0) {
-            throw new IllegalArgumentException();
+        if (text.isEmpty()) {
+            throw new IllegalArgumentException("text is empty");
         }
 
         List<Range> ranges = attributeMap.get(attribute);
@@ -618,8 +611,8 @@ public class AttributedString {
      */
     public void addAttribute(AttributedCharacterIterator.Attribute attribute,
             Object value, int start, int end) {
-        if (null == attribute) {
-            throw new NullPointerException();
+        if (attribute == null) {
+            throw new NullPointerException("attribute == null");
         }
         if (start < 0 || end > text.length() || start >= end) {
             throw new IllegalArgumentException();

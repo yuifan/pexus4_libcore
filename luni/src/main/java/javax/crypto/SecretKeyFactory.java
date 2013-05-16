@@ -42,7 +42,7 @@ import org.apache.harmony.security.fortress.Engine;
 public class SecretKeyFactory {
 
     // Used to access common engine functionality
-    private static final Engine engine = new Engine("SecretKeyFactory");
+    private static final Engine ENGINE = new Engine("SecretKeyFactory");
 
     // Store used provider
     private final Provider provider;
@@ -103,13 +103,10 @@ public class SecretKeyFactory {
     public static final SecretKeyFactory getInstance(String algorithm)
             throws NoSuchAlgorithmException {
         if (algorithm == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("algorithm == null");
         }
-        synchronized (engine) {
-            engine.getInstance(algorithm, null);
-            return new SecretKeyFactory((SecretKeyFactorySpi) engine.spi,
-                    engine.provider, algorithm);
-        }
+        Engine.SpiAndProvider sap = ENGINE.getInstance(algorithm, null);
+        return new SecretKeyFactory((SecretKeyFactorySpi) sap.spi, sap.provider, algorithm);
     }
 
     /**
@@ -168,13 +165,10 @@ public class SecretKeyFactory {
             throw new IllegalArgumentException("provider == null");
         }
         if (algorithm == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("algorithm == null");
         }
-        synchronized (engine) {
-            engine.getInstance(algorithm, provider, null);
-            return new SecretKeyFactory((SecretKeyFactorySpi) engine.spi, provider,
-                    algorithm);
-        }
+        Object spi = ENGINE.getInstance(algorithm, provider, null);
+        return new SecretKeyFactory((SecretKeyFactorySpi) spi, provider, algorithm);
     }
 
     /**

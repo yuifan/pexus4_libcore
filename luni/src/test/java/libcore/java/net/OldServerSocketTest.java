@@ -33,7 +33,6 @@ import java.nio.channels.IllegalBlockingModeException;
 import java.nio.channels.ServerSocketChannel;
 import java.security.Permission;
 import java.util.Properties;
-import tests.support.Support_PortManager;
 
 public class OldServerSocketTest extends OldSocketTestCase {
 
@@ -86,10 +85,9 @@ public class OldServerSocketTest extends OldSocketTestCase {
     }
 
     public void test_ConstructorII() throws IOException {
-        int freePortNumber = Support_PortManager.getNextPort();
-        s = new ServerSocket(freePortNumber, 1);
+        s = new ServerSocket(0, 1);
         s.setSoTimeout(2000);
-        startClient(freePortNumber);
+        startClient(s.getLocalPort());
         sconn = s.accept();
         sconn.close();
         s.close();
@@ -133,10 +131,9 @@ public class OldServerSocketTest extends OldSocketTestCase {
     }
 
     public void test_ConstructorI() throws Exception {
-        int portNumber = Support_PortManager.getNextPort();
-        s = new ServerSocket(portNumber);
+        s = new ServerSocket(0);
         try {
-            new ServerSocket(portNumber);
+            new ServerSocket(s.getLocalPort());
             fail("IOException was not thrown.");
         } catch(IOException ioe) {
             //expected
@@ -162,11 +159,9 @@ public class OldServerSocketTest extends OldSocketTestCase {
     }
 
     public void test_ConstructorIILjava_net_InetAddress() throws IOException {
-        int freePortNumber = Support_PortManager.getNextPort();
-
-        ServerSocket ss = new ServerSocket(freePortNumber, 10, InetAddress.getLocalHost());
+        ServerSocket ss = new ServerSocket(0, 10, InetAddress.getLocalHost());
         try {
-            new ServerSocket(freePortNumber, 10, InetAddress.getLocalHost());
+            new ServerSocket(ss.getLocalPort(), 10, InetAddress.getLocalHost());
             fail("IOException was not thrown.");
         } catch(IOException expected) {
         }
@@ -217,9 +212,7 @@ public class OldServerSocketTest extends OldSocketTestCase {
     }
 
     public void test_accept() throws IOException {
-        int portNumber = Support_PortManager.getNextPort();
-
-        ServerSocket newSocket = new ServerSocket(portNumber);
+        ServerSocket newSocket = new ServerSocket(0);
         newSocket.setSoTimeout(500);
         try {
             Socket accepted = newSocket.accept();
@@ -242,25 +235,24 @@ public class OldServerSocketTest extends OldSocketTestCase {
         }
     }
 
-    public void test_getSoTimeout() throws IOException {
-        ServerSocket newSocket = new ServerSocket();
-        newSocket.close();
-        try {
-            newSocket.setSoTimeout(100);
-            fail("SocketException was not thrown.");
-        } catch(SocketException e) {
-            //expected
+    public void test_getSoTimeout_setSoTimeout() throws Exception {
+        // TODO: a useful test would check that setSoTimeout actually causes timeouts!
+        ServerSocket s = new ServerSocket();
+        s.setSoTimeout(1500);
+        int ms = s.getSoTimeout();
+        if (ms < 1500-10 || ms > 1500+10) {
+            fail("suspicious timeout: " + ms);
         }
-    }
-
-    public void test_setSoTimeoutI() throws IOException {
-        ServerSocket newSocket = new ServerSocket();
-        newSocket.close();
+        s.close();
         try {
-            newSocket.setSoTimeout(100);
+            s.getSoTimeout();
             fail("SocketException was not thrown.");
-        } catch(SocketException se) {
-            //expected
+        } catch (SocketException expected) {
+        }
+        try {
+            s.setSoTimeout(1000);
+            fail("SocketException was not thrown.");
+        } catch (SocketException expected) {
         }
     }
 

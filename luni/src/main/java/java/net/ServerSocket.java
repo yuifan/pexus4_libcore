@@ -19,7 +19,6 @@ package java.net;
 
 import java.io.IOException;
 import java.nio.channels.ServerSocketChannel;
-import org.apache.harmony.luni.net.PlainServerSocketImpl;
 
 /**
  * This class represents a server-side socket that waits for incoming client
@@ -28,101 +27,79 @@ import org.apache.harmony.luni.net.PlainServerSocketImpl;
  * implemented by an internal {@code SocketImpl} instance.
  */
 public class ServerSocket {
+    /**
+     * The RI specifies that where the caller doesn't give an explicit backlog,
+     * the default is 50. The OS disagrees, so we need to explicitly call listen(2).
+     */
+    private static final int DEFAULT_BACKLOG = 50;
 
-    SocketImpl impl;
+    private final SocketImpl impl;
+
+    /**
+     * @hide internal use only
+     */
+    public SocketImpl getImpl$() {
+        return impl;
+    }
 
     static SocketImplFactory factory;
-
-    private volatile boolean isCreated;
 
     private boolean isBound;
 
     private boolean isClosed;
 
     /**
-     * Constructs a new {@code ServerSocket} instance which is not bound to any
-     * port. The default number of pending connections may be backlogged.
+     * Constructs a new unbound {@code ServerSocket}.
      *
-     * @throws IOException
-     *             if an error occurs while creating the server socket.
+     * @throws IOException if an error occurs while creating the socket.
      */
     public ServerSocket() throws IOException {
-        impl = factory != null ? factory.createSocketImpl()
+        this.impl = factory != null ? factory.createSocketImpl()
                 : new PlainServerSocketImpl();
+        impl.create(true);
     }
 
     /**
-     * Unspecified constructor needed by ServerSocketChannelImpl.ServerSocketAdapter.
+     * Constructs a new {@code ServerSocket} instance bound to the given {@code port}.
+     * The backlog is set to 50. If {@code port == 0}, a port will be assigned by the OS.
      *
-     * @hide
+     * @throws IOException if an error occurs while creating the socket.
      */
-    protected ServerSocket(SocketImpl impl) {
-        this.impl = impl;
+    public ServerSocket(int port) throws IOException {
+        this(port, DEFAULT_BACKLOG, Inet4Address.ANY);
     }
 
     /**
-     * Constructs a new {@code ServerSocket} instance bound to the nominated
-     * port on the localhost. The default number of pending connections may be
-     * backlogged. If {@code aport} is 0 a free port is assigned to the socket.
+     * Constructs a new {@code ServerSocket} instance bound to the given {@code port}.
+     * The backlog is set to {@code backlog}.
+     * If {@code port == 0}, a port will be assigned by the OS.
      *
-     * @param aport
-     *            the port number to listen for connection requests on.
-     * @throws IOException
-     *             if an error occurs while creating the server socket.
+     * @throws IOException if an error occurs while creating the socket.
      */
-    public ServerSocket(int aport) throws IOException {
-        this(aport, defaultBacklog(), Inet4Address.ANY);
+    public ServerSocket(int port, int backlog) throws IOException {
+        this(port, backlog, Inet4Address.ANY);
     }
 
     /**
-     * Constructs a new {@code ServerSocket} instance bound to the nominated
-     * port on the localhost. The number of pending connections that may be
-     * backlogged is specified by {@code backlog}. If {@code aport} is 0 a free
-     * port is assigned to the socket.
+     * Constructs a new {@code ServerSocket} instance bound to the given {@code localAddress}
+     * and {@code port}. The backlog is set to {@code backlog}.
+     * If {@code localAddress == null}, the ANY address is used.
+     * If {@code port == 0}, a port will be assigned by the OS.
      *
-     * @param aport
-     *            the port number to listen for connection requests on.
-     * @param backlog
-     *            the number of pending connection requests, before requests
-     *            will be rejected.
-     * @throws IOException
-     *             if an error occurs while creating the server socket.
+     * @throws IOException if an error occurs while creating the socket.
      */
-    public ServerSocket(int aport, int backlog) throws IOException {
-        this(aport, backlog, Inet4Address.ANY);
-    }
-
-    /**
-     * Constructs a new {@code ServerSocket} instance bound to the nominated
-     * local host address and port. The number of pending connections that may
-     * be backlogged is specified by {@code backlog}. If {@code aport} is 0 a
-     * free port is assigned to the socket.
-     *
-     * @param aport
-     *            the port number to listen for connection requests on.
-     * @param localAddr
-     *            the local machine address to bind on.
-     * @param backlog
-     *            the number of pending connection requests, before requests
-     *            will be rejected.
-     * @throws IOException
-     *             if an error occurs while creating the server socket.
-     */
-    public ServerSocket(int aport, int backlog, InetAddress localAddr)
-            throws IOException {
-        super();
-        checkListen(aport);
-        impl = factory != null ? factory.createSocketImpl()
+    public ServerSocket(int port, int backlog, InetAddress localAddress) throws IOException {
+        checkListen(port);
+        this.impl = factory != null ? factory.createSocketImpl()
                 : new PlainServerSocketImpl();
-        InetAddress addr = localAddr == null ? Inet4Address.ANY : localAddr;
+        InetAddress addr = (localAddress == null) ? Inet4Address.ANY : localAddress;
 
         synchronized (this) {
             impl.create(true);
-            isCreated = true;
             try {
-                impl.bind(addr, aport);
+                impl.bind(addr, port);
                 isBound = true;
-                impl.listen(backlog > 0 ? backlog : defaultBacklog());
+                impl.listen(backlog > 0 ? backlog : DEFAULT_BACKLOG);
             } catch (IOException e) {
                 close();
                 throw e;
@@ -140,7 +117,7 @@ public class ServerSocket {
      *             if an error occurs while accepting a new connection.
      */
     public Socket accept() throws IOException {
-        checkClosedAndCreate(false);
+        checkOpen();
         if (!isBound()) {
             throw new SocketException("Socket is not bound");
         }
@@ -148,9 +125,6 @@ public class ServerSocket {
         Socket aSocket = new Socket();
         try {
             implAccept(aSocket);
-        } catch (SecurityException e) {
-            aSocket.close();
-            throw e;
         } catch (IOException e) {
             aSocket.close();
             throw e;
@@ -158,21 +132,9 @@ public class ServerSocket {
         return aSocket;
     }
 
-    /**
-     * Checks whether the server may listen for connection requests on {@code
-     * aport}. Throws an exception if the port is outside the valid range
-     * {@code 0 <= aport <= 65535 }or does not satisfy the security policy.
-     *
-     * @param aPort
-     *            the candidate port to listen on.
-     */
-    void checkListen(int aPort) {
+    private void checkListen(int aPort) {
         if (aPort < 0 || aPort > 65535) {
             throw new IllegalArgumentException("Port out of range: " + aPort);
-        }
-        SecurityManager security = System.getSecurityManager();
-        if (security != null) {
-            security.checkListen(aPort);
         }
     }
 
@@ -186,17 +148,6 @@ public class ServerSocket {
     public void close() throws IOException {
         isClosed = true;
         impl.close();
-    }
-
-    /**
-     * Returns the default number of pending connections on a server socket. If
-     * the backlog value maximum is reached, any subsequent incoming request is
-     * rejected.
-     *
-     * @return int the default number of pending connection requests
-     */
-    static int defaultBacklog() {
-        return 50;
     }
 
     /**
@@ -232,20 +183,7 @@ public class ServerSocket {
      *             if the option cannot be retrieved.
      */
     public synchronized int getSoTimeout() throws IOException {
-        if (!isCreated) {
-            synchronized (this) {
-                if (!isCreated) {
-                    try {
-                        impl.create(true);
-                    } catch (SocketException e) {
-                        throw e;
-                    } catch (IOException e) {
-                        throw new SocketException(e.toString());
-                    }
-                    isCreated = true;
-                }
-            }
-        }
+        checkOpen();
         return ((Integer) impl.getOption(SocketOptions.SO_TIMEOUT)).intValue();
     }
 
@@ -264,11 +202,6 @@ public class ServerSocket {
             impl.accept(aSocket.impl);
             aSocket.accepted();
         }
-        SecurityManager security = System.getSecurityManager();
-        if (security != null) {
-            security.checkAccept(aSocket.getInetAddress().getHostAddress(),
-                    aSocket.getPort());
-        }
     }
 
     /**
@@ -282,12 +215,7 @@ public class ServerSocket {
      * @throws IOException
      *             if the factory could not be set or is already set.
      */
-    public static synchronized void setSocketFactory(SocketImplFactory aFactory)
-            throws IOException {
-        SecurityManager security = System.getSecurityManager();
-        if (security != null) {
-            security.checkSetFactory();
-        }
+    public static synchronized void setSocketFactory(SocketImplFactory aFactory) throws IOException {
         if (factory != null) {
             throw new SocketException("Factory already set");
         }
@@ -306,7 +234,7 @@ public class ServerSocket {
      *             if an error occurs while setting the option.
      */
     public synchronized void setSoTimeout(int timeout) throws SocketException {
-        checkClosedAndCreate(true);
+        checkOpen();
         if (timeout < 0) {
             throw new IllegalArgumentException("timeout < 0");
         }
@@ -350,7 +278,7 @@ public class ServerSocket {
      *             binding.
      */
     public void bind(SocketAddress localAddr) throws IOException {
-        bind(localAddr, defaultBacklog());
+        bind(localAddr, DEFAULT_BACKLOG);
     }
 
     /**
@@ -367,7 +295,7 @@ public class ServerSocket {
      *     during binding.
      */
     public void bind(SocketAddress localAddr, int backlog) throws IOException {
-        checkClosedAndCreate(true);
+        checkOpen();
         if (isBound()) {
             throw new BindException("Socket is already bound");
         }
@@ -384,16 +312,12 @@ public class ServerSocket {
             }
             port = inetAddr.getPort();
         }
-        SecurityManager security = System.getSecurityManager();
-        if (security != null) {
-            security.checkListen(port);
-        }
 
         synchronized (this) {
             try {
                 impl.bind(addr, port);
                 isBound = true;
-                impl.listen(backlog > 0 ? backlog : defaultBacklog());
+                impl.listen(backlog > 0 ? backlog : DEFAULT_BACKLOG);
             } catch (IOException e) {
                 close();
                 throw e;
@@ -433,30 +357,9 @@ public class ServerSocket {
         return isClosed;
     }
 
-    /**
-     * Checks whether the socket is closed, and throws an exception.
-     */
-    private void checkClosedAndCreate(boolean create) throws SocketException {
+    private void checkOpen() throws SocketException {
         if (isClosed()) {
             throw new SocketException("Socket is closed");
-        }
-
-        if (!create || isCreated) {
-            return;
-        }
-
-        synchronized (this) {
-            if (isCreated) {
-                return;
-            }
-            try {
-                impl.create(true);
-            } catch (SocketException e) {
-                throw e;
-            } catch (IOException e) {
-                throw new SocketException(e.toString());
-            }
-            isCreated = true;
         }
     }
 
@@ -469,7 +372,7 @@ public class ServerSocket {
      *             if an error occurs while setting the option value.
      */
     public void setReuseAddress(boolean reuse) throws SocketException {
-        checkClosedAndCreate(true);
+        checkOpen();
         impl.setOption(SocketOptions.SO_REUSEADDR, Boolean.valueOf(reuse));
     }
 
@@ -481,23 +384,15 @@ public class ServerSocket {
      *             if an error occurs while reading the option value.
      */
     public boolean getReuseAddress() throws SocketException {
-        checkClosedAndCreate(true);
-        return ((Boolean) impl.getOption(SocketOptions.SO_REUSEADDR))
-                .booleanValue();
+        checkOpen();
+        return ((Boolean) impl.getOption(SocketOptions.SO_REUSEADDR)).booleanValue();
     }
 
     /**
-     * Sets the server socket receive buffer size {@code
-     * SocketOptions.SO_RCVBUF}.
-     *
-     * @param size
-     *            the buffer size in bytes.
-     * @throws SocketException
-     *             if an error occurs while setting the size or the size is
-     *             invalid.
+     * Sets this socket's {@link SocketOptions#SO_SNDBUF receive buffer size}.
      */
     public void setReceiveBufferSize(int size) throws SocketException {
-        checkClosedAndCreate(true);
+        checkOpen();
         if (size < 1) {
             throw new IllegalArgumentException("size < 1");
         }
@@ -505,24 +400,19 @@ public class ServerSocket {
     }
 
     /**
-     * Gets the value for the receive buffer size socket option {@code
-     * SocketOptions.SO_RCVBUF}.
-     *
-     * @return the receive buffer size of this socket.
-     * @throws SocketException
-     *             if an error occurs while reading the option value.
+     * Returns this socket's {@link SocketOptions#SO_RCVBUF receive buffer size}.
      */
     public int getReceiveBufferSize() throws SocketException {
-        checkClosedAndCreate(true);
+        checkOpen();
         return ((Integer) impl.getOption(SocketOptions.SO_RCVBUF)).intValue();
     }
 
     /**
-     * Gets the related channel if this instance was created by a
-     * {@code ServerSocketChannel}. The current implementation returns always {@code
-     * null}.
-     *
-     * @return the related {@code ServerSocketChannel} if any.
+     * Returns this socket's {@code ServerSocketChannel}, if one exists. A channel is
+     * available only if this socket wraps a channel. (That is, you can go from a
+     * channel to a socket and back again, but you can't go from an arbitrary socket to a channel.)
+     * In practice, this means that the socket must have been created by
+     * {@link java.nio.channels.ServerSocketChannel#open}.
      */
     public ServerSocketChannel getChannel() {
         return null;
@@ -541,8 +431,7 @@ public class ServerSocket {
      * @param bandwidth
      *            the value representing the importance of high bandwidth.
      */
-    public void setPerformancePreferences(int connectionTime, int latency,
-            int bandwidth) {
+    public void setPerformancePreferences(int connectionTime, int latency, int bandwidth) {
         // Our socket implementation only provide one protocol: TCP/IP, so
         // we do nothing for this method
     }

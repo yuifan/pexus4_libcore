@@ -19,6 +19,7 @@ package org.apache.harmony.xml;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
+import libcore.io.IoUtils;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.DTDHandler;
 import org.xml.sax.EntityResolver;
@@ -52,24 +53,26 @@ public class ExpatReader implements XMLReader {
             = "http://xml.org/sax/properties/lexical-handler";
 
     private static class Feature {
-
         private static final String BASE_URI = "http://xml.org/sax/features/";
-
         private static final String VALIDATION = BASE_URI + "validation";
         private static final String NAMESPACES = BASE_URI + "namespaces";
-        private static final String NAMESPACE_PREFIXES
-                = BASE_URI + "namespace-prefixes";
-        private static final String STRING_INTERNING
-                = BASE_URI + "string-interning";
+        private static final String NAMESPACE_PREFIXES = BASE_URI + "namespace-prefixes";
+        private static final String STRING_INTERNING = BASE_URI + "string-interning";
+        private static final String EXTERNAL_GENERAL_ENTITIES
+                = BASE_URI + "external-general-entities";
+        private static final String EXTERNAL_PARAMETER_ENTITIES
+                = BASE_URI + "external-parameter-entities";
     }
 
     public boolean getFeature(String name)
             throws SAXNotRecognizedException, SAXNotSupportedException {
         if (name == null) {
-            throw new NullPointerException("name");
+            throw new NullPointerException("name == null");
         }
 
-        if (name.equals(Feature.VALIDATION)) {
+        if (name.equals(Feature.VALIDATION)
+                || name.equals(Feature.EXTERNAL_GENERAL_ENTITIES)
+                || name.equals(Feature.EXTERNAL_PARAMETER_ENTITIES)) {
             return false;
         }
 
@@ -91,10 +94,12 @@ public class ExpatReader implements XMLReader {
     public void setFeature(String name, boolean value)
             throws SAXNotRecognizedException, SAXNotSupportedException {
         if (name == null) {
-            throw new NullPointerException("name");
+            throw new NullPointerException("name == null");
         }
 
-        if (name.equals(Feature.VALIDATION)) {
+        if (name.equals(Feature.VALIDATION)
+                || name.equals(Feature.EXTERNAL_GENERAL_ENTITIES)
+                || name.equals(Feature.EXTERNAL_PARAMETER_ENTITIES)) {
             if (value) {
                 throw new SAXNotSupportedException("Cannot enable " + name);
             } else {
@@ -128,7 +133,7 @@ public class ExpatReader implements XMLReader {
     public Object getProperty(String name)
             throws SAXNotRecognizedException, SAXNotSupportedException {
         if (name == null) {
-            throw new NullPointerException("name");
+            throw new NullPointerException("name == null");
         }
 
         if (name.equals(LEXICAL_HANDLER_PROPERTY)) {
@@ -141,7 +146,7 @@ public class ExpatReader implements XMLReader {
     public void setProperty(String name, Object value)
             throws SAXNotRecognizedException, SAXNotSupportedException {
         if (name == null) {
-            throw new NullPointerException("name");
+            throw new NullPointerException("name == null");
         }
 
         if (name.equals(LEXICAL_HANDLER_PROPERTY)) {
@@ -261,8 +266,7 @@ public class ExpatReader implements XMLReader {
             try {
                 parse(reader, input.getPublicId(), input.getSystemId());
             } finally {
-                // TODO: Don't eat original exception when close() throws.
-                reader.close();
+                IoUtils.closeQuietly(reader);
             }
             return;
         }
@@ -274,8 +278,7 @@ public class ExpatReader implements XMLReader {
             try {
                 parse(in, encoding, input.getPublicId(), input.getSystemId());
             } finally {
-                // TODO: Don't eat original exception when close() throws.
-                in.close();
+                IoUtils.closeQuietly(in);
             }
             return;
         }
@@ -290,7 +293,7 @@ public class ExpatReader implements XMLReader {
         try {
             parse(in, encoding, input.getPublicId(), systemId);
         } finally {
-            in.close();
+            IoUtils.closeQuietly(in);
         }
     }
 
@@ -306,15 +309,10 @@ public class ExpatReader implements XMLReader {
         parser.parseDocument(in);
     }
 
-    private void parse(InputStream in, String encoding, String publicId,
-            String systemId) throws IOException, SAXException {
-        ExpatParser parser = new ExpatParser(
-                encoding,
-                this,
-                processNamespaces,
-                publicId,
-                systemId
-        );
+    private void parse(InputStream in, String charsetName, String publicId, String systemId)
+            throws IOException, SAXException {
+        ExpatParser parser =
+            new ExpatParser(charsetName, this, processNamespaces, publicId, systemId);
         parser.parseDocument(in);
     }
 

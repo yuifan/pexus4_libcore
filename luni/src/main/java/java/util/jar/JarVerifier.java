@@ -25,14 +25,15 @@ import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.Certificate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Map;
 import java.util.StringTokenizer;
 import java.util.Vector;
-import org.apache.harmony.luni.util.Base64;
-import org.apache.harmony.luni.util.Util;
+import libcore.io.Base64;
 import org.apache.harmony.security.utils.JarUtils;
 
 /**
@@ -50,6 +51,16 @@ import org.apache.harmony.security.utils.JarUtils;
  * </ul>
  */
 class JarVerifier {
+    /**
+     * List of accepted digest algorithms. This list is in order from most
+     * preferred to least preferred.
+     */
+    private static final String[] DIGEST_ALGORITHMS = new String[] {
+        "SHA-512",
+        "SHA-384",
+        "SHA-256",
+        "SHA1",
+    };
 
     private final String jarName;
 
@@ -171,48 +182,35 @@ class JarVerifier {
             return null;
         }
 
-        Vector<Certificate> certs = new Vector<Certificate>();
-        Iterator<Map.Entry<String, HashMap<String, Attributes>>> it = signatures
-                .entrySet().iterator();
+        ArrayList<Certificate> certs = new ArrayList<Certificate>();
+        Iterator<Map.Entry<String, HashMap<String, Attributes>>> it = signatures.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<String, HashMap<String, Attributes>> entry = it.next();
             HashMap<String, Attributes> hm = entry.getValue();
             if (hm.get(name) != null) {
                 // Found an entry for entry name in .SF file
                 String signatureFile = entry.getKey();
-
-                Vector<Certificate> newCerts = getSignerCertificates(
-                        signatureFile, certificates);
-                Iterator<Certificate> iter = newCerts.iterator();
-                while (iter.hasNext()) {
-                    certs.add(iter.next());
-                }
+                certs.addAll(getSignerCertificates(signatureFile, certificates));
             }
         }
 
         // entry is not signed
-        if (certs.size() == 0) {
+        if (certs.isEmpty()) {
             return null;
         }
-        Certificate[] certificatesArray = new Certificate[certs.size()];
-        certs.toArray(certificatesArray);
+        Certificate[] certificatesArray = certs.toArray(new Certificate[certs.size()]);
 
-        String algorithms = attributes.getValue("Digest-Algorithms");
-        if (algorithms == null) {
-            algorithms = "SHA SHA1";
-        }
-        StringTokenizer tokens = new StringTokenizer(algorithms);
-        while (tokens.hasMoreTokens()) {
-            String algorithm = tokens.nextToken();
-            String hash = attributes.getValue(algorithm + "-Digest");
+        for (int i = 0; i < DIGEST_ALGORITHMS.length; i++) {
+            final String algorithm = DIGEST_ALGORITHMS[i];
+            final String hash = attributes.getValue(algorithm + "-Digest");
             if (hash == null) {
                 continue;
             }
             byte[] hashBytes = hash.getBytes(Charsets.ISO_8859_1);
 
             try {
-                return new VerifierEntry(name, MessageDigest
-                        .getInstance(algorithm), hashBytes, certificatesArray);
+                return new VerifierEntry(name, MessageDigest.getInstance(algorithm), hashBytes,
+                        certificatesArray);
             } catch (NoSuchAlgorithmException e) {
                 // ignored
             }
@@ -234,7 +232,7 @@ class JarVerifier {
      * @see #removeMetaEntries()
      */
     void addMetaEntry(String name, byte[] buf) {
-        metaEntries.put(Util.toASCIIUpperCase(name), buf);
+        metaEntries.put(name.toUpperCase(Locale.US), buf);
     }
 
     /**
@@ -261,7 +259,7 @@ class JarVerifier {
         Iterator<String> it = metaEntries.keySet().iterator();
         while (it.hasNext()) {
             String key = it.next();
-            if (key.endsWith(".DSA") || key.endsWith(".RSA")) {
+            if (key.endsWith(".DSA") || key.endsWith(".RSA") || key.endsWith(".EC")) {
                 verifyCertificate(key);
                 // Check for recursive class load
                 if (metaEntries == null) {
@@ -300,7 +298,7 @@ class JarVerifier {
              * Recursive call in loading security provider related class which
              * is in a signed JAR.
              */
-            if (null == metaEntries) {
+            if (metaEntries == null) {
                 return;
             }
             if (signerCertChain != null) {
@@ -316,9 +314,14 @@ class JarVerifier {
         Attributes attributes = new Attributes();
         HashMap<String, Attributes> entries = new HashMap<String, Attributes>();
         try {
-            InitManifest im = new InitManifest(sfBytes, attributes, Attributes.Name.SIGNATURE_VERSION);
+            InitManifest im = new InitManifest(sfBytes, attributes);
             im.initEntries(entries, null);
         } catch (IOException e) {
+            return;
+        }
+
+        // Do we actually have any signatures to look at?
+        if (attributes.get(Attributes.Name.SIGNATURE_VERSION) == null) {
             return;
         }
 
@@ -385,13 +388,8 @@ class JarVerifier {
 
     private boolean verify(Attributes attributes, String entry, byte[] data,
             int start, int end, boolean ignoreSecondEndline, boolean ignorable) {
-        String algorithms = attributes.getValue("Digest-Algorithms");
-        if (algorithms == null) {
-            algorithms = "SHA SHA1";
-        }
-        StringTokenizer tokens = new StringTokenizer(algorithms);
-        while (tokens.hasMoreTokens()) {
-            String algorithm = tokens.nextToken();
+        for (int i = 0; i < DIGEST_ALGORITHMS.length; i++) {
+            String algorithm = DIGEST_ALGORITHMS[i];
             String hash = attributes.getValue(algorithm + entry);
             if (hash == null) {
                 continue;

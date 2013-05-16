@@ -19,8 +19,6 @@ package java.util.logging;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
-import java.security.AccessController;
-import java.security.PrivilegedExceptionAction;
 
 /**
  * A {@code Handler} object accepts a logging request and exports the desired
@@ -66,7 +64,7 @@ public abstract class Handler {
     // get a instance from given class name, using Class.forName()
     private Object getDefaultInstance(String className) {
         Object result = null;
-        if (null == className) {
+        if (className == null) {
             return result;
         }
         try {
@@ -78,19 +76,12 @@ public abstract class Handler {
     }
 
     // get a instance from given class name, using context classloader
-    private Object getCustomizeInstance(final String className)
-            throws Exception {
-        Class<?> c = AccessController
-                .doPrivileged(new PrivilegedExceptionAction<Class<?>>() {
-                    public Class<?> run() throws Exception {
-                        ClassLoader loader = Thread.currentThread()
-                                .getContextClassLoader();
-                        if (null == loader) {
-                            loader = ClassLoader.getSystemClassLoader();
-                        }
-                        return loader.loadClass(className);
-                    }
-                });
+    private Object getCustomizeInstance(final String className) throws Exception {
+        ClassLoader loader = Thread.currentThread().getContextClassLoader();
+        if (loader == null) {
+            loader = ClassLoader.getSystemClassLoader();
+        }
+        Class<?> c = loader.loadClass(className);
         return c.newInstance();
     }
 
@@ -110,7 +101,7 @@ public abstract class Handler {
 
         // set filter
         final String filterName = manager.getProperty(prefix + ".filter");
-        if (null != filterName) {
+        if (filterName != null) {
             try {
                 filter = (Filter) getCustomizeInstance(filterName);
             } catch (Exception e1) {
@@ -123,7 +114,7 @@ public abstract class Handler {
 
         // set level
         String levelName = manager.getProperty(prefix + ".level");
-        if (null != levelName) {
+        if (levelName != null) {
             try {
                 level = Level.parse(levelName);
             } catch (Exception e) {
@@ -136,7 +127,7 @@ public abstract class Handler {
 
         // set formatter
         final String formatterName = manager.getProperty(prefix + ".formatter");
-        if (null != formatterName) {
+        if (formatterName != null) {
             try {
                 formatter = (Formatter) getCustomizeInstance(formatterName);
             } catch (Exception e) {
@@ -160,10 +151,6 @@ public abstract class Handler {
      * Closes this handler. A flush operation will be performed and all the
      * associated resources will be freed. Client applications should not use
      * this handler after closing it.
-     *
-     * @throws SecurityException
-     *             if a security manager determines that the caller does not
-     *             have the required permission.
      */
     public abstract void close();
 
@@ -195,9 +182,6 @@ public abstract class Handler {
      * logging.
      *
      * @return the error manager used by this handler.
-     * @throws SecurityException
-     *             if a security manager determines that the caller does not
-     *             have the required permission.
      */
     public ErrorManager getErrorManager() {
         LogManager.getLogManager().checkAccess();
@@ -242,13 +226,13 @@ public abstract class Handler {
      *         otherwise {@code false}.
      */
     public boolean isLoggable(LogRecord record) {
-        if (null == record) {
-            throw new NullPointerException();
+        if (record == null) {
+            throw new NullPointerException("record == null");
         }
         if (this.level.intValue() == Level.OFF.intValue()) {
             return false;
         } else if (record.getLevel().intValue() >= this.level.intValue()) {
-            return null == this.filter || this.filter.isLoggable(record);
+            return this.filter == null || this.filter.isLoggable(record);
         }
         return false;
     }
@@ -297,37 +281,27 @@ public abstract class Handler {
      * Sets the character encoding used by this handler, {@code null} indicates
      * a default encoding.
      *
-     * @param encoding
-     *            the character encoding to set.
-     * @throws SecurityException
-     *             if a security manager determines that the caller does not
-     *             have the required permission.
-     * @throws UnsupportedEncodingException
-     *             if the specified encoding is not supported by the runtime.
+     * @throws UnsupportedEncodingException if {@code charsetName} is not supported.
      */
-    public void setEncoding(String encoding) throws SecurityException,
-            UnsupportedEncodingException {
+    public void setEncoding(String charsetName) throws UnsupportedEncodingException {
         LogManager.getLogManager().checkAccess();
-        internalSetEncoding(encoding);
+        internalSetEncoding(charsetName);
     }
 
     /**
      * Sets the error manager for this handler.
      *
-     * @param em
+     * @param newErrorManager
      *            the error manager to set.
      * @throws NullPointerException
      *             if {@code em} is {@code null}.
-     * @throws SecurityException
-     *             if a security manager determines that the caller does not
-     *             have the required permission.
      */
-    public void setErrorManager(ErrorManager em) {
+    public void setErrorManager(ErrorManager newErrorManager) {
         LogManager.getLogManager().checkAccess();
-        if (null == em) {
-            throw new NullPointerException();
+        if (newErrorManager == null) {
+            throw new NullPointerException("newErrorManager == null");
         }
-        this.errorMan = em;
+        this.errorMan = newErrorManager;
     }
 
     /**
@@ -335,9 +309,6 @@ public abstract class Handler {
      *
      * @param newFilter
      *            the filter to set, may be {@code null}.
-     * @throws SecurityException
-     *             if a security manager determines that the caller does not
-     *             have the required permission.
      */
     public void setFilter(Filter newFilter) {
         LogManager.getLogManager().checkAccess();
@@ -352,8 +323,8 @@ public abstract class Handler {
      *            the formatter to set.
      */
     void internalSetFormatter(Formatter newFormatter) {
-        if (null == newFormatter) {
-            throw new NullPointerException();
+        if (newFormatter == null) {
+            throw new NullPointerException("newFormatter == null");
         }
         this.formatter = newFormatter;
     }
@@ -365,9 +336,6 @@ public abstract class Handler {
      *            the formatter to set.
      * @throws NullPointerException
      *             if {@code newFormatter} is {@code null}.
-     * @throws SecurityException
-     *             if a security manager determines that the caller does not
-     *             have the required permission.
      */
     public void setFormatter(Formatter newFormatter) {
         LogManager.getLogManager().checkAccess();
@@ -382,13 +350,10 @@ public abstract class Handler {
      *            the logging level to set.
      * @throws NullPointerException
      *             if {@code newLevel} is {@code null}.
-     * @throws SecurityException
-     *             if a security manager determines that the caller does not
-     *             have the required permission.
      */
     public void setLevel(Level newLevel) {
-        if (null == newLevel) {
-            throw new NullPointerException();
+        if (newLevel == null) {
+            throw new NullPointerException("newLevel == null");
         }
         LogManager.getLogManager().checkAccess();
         this.level = newLevel;

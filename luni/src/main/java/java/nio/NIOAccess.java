@@ -16,13 +16,10 @@
 
 package java.nio;
 
-import org.apache.harmony.luni.platform.PlatformAddress;
-import org.apache.harmony.nio.internal.DirectBuffer;
-
 /**
  * This class is used via JNI by code in frameworks/base/.
  */
-class NIOAccess {
+final class NIOAccess {
 
     /**
      * Returns the underlying native pointer to the data of the given
@@ -31,38 +28,23 @@ class NIOAccess {
      * different than what the Harmony implementation calls a "base
      * address."
      *
-     * @param Buffer b the Buffer to be queried
+     * @param b the Buffer to be queried
      * @return the native pointer to the Buffer's data at its current
      * position, or 0 if there is none
      */
     static long getBasePointer(Buffer b) {
-        if (b instanceof DirectBuffer) {
-            PlatformAddress address = ((DirectBuffer) b).getEffectiveAddress();
-            if (address == null) {
-                return 0L;
-            }
-            return address.toInt() + (b.position() << b._elementSizeShift);
+        long address = b.effectiveDirectAddress;
+        if (address == 0) {
+            return 0L;
         }
-        return 0L;
-    }
-
-    /**
-     * Returns the number of bytes remaining in the given Buffer. That is,
-     * this scales <code>remaining()</code> by the byte-size of elements
-     * of this Buffer.
-     *
-     * @param Buffer b the Buffer to be queried
-     * @return the number of remaining bytes
-     */
-    static int getRemainingBytes(Buffer b) {
-        return (b.limit - b.position) << b._elementSizeShift;
+        return address + (b.position << b._elementSizeShift);
     }
 
     /**
      * Returns the underlying Java array containing the data of the
      * given Buffer, or null if the Buffer is not backed by a Java array.
      *
-     * @param Buffer b the Buffer to be queried
+     * @param b the Buffer to be queried
      * @return the Java array containing the Buffer's data, or null if
      * there is none
      */
@@ -73,13 +55,14 @@ class NIOAccess {
     /**
      * Returns the offset in bytes from the start of the underlying
      * Java array object containing the data of the given Buffer to
-     * the actual start of the data. This method is only meaningful if
-     * getBaseArray() returns non-null.
+     * the actual start of the data. The start of the data takes into
+     * account the Buffer's current position. This method is only
+     * meaningful if getBaseArray() returns non-null.
      *
-     * @param Buffer b the Buffer to be queried
+     * @param b the Buffer to be queried
      * @return the data offset in bytes to the start of this Buffer's data
      */
     static int getBaseArrayOffset(Buffer b) {
-        return b.hasArray() ? (b.arrayOffset() << b._elementSizeShift) : 0;
+        return b.hasArray() ? ((b.arrayOffset() + b.position) << b._elementSizeShift) : 0;
     }
 }

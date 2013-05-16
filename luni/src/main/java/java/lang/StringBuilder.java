@@ -38,7 +38,7 @@ import java.io.Serializable;
  * @see Appendable
  * @see StringBuffer
  * @see String
- * @see String.format
+ * @see String#format
  * @since 1.5
  */
 public final class StringBuilder extends AbstractStringBuilder implements
@@ -52,7 +52,6 @@ public final class StringBuilder extends AbstractStringBuilder implements
      * @see #capacity()
      */
     public StringBuilder() {
-        super();
     }
 
     /**
@@ -625,7 +624,7 @@ public final class StringBuilder extends AbstractStringBuilder implements
      *            the inclusive begin index.
      * @param end
      *            the exclusive end index.
-     * @param str
+     * @param string
      *            the replacement string.
      * @return this builder.
      * @throws StringIndexOutOfBoundsException
@@ -634,8 +633,8 @@ public final class StringBuilder extends AbstractStringBuilder implements
      * @throws NullPointerException
      *            if {@code str} is {@code null}.
      */
-    public StringBuilder replace(int start, int end, String str) {
-        replace0(start, end, str);
+    public StringBuilder replace(int start, int end, String string) {
+        replace0(start, end, string);
         return this;
     }
 

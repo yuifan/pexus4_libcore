@@ -76,7 +76,7 @@ public abstract class Format implements Serializable, Cloneable {
         try {
             return super.clone();
         } catch (CloneNotSupportedException e) {
-            throw new AssertionError(e); // android-changed
+            throw new AssertionError(e);
         }
     }
 
@@ -149,7 +149,7 @@ public abstract class Format implements Serializable, Cloneable {
         ParsePosition position = new ParsePosition(0);
         Object result = parseObject(string, position);
         if (position.getIndex() == 0) {
-            throw new ParseException("parse failure", position.getErrorIndex());
+            throw new ParseException("Parse failure", position.getErrorIndex());
         }
         return result;
     }

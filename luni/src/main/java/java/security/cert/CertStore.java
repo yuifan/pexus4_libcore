@@ -17,7 +17,6 @@
 
 package java.security.cert;
 
-import java.security.AccessController;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
@@ -37,14 +36,14 @@ public class CertStore {
     private static final String SERVICE = "CertStore";
 
     // Used to access common engine functionality
-    private static Engine engine = new Engine(SERVICE);
+    private static final Engine ENGINE = new Engine(SERVICE);
 
     // Store default property name
-    private static final String PROPERTYNAME = "certstore.type";
+    private static final String PROPERTY_NAME = "certstore.type";
 
     // Default value of CertStore type. It returns if certpathbuild.type
     // property is not defined in java.security file
-    private static final String DEFAULTPROPERTY = "LDAP";
+    private static final String DEFAULT_PROPERTY = "LDAP";
 
     // Store used provider
     private final Provider provider;
@@ -98,14 +97,11 @@ public class CertStore {
     public static CertStore getInstance(String type, CertStoreParameters params)
             throws InvalidAlgorithmParameterException, NoSuchAlgorithmException {
         if (type == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("type == null");
         }
         try {
-            synchronized (engine) {
-                engine.getInstance(type, params);
-                return new CertStore((CertStoreSpi) engine.spi, engine.provider,
-                        type, params);
-            }
+            Engine.SpiAndProvider sap = ENGINE.getInstance(type, params);
+            return new CertStore((CertStoreSpi) sap.spi, sap.provider, type, params);
         } catch (NoSuchAlgorithmException e) {
             Throwable th = e.getCause();
             if (th == null) {
@@ -144,7 +140,7 @@ public class CertStore {
             throws InvalidAlgorithmParameterException,
             NoSuchAlgorithmException, NoSuchProviderException {
         if (provider == null || provider.isEmpty()) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("provider == null || provider.isEmpty()");
         }
         Provider impProvider = Security.getProvider(provider);
         if (impProvider == null) {
@@ -176,17 +172,14 @@ public class CertStore {
             CertStoreParameters params, Provider provider)
             throws NoSuchAlgorithmException, InvalidAlgorithmParameterException {
         if (provider == null) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("provider == null");
         }
         if (type == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("type == null");
         }
         try {
-            synchronized (engine) {
-                engine.getInstance(type, provider, params);
-                return new CertStore((CertStoreSpi) engine.spi, provider, type,
-                        params);
-            }
+            Object spi = ENGINE.getInstance(type, provider, params);
+            return new CertStore((CertStoreSpi) spi, provider, type, params);
         } catch (NoSuchAlgorithmException e) {
             Throwable th = e.getCause();
             if (th == null) {
@@ -273,12 +266,7 @@ public class CertStore {
      *         determined.
      */
     public static final String getDefaultType() {
-        String defaultType = AccessController
-                .doPrivileged(new java.security.PrivilegedAction<String>() {
-                    public String run() {
-                        return Security.getProperty(PROPERTYNAME);
-                    }
-                });
-        return (defaultType == null ? DEFAULTPROPERTY : defaultType);
+        String defaultType = Security.getProperty(PROPERTY_NAME);
+        return (defaultType == null ? DEFAULT_PROPERTY : defaultType);
     }
 }

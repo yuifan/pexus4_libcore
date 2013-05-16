@@ -39,7 +39,7 @@ public abstract class Signature extends SignatureSpi {
     private static final String SERVICE = "Signature";
 
     // Used to access common engine functionality
-    private static Engine engine = new Engine(SERVICE);
+    private static Engine ENGINE = new Engine(SERVICE);
 
     // The provider
     private Provider provider;
@@ -99,21 +99,18 @@ public abstract class Signature extends SignatureSpi {
     public static Signature getInstance(String algorithm)
             throws NoSuchAlgorithmException {
         if (algorithm == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("algorithm == null");
         }
-        Signature result;
-        synchronized (engine) {
-            engine.getInstance(algorithm, null);
-            if (engine.spi instanceof Signature) {
-                result = (Signature) engine.spi;
-                result.algorithm = algorithm;
-                result.provider = engine.provider;
-            } else {
-                result = new SignatureImpl((SignatureSpi) engine.spi,
-                        engine.provider, algorithm);
-            }
+        Engine.SpiAndProvider sap = ENGINE.getInstance(algorithm, null);
+        Object spi = sap.spi;
+        Provider provider = sap.provider;
+        if (spi instanceof Signature) {
+            Signature result = (Signature) spi;
+            result.algorithm = algorithm;
+            result.provider = provider;
+            return result;
         }
-        return result;
+        return new SignatureImpl((SignatureSpi) spi, provider, algorithm);
     }
 
     /**
@@ -137,7 +134,7 @@ public abstract class Signature extends SignatureSpi {
     public static Signature getInstance(String algorithm, String provider)
             throws NoSuchAlgorithmException, NoSuchProviderException {
         if (algorithm == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("algorithm == null");
         }
         if (provider == null || provider.isEmpty()) {
             throw new IllegalArgumentException();
@@ -168,29 +165,24 @@ public abstract class Signature extends SignatureSpi {
     public static Signature getInstance(String algorithm, Provider provider)
             throws NoSuchAlgorithmException {
         if (algorithm == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("algorithm == null");
         }
         if (provider == null) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("provider == null");
         }
         return getSignatureInstance(algorithm, provider);
     }
 
     private static Signature getSignatureInstance(String algorithm,
             Provider provider) throws NoSuchAlgorithmException {
-        Signature result;
-        synchronized (engine) {
-            engine.getInstance(algorithm, provider, null);
-            if (engine.spi instanceof Signature) {
-                result = (Signature) engine.spi;
-                result.algorithm = algorithm;
-                result.provider = provider;
-            } else {
-                result = new SignatureImpl((SignatureSpi) engine.spi, provider,
-                        algorithm);
-            }
+        Object spi = ENGINE.getInstance(algorithm, provider, null);
+        if (spi instanceof Signature) {
+            Signature result = (Signature) spi;
+            result.algorithm = algorithm;
+            result.provider = provider;
+            return result;
         }
-        return result;
+        return new SignatureImpl((SignatureSpi) spi, provider, algorithm);
     }
 
     /**

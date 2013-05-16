@@ -16,8 +16,6 @@
 package tests.targets.security;
 
 import dalvik.annotation.AndroidOnly;
-import dalvik.annotation.TestLevel;
-import dalvik.annotation.TestTargetNew;
 import java.security.InvalidKeyException;
 import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
@@ -31,11 +29,6 @@ import junit.framework.TestCase;
 
 public class SignatureTestMD2withRSA extends TestCase {
 
-    @TestTargetNew(
-        level = TestLevel.ADDITIONAL,
-        method = "getInstance",
-        args = {String.class}
-    )
     @AndroidOnly("Android doesn't include MD2withRSA signature algorithm")
     public void testSignature() {
 
@@ -98,15 +91,11 @@ public class SignatureTestMD2withRSA extends TestCase {
         }
     }
 
-    @TestTargetNew(
-        level = TestLevel.ADDITIONAL,
-        method = "getInstance",
-        args = {String.class}
-    )
     @AndroidOnly("Android allows usage of MD2withRSA in third party providers")
     public void testSignature2() throws Exception{
 
-        Security.addProvider(new MyProvider());
+        Provider provider = new MyProvider();
+        Security.addProvider(provider);
 
         Signature signature = Signature.getInstance("MD2withRSA");
         signature = Signature.getInstance("MD2WithRSA");
@@ -116,6 +105,8 @@ public class SignatureTestMD2withRSA extends TestCase {
         signature = Signature.getInstance("MD2WITHRSAENCRYPTION");
         signature = Signature.getInstance("MD2/RSA");
         signature = Signature.getInstance("1.2.840.113549.1.1.2");
+
+        Security.removeProvider(provider.getName());
     }
 
     public final class MyProvider extends Provider {

@@ -55,6 +55,7 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import junit.framework.TestCase;
 import libcore.java.security.TestKeyStore;
+import libcore.javax.net.ssl.TestTrustManager;
 
 /**
  * Implementation independent test for HttpsURLConnection.
@@ -686,6 +687,9 @@ public class HttpsURLConnectionTest extends TestCase {
         TrustManagerFactory tmf = TrustManagerFactory.getInstance(tmfAlgorthm);
         tmf.init(ks);
         TrustManager[] trustManagers = tmf.getTrustManagers();
+        if (DO_LOG) {
+            trustManagers = TestTrustManager.wrap(trustManagers);
+        }
 
         SSLContext ctx = SSLContext.getInstance("TLSv1");
         ctx.init(keyManagers, trustManagers, null);
@@ -959,10 +963,6 @@ public class HttpsURLConnectionTest extends TestCase {
                         // client connection sent some data
                         log("try to read client data");
                         String data = message.substring(message.indexOf("\r\n\r\n")+4);
-                        int dataNum = is.read(buff);
-                        if (dataNum != -1) {
-                            data += new String(buff, 0, dataNum);
-                        }
                         log("client's data: '" + data + "'");
                         // check the received data
                         assertEquals(clientsData, data);
@@ -973,7 +973,7 @@ public class HttpsURLConnectionTest extends TestCase {
                         log("Authentication required...");
                         // send Authentication Request
                         os.write(respAuthenticationRequired.getBytes());
-                        // read response
+                        // read request
                         num = is.read(buff);
                         if (num == -1) {
                             // this connection was closed,
@@ -990,8 +990,8 @@ public class HttpsURLConnectionTest extends TestCase {
                         log("Got authenticated request:\n" + message);
                         log("------------------");
                         // check provided authorization credentials
-                        assertTrue("Received message does not contain authorization credentials",
-                                   message.toLowerCase().indexOf("proxy-authorization:") > 0);
+                        assertTrue("no proxy-authorization credentials: " + message,
+                                   message.toLowerCase().indexOf("proxy-authorization:") != -1);
                     }
 
                     assertTrue(message.startsWith("CONNECT"));
@@ -1025,10 +1025,6 @@ public class HttpsURLConnectionTest extends TestCase {
                         // client connection sent some data
                         log("[Remote Server] try to read client data");
                         String data = message.substring(message.indexOf("\r\n\r\n")+4);
-                        int dataNum = is.read(buff);
-                        if (dataNum != -1) {
-                            data += new String(buff, 0, dataNum);
-                        }
                         log("[Remote Server] client's data: '" + message + "'");
                         // check the received data
                         assertEquals(clientsData, data);

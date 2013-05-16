@@ -32,8 +32,8 @@
 
 package java.lang.reflect;
 
-import dalvik.system.VMStack;
 import java.lang.annotation.Annotation;
+import java.util.Comparator;
 import org.apache.harmony.kernel.vm.StringUtils;
 import org.apache.harmony.luni.lang.reflect.GenericSignatureParser;
 import org.apache.harmony.luni.lang.reflect.Types;
@@ -43,6 +43,23 @@ import org.apache.harmony.luni.lang.reflect.Types;
  * and the field's value can be accessed dynamically.
  */
 public final class Field extends AccessibleObject implements Member {
+
+    /**
+     * Orders fields by their name and declaring class.
+     *
+     * @hide
+     */
+    public static final Comparator<Field> ORDER_BY_NAME_AND_DECLARING_CLASS
+            = new Comparator<Field>() {
+        @Override public int compare(Field a, Field b) {
+            int comparison = a.name.compareTo(b.name);
+            if (comparison != 0) {
+                return comparison;
+            }
+
+            return a.getDeclaringClass().getName().compareTo(b.getDeclaringClass().getName());
+        }
+    };
 
     private Class<?> declaringClass;
 
@@ -56,21 +73,21 @@ public final class Field extends AccessibleObject implements Member {
 
     private int slot;
 
-    private static final int TYPE_BOOLEAN = 1;
+    private static final char TYPE_BOOLEAN = 'Z';
 
-    private static final int TYPE_BYTE = 2;
+    private static final char TYPE_BYTE = 'B';
 
-    private static final int TYPE_CHAR = 3;
+    private static final char TYPE_CHAR = 'C';
 
-    private static final int TYPE_SHORT = 4;
+    private static final char TYPE_SHORT = 'S';
 
-    private static final int TYPE_INTEGER = 5;
+    private static final char TYPE_INTEGER = 'I';
 
-    private static final int TYPE_FLOAT = 6;
+    private static final char TYPE_FLOAT = 'F';
 
-    private static final int TYPE_LONG = 7;
+    private static final char TYPE_LONG = 'J';
 
-    private static final int TYPE_DOUBLE = 8;
+    private static final char TYPE_DOUBLE = 'D';
 
     /**
      * Construct a clone of the given instance.
@@ -183,12 +200,28 @@ public final class Field extends AccessibleObject implements Member {
         return Types.getType(genericType);
     }
 
-    @Override
-    public Annotation[] getDeclaredAnnotations() {
+    @Override public Annotation[] getDeclaredAnnotations() {
         return getDeclaredAnnotations(declaringClass, slot);
     }
+    private static native Annotation[] getDeclaredAnnotations(Class declaringClass, int slot);
 
-    native private Annotation[] getDeclaredAnnotations(Class declaringClass, int slot);
+    @Override public <A extends Annotation> A getAnnotation(Class<A> annotationType) {
+        if (annotationType == null) {
+            throw new NullPointerException("annotationType == null");
+        }
+        return getAnnotation(declaringClass, slot, annotationType);
+    }
+    private static native <A extends Annotation> A getAnnotation(
+            Class<?> declaringClass, int slot, Class<A> annotationType);
+
+    @Override public boolean isAnnotationPresent(Class<? extends Annotation> annotationType) {
+        if (annotationType == null) {
+            throw new NullPointerException("annotationType == null");
+        }
+        return isAnnotationPresent(declaringClass, slot, annotationType);
+    }
+    private static native boolean isAnnotationPresent(
+            Class<?> declaringClass, int slot, Class<? extends Annotation> annotationType);
 
     /**
      * Indicates whether or not the specified {@code object} is equal to this
@@ -209,23 +242,22 @@ public final class Field extends AccessibleObject implements Member {
     /**
      * Returns the value of the field in the specified object. This reproduces
      * the effect of {@code object.fieldName}
-     * <p>
-     * If the type of this field is a primitive type, the field value is
-     * automatically wrapped.
-     * <p>
-     * If this field is static, the object argument is ignored.
+     *
+     * <p>If the type of this field is a primitive type, the field value is
+     * automatically boxed.
+     *
+     * <p>If this field is static, the object argument is ignored.
      * Otherwise, if the object is null, a NullPointerException is thrown. If
      * the object is not an instance of the declaring class of the method, an
      * IllegalArgumentException is thrown.
-     * <p>
-     * If this Field object is enforcing access control (see AccessibleObject)
+     *
+     * <p>If this Field object is enforcing access control (see AccessibleObject)
      * and this field is not accessible from the current context, an
      * IllegalAccessException is thrown.
-     * <p>
      *
      * @param object
      *            the object to access
-     * @return the field value, possibly wrapped
+     * @return the field value, possibly boxed
      * @throws NullPointerException
      *             if the object is {@code null} and the field is non-static
      * @throws IllegalArgumentException
@@ -519,26 +551,24 @@ public final class Field extends AccessibleObject implements Member {
      */
     @Override
     public int hashCode() {
-        // BEGIN android-changed
         return name.hashCode() ^ getDeclaringClass().getName().hashCode();
-        // END android-changed
     }
 
     /**
      * Sets the value of the field in the specified object to the value. This
      * reproduces the effect of {@code object.fieldName = value}
-     * <p>
-     * If this field is static, the object argument is ignored.
+     *
+     * <p>If this field is static, the object argument is ignored.
      * Otherwise, if the object is {@code null}, a NullPointerException is
      * thrown. If the object is not an instance of the declaring class of the
      * method, an IllegalArgumentException is thrown.
-     * <p>
-     * If this Field object is enforcing access control (see AccessibleObject)
+     *
+     * <p>If this Field object is enforcing access control (see AccessibleObject)
      * and this field is not accessible from the current context, an
      * IllegalAccessException is thrown.
-     * <p>
-     * If the field type is a primitive type, the value is automatically
-     * unwrapped. If the unwrap fails, an IllegalArgumentException is thrown. If
+     *
+     * <p>If the field type is a primitive type, the value is automatically
+     * unboxed. If the unboxing fails, an IllegalArgumentException is thrown. If
      * the value cannot be converted to the field type via a widening
      * conversion, an IllegalArgumentException is thrown.
      *
@@ -839,9 +869,9 @@ public final class Field extends AccessibleObject implements Member {
         if (result.length() != 0) {
             result.append(' ');
         }
-        result.append(type.getName());
+        appendTypeName(result, type);
         result.append(' ');
-        result.append(declaringClass.getName());
+        appendTypeName(result, declaringClass);
         result.append('.');
         result.append(name);
         return result.toString();
@@ -851,54 +881,54 @@ public final class Field extends AccessibleObject implements Member {
             boolean noAccessCheck) throws IllegalAccessException;
 
     private native double getDField(Object o, Class<?> declaringClass, Class<?> type, int slot,
-            boolean noAccessCheck, int type_no) throws IllegalAccessException;
+            boolean noAccessCheck, char descriptor) throws IllegalAccessException;
 
     private native int getIField(Object o, Class<?> declaringClass, Class<?> type, int slot,
-            boolean noAccessCheck, int type_no) throws IllegalAccessException;
+            boolean noAccessCheck, char descriptor) throws IllegalAccessException;
 
     private native long getJField(Object o, Class<?> declaringClass, Class<?> type, int slot,
-            boolean noAccessCheck, int type_no) throws IllegalAccessException;
+            boolean noAccessCheck, char descriptor) throws IllegalAccessException;
 
     private native boolean getZField(Object o, Class<?> declaringClass, Class<?> type, int slot,
-            boolean noAccessCheck, int type_no) throws IllegalAccessException;
+            boolean noAccessCheck, char descriptor) throws IllegalAccessException;
 
     private native float getFField(Object o, Class<?> declaringClass, Class<?> type, int slot,
-            boolean noAccessCheck, int type_no) throws IllegalAccessException;
+            boolean noAccessCheck, char descriptor) throws IllegalAccessException;
 
     private native char getCField(Object o, Class<?> declaringClass, Class<?> type, int slot,
-            boolean noAccessCheck, int type_no) throws IllegalAccessException;
+            boolean noAccessCheck, char descriptor) throws IllegalAccessException;
 
     private native short getSField(Object o, Class<?> declaringClass, Class<?> type, int slot,
-            boolean noAccessCheck, int type_no) throws IllegalAccessException;
+            boolean noAccessCheck, char descriptor) throws IllegalAccessException;
 
     private native byte getBField(Object o, Class<?> declaringClass, Class<?> type, int slot,
-            boolean noAccessCheck, int type_no) throws IllegalAccessException;
+            boolean noAccessCheck, char descriptor) throws IllegalAccessException;
 
     private native void setField(Object o, Class<?> declaringClass, Class<?> type, int slot,
             boolean noAccessCheck, Object value) throws IllegalAccessException;
 
     private native void setDField(Object o, Class<?> declaringClass, Class<?> type, int slot,
-            boolean noAccessCheck, int type_no, double v) throws IllegalAccessException;
+            boolean noAccessCheck, char descriptor, double v) throws IllegalAccessException;
 
     private native void setIField(Object o, Class<?> declaringClass, Class<?> type, int slot,
-            boolean noAccessCheck, int type_no, int i) throws IllegalAccessException;
+            boolean noAccessCheck, char descriptor, int i) throws IllegalAccessException;
 
     private native void setJField(Object o, Class<?> declaringClass, Class<?> type, int slot,
-            boolean noAccessCheck, int type_no, long j) throws IllegalAccessException;
+            boolean noAccessCheck, char descriptor, long j) throws IllegalAccessException;
 
     private native void setZField(Object o, Class<?> declaringClass, Class<?> type, int slot,
-            boolean noAccessCheck, int type_no, boolean z) throws IllegalAccessException;
+            boolean noAccessCheck, char descriptor, boolean z) throws IllegalAccessException;
 
     private native void setFField(Object o, Class<?> declaringClass, Class<?> type, int slot,
-            boolean noAccessCheck, int type_no, float f) throws IllegalAccessException;
+            boolean noAccessCheck, char descriptor, float f) throws IllegalAccessException;
 
     private native void setCField(Object o, Class<?> declaringClass, Class<?> type, int slot,
-            boolean noAccessCheck, int type_no, char c) throws IllegalAccessException;
+            boolean noAccessCheck, char descriptor, char c) throws IllegalAccessException;
 
     private native void setSField(Object o, Class<?> declaringClass, Class<?> type, int slot,
-            boolean noAccessCheck, int type_no, short s) throws IllegalAccessException;
+            boolean noAccessCheck, char descriptor, short s) throws IllegalAccessException;
 
     private native void setBField(Object o, Class<?> declaringClass, Class<?> type, int slot,
-            boolean noAccessCheck, int type_no, byte b) throws IllegalAccessException;
+            boolean noAccessCheck, char descriptor, byte b) throws IllegalAccessException;
 
 }

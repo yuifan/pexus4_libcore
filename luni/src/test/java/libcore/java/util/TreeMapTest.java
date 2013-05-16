@@ -26,11 +26,12 @@ import java.util.NavigableMap;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import junit.framework.TestCase;
+import libcore.util.SerializationTester;
 
 public class TreeMapTest extends TestCase {
 
     /**
-     * Test that the entrySet() method produces correctly mutable Entrys.
+     * Test that the entrySet() method produces correctly mutable entries.
      */
     public void testEntrySetSetValue() {
         TreeMap<String, String> map = new TreeMap<String, String>();
@@ -38,7 +39,7 @@ public class TreeMapTest extends TestCase {
         map.put("B", "b");
         map.put("C", "c");
 
-        Iterator<Entry<String,String>> iterator = map.entrySet().iterator();
+        Iterator<Entry<String, String>> iterator = map.entrySet().iterator();
         Entry<String, String> entryA = iterator.next();
         assertEquals("a", entryA.setValue("x"));
         assertEquals("x", entryA.getValue());
@@ -54,8 +55,8 @@ public class TreeMapTest extends TestCase {
     }
 
     /**
-     * Test that the entrySet() method of a submap produces correctly mutable Entrys that
-     * propagate changes to the original map.
+     * Test that the entrySet() method of a sub map produces correctly mutable
+     * entries that propagate changes to the original map.
      */
     public void testSubMapEntrySetSetValue() {
         TreeMap<String, String> map = new TreeMap<String, String>();
@@ -65,7 +66,7 @@ public class TreeMapTest extends TestCase {
         map.put("D", "d");
         NavigableMap<String, String> subMap = map.subMap("A", true, "C", true);
 
-        Iterator<Entry<String,String>> iterator = subMap.entrySet().iterator();
+        Iterator<Entry<String, String>> iterator = subMap.entrySet().iterator();
         Entry<String, String> entryA = iterator.next();
         assertEquals("a", entryA.setValue("x"));
         assertEquals("x", entryA.getValue());
@@ -96,7 +97,7 @@ public class TreeMapTest extends TestCase {
     }
 
     /**
-     * Test that an Entry given by any method except entrySet() of a submap is immutable.
+     * Test that an Entry given by any method except entrySet() of a sub map is immutable.
      */
     public void testExceptionsOnSubMapSetValue() {
         TreeMap<String, String> map = new TreeMap<String, String>();
@@ -270,7 +271,7 @@ public class TreeMapTest extends TestCase {
                 + "e60300014c000a636f6d70617261746f727400164c6a6176612f7574696c2f436"
                 + "f6d70617261746f723b78707077040000000078";
         TreeMap<String, String> map = new TreeMap<String, String>();
-        new SerializableTester<TreeMap<String, String>>(map, s).test();
+        new SerializationTester<TreeMap<String, String>>(map, s).test();
     }
 
     public void testSerializationWithComparator() {
@@ -279,18 +280,18 @@ public class TreeMapTest extends TestCase {
                 + "f6d70617261746f723b78707372002a6a6176612e6c616e672e537472696e6724"
                 + "43617365496e73656e736974697665436f6d70617261746f7277035c7d5c50e5c"
                 + "e02000078707704000000027400016171007e00057400016271007e000678";
-        TreeMap<String,String> map = new TreeMap<String, String>(
+        TreeMap<String, String> map = new TreeMap<String, String>(
                 String.CASE_INSENSITIVE_ORDER);
         map.put("a", "a");
         map.put("b", "b");
-        new SerializableTester<NavigableMap<String, String>>(map, s) {
+        new SerializationTester<NavigableMap<String, String>>(map, s) {
             @Override protected void verify(NavigableMap<String, String> deserialized) {
                 assertEquals(0, deserialized.comparator().compare("X", "x"));
             }
         }.test();
     }
 
-    public void testSubmapSerialization() {
+    public void testSubMapSerialization() {
         String s = "aced0005737200216a6176612e7574696c2e547265654d617024417363656e646"
                 + "96e675375624d61700cab946d1f0fab1c020000787200216a6176612e7574696c2"
                 + "e547265654d6170244e6176696761626c655375624d6170e2d0a70e64210e08020"
@@ -304,25 +305,25 @@ public class TreeMapTest extends TestCase {
                 + "97665436f6d70617261746f7277035c7d5c50e5ce0200007870770400000004710"
                 + "07e000671007e00067400016271007e000c71007e000571007e000574000164710"
                 + "07e000d78";
-        TreeMap<String,String> map = new TreeMap<String, String>(
+        TreeMap<String, String> map = new TreeMap<String, String>(
                 String.CASE_INSENSITIVE_ORDER);
         map.put("a", "a");
         map.put("b", "b");
         map.put("c", "c");
         map.put("d", "d");
-        SortedMap<String, String> submap = map.subMap("a", "c");
-        new SerializableTester<SortedMap<String, String>>(submap, s) {
+        SortedMap<String, String> subMap = map.subMap("a", "c");
+        new SerializationTester<SortedMap<String, String>>(subMap, s) {
             @Override protected void verify(SortedMap<String, String> deserialized) {
                 try {
                     deserialized.put("e", "e");
                     fail();
-                } catch (IllegalArgumentException e) {
+                } catch (IllegalArgumentException expected) {
                 }
             }
         }.test();
     }
 
-    public void testNavigableSubmapSerialization() {
+    public void testNavigableSubMapSerialization() {
         String s = "aced0005737200216a6176612e7574696c2e547265654d617024417363656e646"
                 + "96e675375624d61700cab946d1f0fab1c020000787200216a6176612e7574696c2"
                 + "e547265654d6170244e6176696761626c655375624d6170e2d0a70e64210e08020"
@@ -336,19 +337,19 @@ public class TreeMapTest extends TestCase {
                 + "97665436f6d70617261746f7277035c7d5c50e5ce0200007870770400000004710"
                 + "07e000671007e00067400016271007e000c71007e000571007e000574000164710"
                 + "07e000d78";
-        TreeMap<String,String> map = new TreeMap<String, String>(
+        TreeMap<String, String> map = new TreeMap<String, String>(
                 String.CASE_INSENSITIVE_ORDER);
         map.put("a", "a");
         map.put("b", "b");
         map.put("c", "c");
         map.put("d", "d");
-        SortedMap<String, String> submap = map.subMap("a", false, "c", true);
-        new SerializableTester<SortedMap<String, String>>(submap, s) {
+        SortedMap<String, String> subMap = map.subMap("a", false, "c", true);
+        new SerializationTester<SortedMap<String, String>>(subMap, s) {
             @Override protected void verify(SortedMap<String, String> deserialized) {
                 try {
                     deserialized.put("e", "e");
                     fail();
-                } catch (IllegalArgumentException e) {
+                } catch (IllegalArgumentException expected) {
                 }
             }
         }.test();
@@ -370,12 +371,12 @@ public class TreeMapTest extends TestCase {
                 + "07e000b78737200286a6176612e7574696c2e436f6c6c656374696f6e732452657"
                 + "665727365436f6d70617261746f7232000003fa6c354d510200014c0003636d707"
                 + "1007e0001787071007e0009";
-        TreeMap<String,String> map = new TreeMap<String, String>(
+        TreeMap<String, String> map = new TreeMap<String, String>(
                 String.CASE_INSENSITIVE_ORDER);
         map.put("a", "a");
         map.put("b", "b");
         NavigableMap<String, String> descendingMap = map.descendingMap();
-        new SerializableTester<NavigableMap<String, String>>(descendingMap, s) {
+        new SerializationTester<NavigableMap<String, String>>(descendingMap, s) {
             @Override protected void verify(NavigableMap<String, String> deserialized) {
                 assertEquals("b", deserialized.navigableKeySet().first());
             }
@@ -388,11 +389,11 @@ public class TreeMapTest extends TestCase {
                 + "f6d70617261746f723b78707372002a6a6176612e6c616e672e537472696e6724"
                 + "43617365496e73656e736974697665436f6d70617261746f7277035c7d5c50e5c"
                 + "e02000078707704000000027400016171007e00057400016271007e000678";
-        TreeMap<String,String> map = new TreeMap<String, String>(
+        TreeMap<String, String> map = new TreeMap<String, String>(
                 String.CASE_INSENSITIVE_ORDER);
         map.put("a", "a");
         map.put("b", "b");
-        new SerializableTester<TreeMap<String, String>>(map, s) {
+        new SerializationTester<TreeMap<String, String>>(map, s) {
             @Override protected void verify(TreeMap<String, String> deserialized) {
                 assertEquals(0, deserialized.comparator().compare("X", "x"));
             }
@@ -402,7 +403,7 @@ public class TreeMapTest extends TestCase {
     /**
      * On JDK5, this fails with a NullPointerException after deserialization!
      */
-    public void testJava5SubmapSerialization() {
+    public void testJava5SubMapSerialization() {
         String s = "aced0005737200186a6176612e7574696c2e547265654d6170245375624d6170"
                 + "a5818343a213c27f0200055a000966726f6d53746172745a0005746f456e644c0"
                 + "00766726f6d4b65797400124c6a6176612f6c616e672f4f626a6563743b4c0006"
@@ -414,18 +415,18 @@ public class TreeMapTest extends TestCase {
                 + "261746f7277035c7d5c50e5ce020000787077040000000471007e000471007e00"
                 + "047400016271007e000a7400016371007e000b7400016471007e000c7871007e0"
                 + "00b";
-        TreeMap<String,String> map = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
+        TreeMap<String, String> map = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
         map.put("a", "a");
         map.put("b", "b");
         map.put("c", "c");
         map.put("d", "d");
-        SortedMap<String, String> submap = map.subMap("a", "c");
-        new SerializableTester<SortedMap<String, String>>(submap, s) {
+        SortedMap<String, String> subMap = map.subMap("a", "c");
+        new SerializationTester<SortedMap<String, String>>(subMap, s) {
             @Override protected void verify(SortedMap<String, String> deserialized) {
                 try {
                     deserialized.put("e", "e");
                     fail();
-                } catch (IllegalArgumentException e) {
+                } catch (IllegalArgumentException expected) {
                 }
             }
         }.test();

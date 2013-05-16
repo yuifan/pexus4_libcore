@@ -17,6 +17,9 @@
 
 package java.io;
 
+import java.util.Arrays;
+import libcore.io.Streams;
+
 /**
  * Wraps an existing {@link InputStream} and counts the line terminators
  * encountered while reading the data. Line numbering starts at 0. Recognized
@@ -165,14 +168,7 @@ public class LineNumberInputStream extends FilterInputStream {
      */
     @Override
     public int read(byte[] buffer, int offset, int length) throws IOException {
-        // Force buffer null check first!
-        if (offset > buffer.length || offset < 0) {
-            throw new ArrayIndexOutOfBoundsException("Offset out of bounds: " + offset);
-        }
-        if (length < 0 || length > buffer.length - offset) {
-            throw new ArrayIndexOutOfBoundsException("Length out of bounds: " + length);
-        }
-
+        Arrays.checkOffsetAndCount(buffer.length, offset, length);
         for (int i = 0; i < length; i++) {
             int currentChar;
             try {
@@ -225,12 +221,12 @@ public class LineNumberInputStream extends FilterInputStream {
 
     /**
      * Skips {@code count} number of bytes in this stream. Subsequent
-     * {@code read()}'s will not return these bytes unless {@code reset()} is
-     * used. This implementation skips {@code count} number of bytes in the
+     * calls to {@code read} will not return these bytes unless {@code reset} is
+     * used. This implementation skips {@code byteCount} bytes in the
      * filtered stream and increments the line number count whenever line
      * terminator sequences are skipped.
      *
-     * @param count
+     * @param byteCount
      *            the number of bytes to skip.
      * @return the number of bytes actually skipped.
      * @throws IOException
@@ -240,16 +236,7 @@ public class LineNumberInputStream extends FilterInputStream {
      * @see #reset()
      */
     @Override
-    public long skip(long count) throws IOException {
-        if (count <= 0) {
-            return 0;
-        }
-        for (int i = 0; i < count; i++) {
-            int currentChar = read();
-            if (currentChar == -1) {
-                return i;
-            }
-        }
-        return count;
+    public long skip(long byteCount) throws IOException {
+        return Streams.skipByReading(this, byteCount);
     }
 }

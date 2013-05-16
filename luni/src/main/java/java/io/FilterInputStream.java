@@ -45,7 +45,6 @@ public class FilterInputStream extends InputStream {
      * @param in the input stream to filter reads on.
      */
     protected FilterInputStream(InputStream in) {
-        super();
         this.in = in;
     }
 
@@ -116,24 +115,6 @@ public class FilterInputStream extends InputStream {
     }
 
     /**
-     * Reads bytes from this stream and stores them in the byte array
-     * {@code buffer}. Returns the number of bytes actually read or -1 if no
-     * bytes were read and the end of this stream was encountered. This
-     * implementation reads bytes from the filtered stream.
-     *
-     * @param buffer
-     *            the byte array in which to store the read bytes.
-     * @return the number of bytes actually read or -1 if the end of the
-     *         filtered stream has been reached while reading.
-     * @throws IOException
-     *             if this stream is closed or another IOException occurs.
-     */
-    @Override
-    public int read(byte[] buffer) throws IOException {
-        return read(buffer, 0, buffer.length);
-    }
-
-    /**
      * Reads at most {@code count} bytes from this stream and stores them in the
      * byte array {@code buffer} starting at {@code offset}. Returns the number
      * of bytes actually read or -1 if no bytes have been read and the end of
@@ -174,13 +155,11 @@ public class FilterInputStream extends InputStream {
     }
 
     /**
-     * Skips {@code count} number of bytes in this stream. Subsequent
-     * {@code read()}'s will not return these bytes unless {@code reset()} is
-     * used. This implementation skips {@code count} number of bytes in the
+     * Skips {@code byteCount} bytes in this stream. Subsequent
+     * calls to {@code read} will not return these bytes unless {@code reset} is
+     * used. This implementation skips {@code byteCount} bytes in the
      * filtered stream.
      *
-     * @param count
-     *            the number of bytes to skip.
      * @return the number of bytes actually skipped.
      * @throws IOException
      *             if this stream is closed or another IOException occurs.
@@ -188,7 +167,7 @@ public class FilterInputStream extends InputStream {
      * @see #reset()
      */
     @Override
-    public long skip(long count) throws IOException {
-        return in.skip(count);
+    public long skip(long byteCount) throws IOException {
+        return in.skip(byteCount);
     }
 }

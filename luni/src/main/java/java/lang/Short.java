@@ -23,6 +23,7 @@ package java.lang;
  * @see java.lang.Number
  * @since 1.1
  */
+@FindBugsSuppressWarnings("DM_NUMBER_CTOR")
 public final class Short extends Number implements Comparable<Short> {
 
     private static final long serialVersionUID = 7515723908773894738L;
@@ -66,7 +67,7 @@ public final class Short extends Number implements Comparable<Short> {
      * @param string
      *            the string representation of a short value.
      * @throws NumberFormatException
-     *             if {@code string} can not be decoded into a short value.
+     *             if {@code string} cannot be parsed as a short value.
      * @see #parseShort(String)
      */
     public Short(String string) throws NumberFormatException {
@@ -104,7 +105,17 @@ public final class Short extends Number implements Comparable<Short> {
      * @since 1.2
      */
     public int compareTo(Short object) {
-        return value > object.value ? 1 : (value < object.value ? -1 : 0);
+        return compare(value, object.value);
+    }
+
+    /**
+     * Compares two {@code short} values.
+     * @return 0 if lhs = rhs, less than 0 if lhs &lt; rhs, and greater than 0 if lhs &gt; rhs.
+     * @since 1.7
+     * @hide 1.7
+     */
+    public static int compare(long lhs, long rhs) {
+        return lhs > rhs ? 1 : (lhs < rhs ? -1 : 0);
     }
 
     /**
@@ -118,7 +129,7 @@ public final class Short extends Number implements Comparable<Short> {
      * @return a {@code Short} containing the value represented by
      *         {@code string}.
      * @throws NumberFormatException
-     *             if {@code string} can not be parsed as a short value.
+     *             if {@code string} cannot be parsed as a short value.
      */
     public static Short decode(String string) throws NumberFormatException {
         int intValue = Integer.decode(string).intValue();
@@ -126,7 +137,7 @@ public final class Short extends Number implements Comparable<Short> {
         if (result == intValue) {
             return valueOf(result);
         }
-        throw new NumberFormatException();
+        throw new NumberFormatException("Value out of range for short: \"" + string + "\"");
     }
 
     @Override
@@ -146,8 +157,7 @@ public final class Short extends Number implements Comparable<Short> {
      */
     @Override
     public boolean equals(Object object) {
-        return (object instanceof Short)
-                && (value == ((Short) object).value);
+        return (object instanceof Short) && (((Short) object).value == value);
     }
 
     @Override
@@ -178,8 +188,7 @@ public final class Short extends Number implements Comparable<Short> {
      *            the string representation of a short value.
      * @return the primitive short value represented by {@code string}.
      * @throws NumberFormatException
-     *             if {@code string} is {@code null}, has a length of zero or
-     *             can not be parsed as a short value.
+     *             if {@code string} cannot be parsed as a short value.
      */
     public static short parseShort(String string) throws NumberFormatException {
         return parseShort(string, 10);
@@ -196,19 +205,17 @@ public final class Short extends Number implements Comparable<Short> {
      * @return the primitive short value represented by {@code string} using
      *         {@code radix}.
      * @throws NumberFormatException
-     *             if {@code string} is {@code null} or has a length of zero,
-     *             {@code radix < Character.MIN_RADIX},
-     *             {@code radix > Character.MAX_RADIX}, or if {@code string}
-     *             can not be parsed as a short value.
+     *             if {@code string} cannot be parsed as a short value, or
+     *             {@code radix < Character.MIN_RADIX ||
+     *             radix > Character.MAX_RADIX}.
      */
-    public static short parseShort(String string, int radix)
-            throws NumberFormatException {
+    public static short parseShort(String string, int radix) throws NumberFormatException {
         int intValue = Integer.parseInt(string, radix);
         short result = (short) intValue;
         if (result == intValue) {
             return result;
         }
-        throw new NumberFormatException();
+        throw new NumberFormatException("Value out of range for short: \"" + string + "\"");
     }
 
     /**
@@ -246,8 +253,7 @@ public final class Short extends Number implements Comparable<Short> {
      * @return a {@code Short} instance containing the short value represented
      *         by {@code string}.
      * @throws NumberFormatException
-     *             if {@code string} is {@code null}, has a length of zero or
-     *             can not be parsed as a short value.
+     *             if {@code string} cannot be parsed as a short value.
      * @see #parseShort(String)
      */
     public static Short valueOf(String string) throws NumberFormatException {
@@ -265,14 +271,12 @@ public final class Short extends Number implements Comparable<Short> {
      * @return a {@code Short} instance containing the short value represented
      *         by {@code string} using {@code radix}.
      * @throws NumberFormatException
-     *             if {@code string} is {@code null} or has a length of zero,
-     *             {@code radix < Character.MIN_RADIX},
-     *             {@code radix > Character.MAX_RADIX}, or if {@code string}
-     *             can not be parsed as a short value.
+     *             if {@code string} cannot be parsed as a short value, or
+     *             {@code radix < Character.MIN_RADIX ||
+     *             radix > Character.MAX_RADIX}.
      * @see #parseShort(String, int)
      */
-    public static Short valueOf(String string, int radix)
-            throws NumberFormatException {
+    public static Short valueOf(String string, int radix) throws NumberFormatException {
         return valueOf(parseShort(string, radix));
     }
 
@@ -310,7 +314,7 @@ public final class Short extends Number implements Comparable<Short> {
     private static final Short[] SMALL_VALUES = new Short[256];
 
     static {
-        for(int i = -128; i < 128; i++) {
+        for (int i = -128; i < 128; i++) {
             SMALL_VALUES[i + 128] = new Short((short) i);
         }
     }

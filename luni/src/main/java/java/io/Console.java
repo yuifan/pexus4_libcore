@@ -16,6 +16,9 @@
 package java.io;
 
 import java.util.Formatter;
+import libcore.io.ErrnoException;
+import libcore.io.Libcore;
+import static libcore.io.OsConstants.*;
 
 /**
  * Provides access to the console, if available. The system-wide instance can
@@ -26,7 +29,6 @@ public final class Console implements Flushable {
     private static final Object CONSOLE_LOCK = new Object();
 
     private static final Console console = makeConsole();
-    private static native boolean isatty(int fd);
 
     private final ConsoleReader reader;
     private final PrintWriter writer;
@@ -40,19 +42,20 @@ public final class Console implements Flushable {
     }
 
     private static Console makeConsole() {
-        if (!isatty(0) || !isatty(1)) {
+        // We don't care about stderr, because this class only uses stdin and stdout.
+        if (!Libcore.os.isatty(FileDescriptor.in) || !Libcore.os.isatty(FileDescriptor.out)) {
             return null;
         }
         try {
-            return new Console();
+            return new Console(System.in, System.out);
         } catch (IOException ex) {
             throw new AssertionError(ex);
         }
     }
 
-    private Console() throws IOException {
-        this.reader = new ConsoleReader(System.in);
-        this.writer = new ConsoleWriter(System.out);
+    private Console(InputStream in, OutputStream out) throws IOException {
+        this.reader = new ConsoleReader(in);
+        this.writer = new ConsoleWriter(out);
     }
 
     public void flush() {

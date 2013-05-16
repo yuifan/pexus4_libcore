@@ -19,7 +19,6 @@ package sun.misc;
 import dalvik.system.VMStack;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import org.apache.harmony.kernel.vm.LangAccess;
 
 /**
  * The package name notwithstanding, this class is the quasi-standard
@@ -28,18 +27,15 @@ import org.apache.harmony.kernel.vm.LangAccess;
  * of Java.
  */
 public final class Unsafe {
-    /** non-null; unique instance of this class */
+    /** Traditional dalvik name. */
     private static final Unsafe THE_ONE = new Unsafe();
-
-    /** non-null; the lang-access utility instance */
-    private final LangAccess lang;
+    /** Traditional RI name. */
+    private static final Unsafe theUnsafe = THE_ONE;
 
     /**
      * This class is only privately instantiable.
      */
-    private Unsafe() {
-        lang = LangAccess.getInstance();
-    }
+    private Unsafe() {}
 
     /**
      * Gets the unique instance of this class. This is only allowed in
@@ -258,10 +254,7 @@ public final class Unsafe {
     /**
      * Lazy set an int field.
      */
-    public void putOrderedInt(Object obj, long offset, int newValue) {
-        // TODO: this should be an intrinsic that executes a store fence followed by a write
-        putIntVolatile(obj, offset, newValue);
-    }
+    public native void putOrderedInt(Object obj, long offset, int newValue);
 
     /**
      * Gets a <code>long</code> field from the given object.
@@ -284,10 +277,7 @@ public final class Unsafe {
     /**
      * Lazy set a long field.
      */
-    public void putOrderedLong(Object obj, long offset, long newValue) {
-        // TODO: this should be an intrinsic that executes a store fence followed by a write
-        putLongVolatile(obj, offset, newValue);
-    }
+    public native void putOrderedLong(Object obj, long offset, long newValue);
 
     /**
      * Gets an <code>Object</code> field from the given object.
@@ -310,10 +300,8 @@ public final class Unsafe {
     /**
      * Lazy set an object field.
      */
-    public void putOrderedObject(Object obj, long offset, Object newValue) {
-        // TODO: this should be an intrinsic that executes a store fence followed by a write
-        putObjectVolatile(obj, offset, newValue);
-    }
+    public native void putOrderedObject(Object obj, long offset,
+            Object newValue);
 
     /**
      * Parks the calling thread for the specified amount of time,
@@ -332,9 +320,9 @@ public final class Unsafe {
      */
     public void park(boolean absolute, long time) {
         if (absolute) {
-            lang.parkUntil(time);
+            Thread.currentThread().parkUntil(time);
         } else {
-            lang.parkFor(time);
+            Thread.currentThread().parkFor(time);
         }
     }
 
@@ -348,9 +336,15 @@ public final class Unsafe {
      */
     public void unpark(Object obj) {
         if (obj instanceof Thread) {
-            lang.unpark((Thread) obj);
+            ((Thread) obj).unpark();
         } else {
             throw new IllegalArgumentException("valid for Threads only");
         }
     }
+
+    /**
+     * Allocates an instance of the given class without running the constructor.
+     * The class' <clinit> will be run, if necessary.
+     */
+    public native Object allocateInstance(Class<?> c);
 }

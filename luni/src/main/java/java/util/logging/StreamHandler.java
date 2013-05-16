@@ -119,7 +119,7 @@ public class StreamHandler extends Handler {
     // initialize the writer
     private void initializeWriter() {
         this.writerNotInitialized = false;
-        if (null == getEncoding()) {
+        if (getEncoding() == null) {
             this.writer = new OutputStreamWriter(this.os);
         } else {
             try {
@@ -162,15 +162,12 @@ public class StreamHandler extends Handler {
      *
      * @param os
      *            the new output stream.
-     * @throws SecurityException
-     *             if a security manager determines that the caller does not
-     *             have the required permission.
      * @throws NullPointerException
      *             if {@code os} is {@code null}.
      */
     protected void setOutputStream(OutputStream os) {
-        if (null == os) {
-            throw new NullPointerException();
+        if (os == null) {
+            throw new NullPointerException("os == null");
         }
         LogManager.getLogManager().checkAccess();
         close(true);
@@ -183,23 +180,16 @@ public class StreamHandler extends Handler {
      * Sets the character encoding used by this handler. A {@code null} value
      * indicates that the default encoding should be used.
      *
-     * @param encoding
-     *            the character encoding to set.
-     * @throws SecurityException
-     *             if a security manager determines that the caller does not
-     *             have the required permission.
-     * @throws UnsupportedEncodingException
-     *             if the specified encoding is not supported by the runtime.
+     * @throws UnsupportedEncodingException if {@code charsetName} is not supported.
      */
     @Override
-    public void setEncoding(String encoding) throws SecurityException,
-            UnsupportedEncodingException {
-        // flush first before set new encoding
+    public void setEncoding(String charsetName) throws UnsupportedEncodingException {
+        // Flush any existing data first.
         this.flush();
-        super.setEncoding(encoding);
+        super.setEncoding(charsetName);
         // renew writer only if the writer exists
-        if (null != this.writer) {
-            if (null == getEncoding()) {
+        if (this.writer != null) {
+            if (getEncoding() == null) {
                 this.writer = new OutputStreamWriter(this.os);
             } else {
                 try {
@@ -223,7 +213,7 @@ public class StreamHandler extends Handler {
      *            whether to close the underlying output stream.
      */
     void close(boolean closeStream) {
-        if (null != this.os) {
+        if (this.os != null) {
             if (this.writerNotInitialized) {
                 initializeWriter();
             }
@@ -247,10 +237,6 @@ public class StreamHandler extends Handler {
      * this handler is written out. A flush operation and a subsequent close
      * operation is then performed upon the output stream. Client applications
      * should not use a handler after closing it.
-     *
-     * @throws SecurityException
-     *             if a security manager determines that the caller does not
-     *             have the required permission.
      */
     @Override
     public void close() {
@@ -263,9 +249,9 @@ public class StreamHandler extends Handler {
      */
     @Override
     public void flush() {
-        if (null != this.os) {
+        if (this.os != null) {
             try {
-                if (null != this.writer) {
+                if (this.writer != null) {
                     this.writer.flush();
                 } else {
                     this.os.flush();
@@ -329,10 +315,10 @@ public class StreamHandler extends Handler {
      */
     @Override
     public boolean isLoggable(LogRecord record) {
-        if (null == record) {
+        if (record == null) {
             return false;
         }
-        if (null != this.os && super.isLoggable(record)) {
+        if (this.os != null && super.isLoggable(record)) {
             return true;
         }
         return false;

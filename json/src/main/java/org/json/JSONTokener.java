@@ -46,7 +46,7 @@ package org.json;
  *   <li>Hexadecimal integers prefixed with {@code 0x} or {@code 0X}.
  *   <li>Octal integers prefixed with {@code 0}.
  *   <li>Array elements separated by {@code ;}.
- *   <li>Unnecessary array separators. These are interpretted as if null was the
+ *   <li>Unnecessary array separators. These are interpreted as if null was the
  *       omitted value.
  *   <li>Key-value pairs separated by {@code =} or {@code =>}.
  *   <li>Key-value pairs separated by {@code ;}.
@@ -55,7 +55,7 @@ package org.json;
  * <p>Each tokener may be used to parse a single JSON string. Instances of this
  * class are not thread safe. Although this class is nonfinal, it was not
  * designed for inheritance and should not be subclassed. In particular,
- * self-use by overridable methods is not specified. See <i>Effective Java</i>
+ * self-use by overrideable methods is not specified. See <i>Effective Java</i>
  * Item 17, "Design and Document or inheritance or else prohibit it" for further
  * information.
  */
@@ -76,6 +76,10 @@ public class JSONTokener {
      *     called.
      */
     public JSONTokener(String in) {
+        // consume an optional byte order mark (BOM) if it exists
+        if (in != null && in.startsWith("\ufeff")) {
+            in = in.substring(1);
+        }
         this.in = in;
     }
 
@@ -148,7 +152,7 @@ public class JSONTokener {
                 case '#':
                     /*
                      * Skip a # hash end-of-line comment. The JSON RFC doesn't
-                     * specify this behaviour, but it's required to parse
+                     * specify this behavior, but it's required to parse
                      * existing documents. See http://b/2571423.
                      */
                     skipToEndOfLine();
@@ -317,7 +321,7 @@ public class JSONTokener {
         /* ...next try to parse as a floating point... */
         try {
             return Double.valueOf(literal);
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException ignored) {
         }
 
         /* ... finally give up. We have an unquoted string */
@@ -539,7 +543,7 @@ public class JSONTokener {
      */
     public String nextTo(String excluded) {
         if (excluded == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("excluded == null");
         }
         return nextToInternal(excluded).trim();
     }

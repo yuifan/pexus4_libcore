@@ -30,10 +30,10 @@ public class AlgorithmParameterGenerator {
     private static final String SERVICE = "AlgorithmParameterGenerator";
 
     // Used to access common engine functionality
-    private static Engine engine = new Engine(SERVICE);
+    private static final Engine ENGINE = new Engine(SERVICE);
 
     // Store SecureRandom
-    private static SecureRandom randm = new SecureRandom();
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     // Store used provider
     private final Provider provider;
@@ -88,14 +88,11 @@ public class AlgorithmParameterGenerator {
     public static AlgorithmParameterGenerator getInstance(String algorithm)
             throws NoSuchAlgorithmException {
         if (algorithm == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("algorithm == null");
         }
-        synchronized (engine) {
-            engine.getInstance(algorithm, null);
-            return new AlgorithmParameterGenerator(
-                    (AlgorithmParameterGeneratorSpi) engine.spi, engine.provider,
-                    algorithm);
-        }
+        Engine.SpiAndProvider sap = ENGINE.getInstance(algorithm, null);
+        return new AlgorithmParameterGenerator((AlgorithmParameterGeneratorSpi) sap.spi,
+                                               sap.provider, algorithm);
     }
 
     /**
@@ -149,17 +146,14 @@ public class AlgorithmParameterGenerator {
     public static AlgorithmParameterGenerator getInstance(String algorithm,
             Provider provider) throws NoSuchAlgorithmException {
         if (provider == null) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("provider == null");
         }
         if (algorithm == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("algorithm == null");
         }
-        synchronized (engine) {
-            engine.getInstance(algorithm, provider, null);
-            return new AlgorithmParameterGenerator(
-                    (AlgorithmParameterGeneratorSpi) engine.spi, provider,
-                    algorithm);
-        }
+        Object spi = ENGINE.getInstance(algorithm, provider, null);
+        return new AlgorithmParameterGenerator((AlgorithmParameterGeneratorSpi) spi, provider,
+                                               algorithm);
     }
 
     /**
@@ -182,7 +176,7 @@ public class AlgorithmParameterGenerator {
      *            the size (in number of bits).
      */
     public final void init(int size) {
-        spiImpl.engineInit(size, randm);
+        spiImpl.engineInit(size, RANDOM);
     }
 
     /**
@@ -211,7 +205,7 @@ public class AlgorithmParameterGenerator {
      */
     public final void init(AlgorithmParameterSpec genParamSpec)
             throws InvalidAlgorithmParameterException {
-        spiImpl.engineInit(genParamSpec, randm);
+        spiImpl.engineInit(genParamSpec, RANDOM);
     }
 
     /**

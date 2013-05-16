@@ -17,37 +17,60 @@
 
 package java.util.zip;
 
-import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PushbackInputStream;
+import java.nio.ByteOrder;
 import java.nio.charset.ModifiedUtf8;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
+import java.util.Arrays;
+import libcore.io.Memory;
+import libcore.io.Streams;
 
 /**
- * This class provides an implementation of {@code FilterInputStream} that
- * uncompresses data from a <i>ZIP-archive</i> input stream.
- * <p>
- * A <i>ZIP-archive</i> is a collection of compressed (or uncompressed) files -
- * the so called ZIP entries. Therefore when reading from a {@code
- * ZipInputStream} first the entry's attributes will be retrieved with {@code
- * getNextEntry} before its data is read.
- * <p>
- * While {@code InflaterInputStream} can read a compressed <i>ZIP-archive</i>
- * entry, this extension can read uncompressed entries as well.
- * <p>
- * Use {@code ZipFile} if you can access the archive as a file directly.
+ * Used to read (decompress) the data from zip files.
  *
- * @see ZipEntry
- * @see ZipFile
+ * <p>A zip file (or "archive") is a collection of (possibly) compressed files.
+ * When reading from a {@code ZipInputStream}, you call {@link #getNextEntry}
+ * which returns a {@link ZipEntry} of metadata corresponding to the userdata that follows.
+ * When you appear to have hit the end of this stream (which is really just the end of the current
+ * entry's userdata), call {@code getNextEntry} again. When it returns null,
+ * there are no more entries in the input file.
+ *
+ * <p>Although {@code InflaterInputStream} can only read compressed zip
+ * entries, this class can read non-compressed entries as well.
+ *
+ * <p>Use {@link ZipFile} if you need random access to entries by name, but use this class
+ * if you just want to iterate over all entries.
+ *
+ * <h3>Example</h3>
+ * <p>Using {@code ZipInputStream} is a little more complicated than {@link GZIPInputStream}
+ * because zip files are containers that can contain multiple files. This code pulls all the
+ * files out of a zip file, similar to the {@code unzip(1)} utility.
+ * <pre>
+ * InputStream is = ...
+ * ZipInputStream zis = new ZipInputStream(new BufferedInputStream(is));
+ * try {
+ *     ZipEntry ze;
+ *     while ((ze = zis.getNextEntry()) != null) {
+ *         ByteArrayOutputStream baos = new ByteArrayOutputStream();
+ *         byte[] buffer = new byte[1024];
+ *         int count;
+ *         while ((count = zis.read(buffer)) != -1) {
+ *             baos.write(buffer, 0, count);
+ *         }
+ *         String filename = ze.getName();
+ *         byte[] bytes = baos.toByteArray();
+ *         // do something with 'filename' and 'bytes'...
+ *     }
+ * } finally {
+ *     zis.close();
+ * }
+ * </pre>
  */
 public class ZipInputStream extends InflaterInputStream implements ZipConstants {
-    static final int DEFLATED = 8;
-
-    static final int STORED = 0;
-
-    static final int ZIPLocalHeaderVersionNeeded = 20;
+    private static final int ZIPLocalHeaderVersionNeeded = 20;
 
     private boolean entriesEnd = false;
 
@@ -57,7 +80,7 @@ public class ZipInputStream extends InflaterInputStream implements ZipConstants 
 
     private int inRead, lastRead = 0;
 
-    ZipEntry currentEntry;
+    private ZipEntry currentEntry;
 
     private final byte[] hdrBuf = new byte[LOCHDR - LOCVER];
 
@@ -68,15 +91,12 @@ public class ZipInputStream extends InflaterInputStream implements ZipConstants 
     private char[] charBuf = new char[256];
 
     /**
-     * Constructs a new {@code ZipInputStream} from the specified input stream.
-     *
-     * @param stream
-     *            the input stream to representing a ZIP archive.
+     * Constructs a new {@code ZipInputStream} to read zip entries from the given input stream.
      */
     public ZipInputStream(InputStream stream) {
         super(new PushbackInputStream(stream, BUF_SIZE), new Inflater(true));
         if (stream == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("stream == null");
         }
     }
 
@@ -95,7 +115,7 @@ public class ZipInputStream extends InflaterInputStream implements ZipConstants 
     }
 
     /**
-     * Closes the current ZIP entry and positions to read the next entry.
+     * Closes the current zip entry and prepares to read the next entry.
      *
      * @throws IOException
      *             if an {@code IOException} occurs.
@@ -124,13 +144,13 @@ public class ZipInputStream extends InflaterInputStream implements ZipConstants 
         // Ensure all entry bytes are read
         Exception failure = null;
         try {
-            skip(Long.MAX_VALUE);
+            Streams.skipAll(this);
         } catch (Exception e) {
             failure = e;
         }
 
         int inB, out;
-        if (currentEntry.compressionMethod == DEFLATED) {
+        if (currentEntry.compressionMethod == ZipEntry.DEFLATED) {
             inB = inf.getTotalIn();
             out = inf.getTotalOut();
         } else {
@@ -170,14 +190,14 @@ public class ZipInputStream extends InflaterInputStream implements ZipConstants 
 
     private void readAndVerifyDataDescriptor(int inB, int out) throws IOException {
         if (hasDD) {
-            in.read(hdrBuf, 0, EXTHDR);
-            long sig = getLong(hdrBuf, 0);
-            if (sig != EXTSIG) {
+            Streams.readFully(in, hdrBuf, 0, EXTHDR);
+            int sig = Memory.peekInt(hdrBuf, 0, ByteOrder.LITTLE_ENDIAN);
+            if (sig != (int) EXTSIG) {
                 throw new ZipException(String.format("unknown format (EXTSIG=%x)", sig));
             }
-            currentEntry.crc = getLong(hdrBuf, EXTCRC);
-            currentEntry.compressedSize = getLong(hdrBuf, EXTSIZ);
-            currentEntry.size = getLong(hdrBuf, EXTLEN);
+            currentEntry.crc = ((long) Memory.peekInt(hdrBuf, EXTCRC, ByteOrder.LITTLE_ENDIAN)) & 0xffffffffL;
+            currentEntry.compressedSize = ((long) Memory.peekInt(hdrBuf, EXTSIZ, ByteOrder.LITTLE_ENDIAN)) & 0xffffffffL;
+            currentEntry.size = ((long) Memory.peekInt(hdrBuf, EXTLEN, ByteOrder.LITTLE_ENDIAN)) & 0xffffffffL;
         }
         if (currentEntry.crc != crc.getValue()) {
             throw new ZipException("CRC mismatch");
@@ -188,13 +208,10 @@ public class ZipInputStream extends InflaterInputStream implements ZipConstants 
     }
 
     /**
-     * Reads the next entry from this {@code ZipInputStream} or {@code null} if
+     * Returns the next entry from this {@code ZipInputStream} or {@code null} if
      * no more entries are present.
      *
-     * @return the next {@code ZipEntry} contained in the input stream.
-     * @throws IOException
-     *             if an {@code IOException} occurs.
-     * @see ZipEntry
+     * @throws IOException if an {@code IOException} occurs.
      */
     public ZipEntry getNextEntry() throws IOException {
         closeEntry();
@@ -202,14 +219,9 @@ public class ZipInputStream extends InflaterInputStream implements ZipConstants 
             return null;
         }
 
-        int x = 0, count = 0;
-        while (count != 4) {
-            count += x = in.read(hdrBuf, count, 4 - count);
-            if (x == -1) {
-                return null;
-            }
-        }
-        long hdr = getLong(hdrBuf, 0);
+        // Read the signature to see whether there's another local file header.
+        Streams.readFully(in, hdrBuf, 0, 4);
+        int hdr = Memory.peekInt(hdrBuf, 0, ByteOrder.LITTLE_ENDIAN);
         if (hdr == CENSIG) {
             entriesEnd = true;
             return null;
@@ -218,96 +230,77 @@ public class ZipInputStream extends InflaterInputStream implements ZipConstants 
             return null;
         }
 
-        // Read the local header
-        count = 0;
-        while (count != (LOCHDR - LOCVER)) {
-            count += x = in.read(hdrBuf, count, (LOCHDR - LOCVER) - count);
-            if (x == -1) {
-                throw new EOFException();
-            }
-        }
-        int version = getShort(hdrBuf, 0) & 0xff;
+        // Read the local file header.
+        Streams.readFully(in, hdrBuf, 0, (LOCHDR - LOCVER));
+        int version = peekShort(0) & 0xff;
         if (version > ZIPLocalHeaderVersionNeeded) {
             throw new ZipException("Cannot read local header version " + version);
         }
-        int flags = getShort(hdrBuf, LOCFLG - LOCVER);
-        hasDD = ((flags & ZipFile.GPBF_DATA_DESCRIPTOR_FLAG) != 0);
-        int cetime = getShort(hdrBuf, LOCTIM - LOCVER);
-        int cemodDate = getShort(hdrBuf, LOCTIM - LOCVER + 2);
-        int cecompressionMethod = getShort(hdrBuf, LOCHOW - LOCVER);
-        long cecrc = 0, cecompressedSize = 0, cesize = -1;
-        if (!hasDD) {
-            cecrc = getLong(hdrBuf, LOCCRC - LOCVER);
-            cecompressedSize = getLong(hdrBuf, LOCSIZ - LOCVER);
-            cesize = getLong(hdrBuf, LOCLEN - LOCVER);
+        int flags = peekShort(LOCFLG - LOCVER);
+        if ((flags & ZipFile.GPBF_UNSUPPORTED_MASK) != 0) {
+            throw new ZipException("Invalid General Purpose Bit Flag: " + flags);
         }
-        int flen = getShort(hdrBuf, LOCNAM - LOCVER);
-        if (flen == 0) {
+
+        hasDD = ((flags & ZipFile.GPBF_DATA_DESCRIPTOR_FLAG) != 0);
+        int ceLastModifiedTime = peekShort(LOCTIM - LOCVER);
+        int ceLastModifiedDate = peekShort(LOCTIM - LOCVER + 2);
+        int ceCompressionMethod = peekShort(LOCHOW - LOCVER);
+        long ceCrc = 0, ceCompressedSize = 0, ceSize = -1;
+        if (!hasDD) {
+            ceCrc = ((long) Memory.peekInt(hdrBuf, LOCCRC - LOCVER, ByteOrder.LITTLE_ENDIAN)) & 0xffffffffL;
+            ceCompressedSize = ((long) Memory.peekInt(hdrBuf, LOCSIZ - LOCVER, ByteOrder.LITTLE_ENDIAN)) & 0xffffffffL;
+            ceSize = ((long) Memory.peekInt(hdrBuf, LOCLEN - LOCVER, ByteOrder.LITTLE_ENDIAN)) & 0xffffffffL;
+        }
+        int nameLength = peekShort(LOCNAM - LOCVER);
+        if (nameLength == 0) {
             throw new ZipException("Entry is not named");
         }
-        int elen = getShort(hdrBuf, LOCEXT - LOCVER);
+        int extraLength = peekShort(LOCEXT - LOCVER);
 
-        count = 0;
-        if (flen > nameBuf.length) {
-            nameBuf = new byte[flen];
-            charBuf = new char[flen];
+        if (nameLength > nameBuf.length) {
+            nameBuf = new byte[nameLength];
+            // The bytes are modified UTF-8, so the number of chars will always be less than or
+            // equal to the number of bytes. It's fine if this buffer is too long.
+            charBuf = new char[nameLength];
         }
-        while (count != flen) {
-            count += x = in.read(nameBuf, count, flen - count);
-            if (x == -1) {
-                throw new EOFException();
-            }
+        Streams.readFully(in, nameBuf, 0, nameLength);
+        currentEntry = createZipEntry(ModifiedUtf8.decode(nameBuf, charBuf, 0, nameLength));
+        currentEntry.time = ceLastModifiedTime;
+        currentEntry.modDate = ceLastModifiedDate;
+        currentEntry.setMethod(ceCompressionMethod);
+        if (ceSize != -1) {
+            currentEntry.setCrc(ceCrc);
+            currentEntry.setSize(ceSize);
+            currentEntry.setCompressedSize(ceCompressedSize);
         }
-        currentEntry = createZipEntry(ModifiedUtf8.decode(nameBuf, charBuf, 0, flen));
-        currentEntry.time = cetime;
-        currentEntry.modDate = cemodDate;
-        currentEntry.setMethod(cecompressionMethod);
-        if (cesize != -1) {
-            currentEntry.setCrc(cecrc);
-            currentEntry.setSize(cesize);
-            currentEntry.setCompressedSize(cecompressedSize);
-        }
-        if (elen > 0) {
-            count = 0;
-            byte[] e = new byte[elen];
-            while (count != elen) {
-                count += x = in.read(e, count, elen - count);
-                if (x == -1) {
-                    throw new EOFException();
-                }
-            }
-            currentEntry.setExtra(e);
+        if (extraLength > 0) {
+            byte[] extraData = new byte[extraLength];
+            Streams.readFully(in, extraData, 0, extraLength);
+            currentEntry.setExtra(extraData);
         }
         return currentEntry;
     }
 
-    /* Read 4 bytes from the buffer and store it as an int */
+    private int peekShort(int offset) {
+        return Memory.peekShort(hdrBuf, offset, ByteOrder.LITTLE_ENDIAN) & 0xffff;
+    }
 
     /**
      * Reads up to the specified number of uncompressed bytes into the buffer
      * starting at the offset.
      *
-     * @param buffer
-     *            a byte array
-     * @param start
-     *            the starting offset into the buffer
-     * @param length
-     *            the number of bytes to read
      * @return the number of bytes read
      */
     @Override
-    public int read(byte[] buffer, int start, int length) throws IOException {
+    public int read(byte[] buffer, int offset, int byteCount) throws IOException {
         checkClosed();
+        Arrays.checkOffsetAndCount(buffer.length, offset, byteCount);
+
         if (inf.finished() || currentEntry == null) {
             return -1;
         }
-        // avoid int overflow, check null buffer
-        if (start > buffer.length || length < 0 || start < 0
-                || buffer.length - start < length) {
-            throw new ArrayIndexOutOfBoundsException();
-        }
 
-        if (currentEntry.compressionMethod == STORED) {
+        if (currentEntry.compressionMethod == ZipEntry.STORED) {
             int csize = (int) currentEntry.size;
             if (inRead >= csize) {
                 return -1;
@@ -320,14 +313,14 @@ public class ZipInputStream extends InflaterInputStream implements ZipConstants 
                 }
                 entryIn += len;
             }
-            int toRead = length > (len - lastRead) ? len - lastRead : length;
+            int toRead = byteCount > (len - lastRead) ? len - lastRead : byteCount;
             if ((csize - inRead) < toRead) {
                 toRead = csize - inRead;
             }
-            System.arraycopy(buf, lastRead, buffer, start, toRead);
+            System.arraycopy(buf, lastRead, buffer, offset, toRead);
             lastRead += toRead;
             inRead += toRead;
-            crc.update(buffer, start, toRead);
+            crc.update(buffer, offset, toRead);
             return toRead;
         }
         if (inf.needsInput()) {
@@ -338,43 +331,15 @@ public class ZipInputStream extends InflaterInputStream implements ZipConstants 
         }
         int read;
         try {
-            read = inf.inflate(buffer, start, length);
+            read = inf.inflate(buffer, offset, byteCount);
         } catch (DataFormatException e) {
             throw new ZipException(e.getMessage());
         }
         if (read == 0 && inf.finished()) {
             return -1;
         }
-        crc.update(buffer, start, read);
+        crc.update(buffer, offset, read);
         return read;
-    }
-
-    /**
-     * Skips up to the specified number of bytes in the current ZIP entry.
-     *
-     * @param value
-     *            the number of bytes to skip.
-     * @return the number of bytes skipped.
-     * @throws IOException
-     *             if an {@code IOException} occurs.
-     */
-    @Override
-    public long skip(long value) throws IOException {
-        if (value < 0) {
-            throw new IllegalArgumentException();
-        }
-
-        long skipped = 0;
-        byte[] b = new byte[(int)Math.min(value, 2048L)];
-        while (skipped != value) {
-            long rem = value - skipped;
-            int x = read(b, 0, (int) (b.length > rem ? rem : b.length));
-            if (x == -1) {
-                return skipped;
-            }
-            skipped += x;
-        }
-        return skipped;
     }
 
     @Override
@@ -393,19 +358,6 @@ public class ZipInputStream extends InflaterInputStream implements ZipConstants 
      */
     protected ZipEntry createZipEntry(String name) {
         return new ZipEntry(name);
-    }
-
-    private int getShort(byte[] buffer, int off) {
-        return (buffer[off] & 0xFF) | ((buffer[off + 1] & 0xFF) << 8);
-    }
-
-    private long getLong(byte[] buffer, int off) {
-        long l = 0;
-        l |= (buffer[off] & 0xFF);
-        l |= (buffer[off + 1] & 0xFF) << 8;
-        l |= (buffer[off + 2] & 0xFF) << 16;
-        l |= ((long) (buffer[off + 3] & 0xFF)) << 24;
-        return l;
     }
 
     private void checkClosed() throws IOException {

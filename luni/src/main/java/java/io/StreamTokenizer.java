@@ -17,6 +17,8 @@
 
 package java.io;
 
+import java.util.Locale;
+
 /**
  * Parses a stream into a set of defined tokens, one at a time. The different
  * types of tokens that can be found are numbers, identifiers, quoted strings,
@@ -165,7 +167,7 @@ public class StreamTokenizer {
     public StreamTokenizer(InputStream is) {
         this();
         if (is == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("is == null");
         }
         inStream = is;
     }
@@ -192,7 +194,7 @@ public class StreamTokenizer {
     public StreamTokenizer(Reader r) {
         this();
         if (r == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("r == null");
         }
         inReader = r;
     }
@@ -205,7 +207,7 @@ public class StreamTokenizer {
      *            the character to be considered a comment character.
      */
     public void commentChar(int ch) {
-        if (0 <= ch && ch < tokenTypes.length) {
+        if (ch >= 0 && ch < tokenTypes.length) {
             tokenTypes[ch] = TOKEN_COMMENT;
         }
     }
@@ -346,8 +348,10 @@ public class StreamTokenizer {
                 }
             }
             peekChar = currentChar;
-            sval = forceLowercase ? word.toString().toLowerCase() : word
-                    .toString();
+            sval = word.toString();
+            if (forceLowercase) {
+                sval = sval.toLowerCase(Locale.getDefault());
+            }
             return (ttype = TT_WORD);
         }
         // Check for quoted character
@@ -486,7 +490,7 @@ public class StreamTokenizer {
      *            the character to be considered an ordinary character.
      */
     public void ordinaryChar(int ch) {
-        if (0 <= ch && ch < tokenTypes.length) {
+        if (ch >= 0 && ch < tokenTypes.length) {
             tokenTypes[ch] = 0;
         }
     }
@@ -541,7 +545,7 @@ public class StreamTokenizer {
      *            the character to be considered a quote character.
      */
     public void quoteChar(int ch) {
-        if (0 <= ch && ch < tokenTypes.length) {
+        if (ch >= 0 && ch < tokenTypes.length) {
             tokenTypes[ch] = TOKEN_QUOTE;
         }
     }

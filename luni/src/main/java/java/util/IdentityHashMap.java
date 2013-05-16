@@ -83,8 +83,11 @@ public class IdentityHashMap<K, V> extends AbstractMap<K, V> implements
     private static final Object NULL_OBJECT = new Object();  //$NON-LOCK-1$
 
     static class IdentityHashMapEntry<K, V> extends MapEntry<K, V> {
-        IdentityHashMapEntry(K theKey, V theValue) {
+        private final IdentityHashMap<K,V> map;
+
+        IdentityHashMapEntry(IdentityHashMap<K,V> map, K theKey, V theValue) {
             super(theKey, theValue);
+            this.map = map;
         }
 
         @Override
@@ -113,6 +116,13 @@ public class IdentityHashMap<K, V> extends AbstractMap<K, V> implements
         @Override
         public String toString() {
             return key + "=" + value;
+        }
+
+        @Override
+        public V setValue(V object) {
+            V result = super.setValue(object);
+            map.put(key, object);
+            return result;
         }
     }
 
@@ -251,13 +261,12 @@ public class IdentityHashMap<K, V> extends AbstractMap<K, V> implements
      *            this map.
      */
     public IdentityHashMap(int maxSize) {
-        if (maxSize >= 0) {
-            this.size = 0;
-            threshold = getThreshold(maxSize);
-            elementData = newElementArray(computeElementArraySize());
-        } else {
-            throw new IllegalArgumentException();
+        if (maxSize < 0) {
+            throw new IllegalArgumentException("maxSize < 0: " + maxSize);
         }
+        size = 0;
+        threshold = getThreshold(maxSize);
+        elementData = newElementArray(computeElementArraySize());
     }
 
     private int getThreshold(int maxSize) {
@@ -407,7 +416,7 @@ public class IdentityHashMap<K, V> extends AbstractMap<K, V> implements
             value = null;
         }
 
-        return new IdentityHashMapEntry<K, V>((K) key, (V) value);
+        return new IdentityHashMapEntry<K, V>(this, (K) key, (V) value);
     }
 
     /**
@@ -432,7 +441,7 @@ public class IdentityHashMap<K, V> extends AbstractMap<K, V> implements
     }
 
     private int getModuloHash(Object key, int length) {
-        return ((System.identityHashCode(key) & 0x7FFFFFFF) % (length / 2)) * 2;
+        return ((Collections.secondaryIdentityHash(key) & 0x7FFFFFFF) % (length / 2)) * 2;
     }
 
     /**
@@ -495,7 +504,7 @@ public class IdentityHashMap<K, V> extends AbstractMap<K, V> implements
     }
 
     private void rehash() {
-        int newlength = elementData.length << 1;
+        int newlength = elementData.length * 2;
         if (newlength == 0) {
             newlength = 1;
         }
@@ -751,14 +760,12 @@ public class IdentityHashMap<K, V> extends AbstractMap<K, V> implements
     @Override
     public Object clone() {
         try {
-            IdentityHashMap<K, V> cloneHashMap = (IdentityHashMap<K, V>) super
-                    .clone();
+            IdentityHashMap<K, V> cloneHashMap = (IdentityHashMap<K, V>) super.clone();
             cloneHashMap.elementData = newElementArray(elementData.length);
-            System.arraycopy(elementData, 0, cloneHashMap.elementData, 0,
-                    elementData.length);
+            System.arraycopy(elementData, 0, cloneHashMap.elementData, 0, elementData.length);
             return cloneHashMap;
         } catch (CloneNotSupportedException e) {
-            throw new AssertionError(e); // android-changed
+            throw new AssertionError(e);
         }
     }
 

@@ -26,8 +26,6 @@ import java.io.IOException;
  * recommended way to access this functionality is through the class
  * <code>android.os.Debug</code>.
  *
- * @cts Please complete the spec.
- *
  * @hide
  */
 public final class VMDebug {
@@ -36,6 +34,7 @@ public final class VMDebug {
      *
      * @deprecated only used in one place, which is unused and deprecated
      */
+    @Deprecated
     static public final String DEFAULT_METHOD_TRACE_FILE_NAME = "/sdcard/dmtrace.trace";
 
     /**
@@ -134,8 +133,6 @@ public final class VMDebug {
      * Returns an array of strings that identify VM features.  This is
      * used by DDMS to determine what sorts of operations the VM can
      * perform.
-     *
-     * @hide
      */
     public static native String[] getVmFeatureList();
 
@@ -145,6 +142,7 @@ public final class VMDebug {
      *
      * @deprecated not used, not needed
      */
+    @Deprecated
     public static void startMethodTracing() {
         startMethodTracing(DEFAULT_METHOD_TRACE_FILE_NAME, 0, 0);
     }
@@ -167,11 +165,10 @@ public final class VMDebug {
      * @param flags flags to control method tracing. The only one that
      * is currently defined is {@link #TRACE_COUNT_ALLOCS}.
      */
-    public static void startMethodTracing(String traceFileName,
-        int bufferSize, int flags) {
+    public static void startMethodTracing(String traceFileName, int bufferSize, int flags) {
 
         if (traceFileName == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("traceFileName == null");
         }
 
         startMethodTracingNative(traceFileName, null, bufferSize, flags);
@@ -181,16 +178,15 @@ public final class VMDebug {
      * Like startMethodTracing(String, int, int), but taking an already-opened
      * FileDescriptor in which the trace is written.  The file name is also
      * supplied simply for logging.  Makes a dup of the file descriptor.
-     *
-     * Not exposed in the SDK unless we are really comfortable with supporting
-     * this and find it would be useful.
-     * @hide
      */
     public static void startMethodTracing(String traceFileName,
         FileDescriptor fd, int bufferSize, int flags)
     {
-        if (traceFileName == null || fd == null) {
-            throw new NullPointerException();
+        if (traceFileName == null) {
+            throw new NullPointerException("traceFileName == null");
+        }
+        if (fd == null) {
+            throw new NullPointerException("fd == null");
         }
 
         startMethodTracingNative(traceFileName, fd, bufferSize, flags);
@@ -200,8 +196,6 @@ public final class VMDebug {
      * Starts method tracing without a backing file.  When stopMethodTracing
      * is called, the result is sent directly to DDMS.  (If DDMS is not
      * attached when tracing ends, the profiling data will be discarded.)
-     *
-     * @hide
      */
     public static void startMethodTracingDdms(int bufferSize, int flags) {
         startMethodTracingNative(null, null, bufferSize, flags);
@@ -209,15 +203,12 @@ public final class VMDebug {
 
     /**
      * Implements all startMethodTracing variants.
-     *
-     * @hide
      */
     private static native void startMethodTracingNative(String traceFileName,
         FileDescriptor fd, int bufferSize, int flags);
 
     /**
      * Determine whether method tracing is currently active.
-     * @hide
      */
     public static native boolean isMethodTracingActive();
 
@@ -260,36 +251,22 @@ public final class VMDebug {
     public static native void resetAllocCount(int kinds);
 
     /**
-     * Establishes an object allocation limit in the current thread. Useful for
-     * catching regressions in code that is expected to operate without causing
-     * any allocations. The limit is valid from the return of this method until
-     * it is either changed or the thread terminates.
-     *
-     * @param limit
-     *            the new limit. A value of 0 means not a single new object may
-     *            be allocated. A value of -1 disables the limit.
-     *
-     * @return the previous limit, or -1 if no limit was set
-     *
-     * @see #setGlobalAllocationLimit(int)
+     * This method exists for binary compatibility.  It was part of
+     * the allocation limits API which was removed in Honeycomb.
      */
-    public static native int setAllocationLimit(int limit);
+    @Deprecated
+    public static int setAllocationLimit(int limit) {
+        return -1;
+    }
 
     /**
-     * Establishes an object allocation limit for the entire VM. Useful for
-     * catching regressions in code that is expected to operate without causing
-     * any allocations. The limit is valid from the return of this method until
-     * it is either changed or the thread terminates.
-     *
-     * @param limit
-     *            the new limit. A value of 0 means not a single new object may
-     *            be allocated. A value of -1 disables the limit.
-     *
-     * @return the previous limit, or -1 if no limit was set
-     *
-     * @see #setAllocationLimit(int)
+     * This method exists for binary compatibility.  It was part of
+     * the allocation limits API which was removed in Honeycomb.
      */
-    public static native int setGlobalAllocationLimit(int limit);
+    @Deprecated
+    public static int setGlobalAllocationLimit(int limit) {
+        return -1;
+    }
 
     /**
      * Count the number of instructions executed between two points.
@@ -316,15 +293,16 @@ public final class VMDebug {
      *
      * The VM may create a temporary file in the same directory.
      *
-     * @param fileName Full pathname of output file (e.g. "/sdcard/dump.hprof").
+     * @param filename Full pathname of output file (e.g. "/sdcard/dump.hprof").
      * @throws UnsupportedOperationException if the VM was built without
      *         HPROF support.
      * @throws IOException if an error occurs while opening or writing files.
      */
-    public static void dumpHprofData(String fileName) throws IOException {
-        if (fileName == null)
-            throw new NullPointerException();
-        dumpHprofData(fileName, null);
+    public static void dumpHprofData(String filename) throws IOException {
+        if (filename == null) {
+            throw new NullPointerException("filename == null");
+        }
+        dumpHprofData(filename, null);
     }
 
     /**
@@ -332,8 +310,6 @@ public final class VMDebug {
      *
      * @throws UnsupportedOperationException if the VM was built without
      *         HPROF support.
-     *
-     * @hide
      */
     public static native void dumpHprofDataDdms();
 
@@ -344,24 +320,18 @@ public final class VMDebug {
      *        file name is only used in log messages (and may be null).
      * @param fd Descriptor of open file that will receive the output.
      *        If this is null, the fileName is used instead.
-     *
-     * @hide
      */
     public static native void dumpHprofData(String fileName, FileDescriptor fd)
             throws IOException;
 
     /**
      * Primes the register map cache.
-     *
-     * @hide
      */
     public static native boolean cacheRegisterMap(String classAndMethodDesc);
 
     /**
      * Dumps the contents of the VM reference tables (e.g. JNI locals and
      * globals) to the log file.
-     *
-     * @hide
      */
     public static native void dumpReferenceTables();
 
@@ -370,16 +340,12 @@ public final class VMDebug {
      * the current thread and then aborts the VM so you can see the native
      * stack trace.  Useful for figuring out how you got somewhere when
      * lots of native code is involved.
-     *
-     * @hide
      */
     public static native void crash();
 
     /**
      * Together with gdb, provide a handy way to stop the VM at user-tagged
      * locations.
-     *
-     * @hide
      */
     public static native void infopoint(int id);
 
@@ -404,8 +370,7 @@ public final class VMDebug {
      *                   counted.  If true, instances that are
      *                   assignable to klass, as defined by
      *                   {@link Class#isAssignableFrom} are counted.
-     * @returns the number of matching instances.
-     * @hide
+     * @return the number of matching instances.
      */
     public static native long countInstancesOfClass(Class klass, boolean assignable);
 }

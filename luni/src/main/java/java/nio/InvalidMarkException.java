@@ -28,6 +28,13 @@ public class InvalidMarkException extends IllegalStateException {
      * Constructs an {@code InvalidMarkException}.
      */
     public InvalidMarkException() {
-        super();
+    }
+
+    /**
+     * Constructs an {@code InvalidMarkException} with the given detail message.
+     * @hide
+     */
+    public InvalidMarkException(String detailMessage) {
+        super(detailMessage);
     }
 }

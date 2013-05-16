@@ -17,6 +17,7 @@
 
 package java.io;
 
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.Vector;
 
@@ -49,7 +50,7 @@ public class SequenceInputStream extends InputStream {
      */
     public SequenceInputStream(InputStream s1, InputStream s2) {
         if (s1 == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("s1 == null");
         }
         Vector<InputStream> inVector = new Vector<InputStream>(1);
         inVector.addElement(s2);
@@ -72,7 +73,7 @@ public class SequenceInputStream extends InputStream {
         if (e.hasMoreElements()) {
             in = e.nextElement();
             if (in == null) {
-                throw new NullPointerException();
+                throw new NullPointerException("element is null");
             }
         }
     }
@@ -111,7 +112,7 @@ public class SequenceInputStream extends InputStream {
         if (e.hasMoreElements()) {
             in = e.nextElement();
             if (in == null) {
-                throw new NullPointerException();
+                throw new NullPointerException("element is null");
             }
         } else {
             in = null;
@@ -184,19 +185,7 @@ public class SequenceInputStream extends InputStream {
         if (in == null) {
             return -1;
         }
-        // BEGIN android-changed
-        if (buffer == null) {
-            throw new NullPointerException("buffer == null");
-        }
-        // avoid int overflow
-        // Exception priorities (in case of multiple errors) differ from
-        // RI, but are spec-compliant.
-        // used (offset | count) < 0 instead of (offset < 0) || (count < 0)
-        // to safe one operation
-        if ((offset | count) < 0 || offset > buffer.length - count) {
-            throw new IndexOutOfBoundsException();
-        }
-        // END android-changed
+        Arrays.checkOffsetAndCount(buffer.length, offset, count);
         while (in != null) {
             int result = in.read(buffer, offset, count);
             if (result >= 0) {

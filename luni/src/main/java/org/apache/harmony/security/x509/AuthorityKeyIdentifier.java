@@ -51,8 +51,7 @@ import org.apache.harmony.security.utils.Array;
  *   KeyIdentifier ::= OCTET STRING
  * </pre>
  */
-public class AuthorityKeyIdentifier extends ExtensionValue {
-
+public final class AuthorityKeyIdentifier extends ExtensionValue {
     private final byte[] keyIdentifier;
     private final GeneralNames authorityCertIssuer;
     private final BigInteger authorityCertSerialNumber;
@@ -65,41 +64,63 @@ public class AuthorityKeyIdentifier extends ExtensionValue {
         this.authorityCertSerialNumber = authorityCertSerialNumber;
     }
 
-    public static AuthorityKeyIdentifier decode(byte[] encoding)
-            throws IOException {
-        AuthorityKeyIdentifier aki =
-            (AuthorityKeyIdentifier) ASN1.decode(encoding);
+    public static AuthorityKeyIdentifier decode(byte[] encoding) throws IOException {
+        AuthorityKeyIdentifier aki = (AuthorityKeyIdentifier) ASN1.decode(encoding);
         aki.encoding = encoding;
         return aki;
     }
 
-    public byte[] getEncoded() {
+    /**
+     * The key identifier for the authority.
+     *
+     * @return key identifier or {@code null}
+     */
+    public byte[] getKeyIdentifier() {
+        return keyIdentifier;
+    }
+
+    /**
+     * The GeneralNames for this authority key identifier.
+     *
+     * @return names for the authority certificate issuer or {@code null}
+     */
+    public GeneralNames getAuthorityCertIssuer() {
+        return authorityCertIssuer;
+    }
+
+    /**
+     * The serial number of the certificate identified by this authority key
+     * identifier.
+     *
+     * @return authority's certificate serial number or {@code null}
+     */
+    public BigInteger getAuthorityCertSerialNumber() {
+        return authorityCertSerialNumber;
+    }
+
+    @Override public byte[] getEncoded() {
         if (encoding == null) {
             encoding = ASN1.encode(this);
         }
         return encoding;
     }
 
-    /**
-     * Places the string representation of extension value
-     * into the StringBuffer object.
-     */
-    public void dumpValue(StringBuffer buffer, String prefix) {
-        buffer.append(prefix).append("AuthorityKeyIdentifier [\n");
+    @Override public void dumpValue(StringBuilder sb, String prefix) {
+        sb.append(prefix).append("AuthorityKeyIdentifier [\n");
         if (keyIdentifier != null) {
-            buffer.append(prefix).append("  keyIdentifier:\n");
-            buffer.append(Array.toString(keyIdentifier, prefix + "    "));
+            sb.append(prefix).append("  keyIdentifier:\n");
+            sb.append(Array.toString(keyIdentifier, prefix + "    "));
         }
         if (authorityCertIssuer != null) {
-            buffer.append(prefix).append("  authorityCertIssuer: [\n");
-            authorityCertIssuer.dumpValue(buffer, prefix + "    ");
-            buffer.append(prefix).append("  ]\n");
+            sb.append(prefix).append("  authorityCertIssuer: [\n");
+            authorityCertIssuer.dumpValue(sb, prefix + "    ");
+            sb.append(prefix).append("  ]\n");
         }
         if (authorityCertSerialNumber != null) {
-            buffer.append(prefix).append("  authorityCertSerialNumber: ")
-                .append(authorityCertSerialNumber).append('\n');
+            sb.append(prefix).append("  authorityCertSerialNumber: ");
+            sb.append(authorityCertSerialNumber).append('\n');
         }
-        buffer.append(prefix).append("]\n");
+        sb.append(prefix).append("]\n");
     }
 
     public static final ASN1Type ASN1 = new ASN1Sequence(
@@ -114,23 +135,21 @@ public class AuthorityKeyIdentifier extends ExtensionValue {
             setOptional(2);
         }
 
-        protected Object getDecodedObject(BerInputStream in) throws IOException {
+        @Override protected Object getDecodedObject(BerInputStream in) throws IOException {
             Object[] values = (Object[]) in.content;
 
-            byte[] enc = (byte[]) values[2];
+            byte[] bytes = (byte[]) values[2];
             BigInteger authorityCertSerialNumber = null;
-            if (enc != null) {
-                authorityCertSerialNumber = new BigInteger(enc);
+            if (bytes != null) {
+                authorityCertSerialNumber = new BigInteger(bytes);
             }
 
             return new AuthorityKeyIdentifier((byte[]) values[0],
                     (GeneralNames) values[1], authorityCertSerialNumber);
         }
 
-        protected void getValues(Object object, Object[] values) {
-
+        @Override protected void getValues(Object object, Object[] values) {
             AuthorityKeyIdentifier akid = (AuthorityKeyIdentifier) object;
-
             values[0] = akid.keyIdentifier;
             values[1] = akid.authorityCertIssuer;
             if (akid.authorityCertSerialNumber != null) {
@@ -139,4 +158,3 @@ public class AuthorityKeyIdentifier extends ExtensionValue {
         }
     };
 }
-

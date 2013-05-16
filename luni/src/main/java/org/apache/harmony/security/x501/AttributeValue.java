@@ -25,21 +25,20 @@ package org.apache.harmony.security.x501;
 import java.io.IOException;
 import org.apache.harmony.security.asn1.ASN1StringType;
 import org.apache.harmony.security.asn1.DerInputStream;
-import org.apache.harmony.security.x509.Utils;
-
+import org.apache.harmony.security.utils.ObjectIdentifier;
 
 /**
  * X.501 Attribute Value
  */
-public class AttributeValue {
+public final class AttributeValue {
 
-    public final boolean wasEncoded;
+    public boolean wasEncoded;
 
-    public String escapedString;
+    public final String escapedString;
 
     private String hexString;
 
-    private int tag = -1;
+    private final int tag;
 
     public byte[] encoded;
 
@@ -47,18 +46,29 @@ public class AttributeValue {
 
     public boolean hasQE; // raw string contains '"' or '\'
 
-    public AttributeValue(String parsedString, boolean hasQorE) {
+    public final String rawString;
 
+    public AttributeValue(String parsedString, boolean hasQorE, ObjectIdentifier oid) {
         wasEncoded = false;
 
         this.hasQE = hasQorE;
-
         this.rawString = parsedString;
-        this.escapedString = makeEscaped(rawString);
+        this.escapedString = makeEscaped(rawString); // overwrites hasQE
+
+        int tag;
+        if (oid == AttributeTypeAndValue.EMAILADDRESS || oid == AttributeTypeAndValue.DC) {
+            // http://www.rfc-editor.org/rfc/rfc5280.txt
+            // says that EmailAddress and DomainComponent should be a IA5String
+            tag = ASN1StringType.IA5STRING.id;
+        } else if (isPrintableString(rawString)) {
+            tag = ASN1StringType.PRINTABLESTRING.id;
+        } else {
+            tag = ASN1StringType.UTF8STRING.id;
+        }
+        this.tag = tag;
     }
 
     public AttributeValue(String hexString, byte[] encoded) {
-
         wasEncoded = true;
 
         this.hexString = hexString;
@@ -84,10 +94,7 @@ public class AttributeValue {
         }
     }
 
-    public String rawString;
-
     public AttributeValue(String rawString, byte[] encoded, int tag) {
-
         wasEncoded = true;
 
         this.encoded = encoded;
@@ -102,27 +109,41 @@ public class AttributeValue {
         }
     }
 
-    public int getTag() {
-        if (tag == -1) {
-            if (Utils.isPrintableString(rawString)) {
-                tag = ASN1StringType.PRINTABLESTRING.id;
-            } else {
-                tag = ASN1StringType.UTF8STRING.id;
+    /**
+     * Checks if the string is PrintableString (see X.680)
+     */
+    private static boolean isPrintableString(String str) {
+        for (int i = 0; i< str.length(); ++i) {
+            char ch = str.charAt(i);
+            if (!(ch == 0x20
+            || ch >= 0x27 && ch<= 0x29 // '()
+            || ch >= 0x2B && ch<= 0x3A // +,-./0-9:
+            || ch == '='
+            || ch == '?'
+            || ch >= 'A' && ch<= 'Z'
+            || ch >= 'a' && ch<= 'z')) {
+                return false;
             }
         }
+        return true;
+    }
+
+    public int getTag() {
         return tag;
     }
 
     public String getHexString() {
         if (hexString == null) {
-
             if (!wasEncoded) {
                 //FIXME optimize me: what about reusable OutputStream???
-                if (Utils.isPrintableString(rawString)) {
+                if (tag == ASN1StringType.IA5STRING.id) {
+                    encoded = ASN1StringType.IA5STRING.encode(rawString);
+                } else if (tag == ASN1StringType.PRINTABLESTRING.id) {
                     encoded = ASN1StringType.PRINTABLESTRING.encode(rawString);
                 } else {
                     encoded = ASN1StringType.UTF8STRING.encode(rawString);
                 }
+                wasEncoded = true;
             }
 
             StringBuilder buf = new StringBuilder(encoded.length * 2 + 1);
@@ -148,33 +169,32 @@ public class AttributeValue {
         return hexString;
     }
 
-    public void appendQEString(StringBuffer buf) {
-        buf.append('"');
+    public void appendQEString(StringBuilder sb) {
+        sb.append('"');
         if (hasQE) {
             char c;
             for (int i = 0; i < rawString.length(); i++) {
                 c = rawString.charAt(i);
                 if (c == '"' || c == '\\') {
-                    buf.append('\\');
+                    sb.append('\\');
                 }
-                buf.append(c);
+                sb.append(c);
             }
         } else {
-            buf.append(rawString);
+            sb.append(rawString);
         }
-        buf.append('"');
+        sb.append('"');
     }
 
-    //
-    // Escapes:
-    // 1) chars ",", "+", """, "\", "<", ">", ";" (RFC 2253)
-    // 2) chars "#", "=" (required by RFC 1779)
-    // 3) a space char at the beginning or end
-    // 4) according to the requirement to be RFC 1779 compatible:
-    //    '#' char is escaped in any position
-    //
+    /**
+     * Escapes:
+     * 1) chars ",", "+", """, "\", "<", ">", ";" (RFC 2253)
+     * 2) chars "#", "=" (required by RFC 1779)
+     * 3) a space char at the beginning or end
+     * 4) according to the requirement to be RFC 1779 compatible:
+     *    '#' char is escaped in any position
+     */
     private String makeEscaped(String name) {
-
         int length = name.length();
         if (length == 0) {
             return name;
@@ -182,11 +202,8 @@ public class AttributeValue {
         StringBuilder buf = new StringBuilder(length * 2);
 
         for (int index = 0; index < length; index++) {
-
             char ch = name.charAt(index);
-
             switch (ch) {
-
             case ' ':
                 if (index == 0 || index == (length - 1)) {
                     // escape first or last space
@@ -198,6 +215,9 @@ public class AttributeValue {
             case '"':
             case '\\':
                 hasQE = true;
+                buf.append('\\');
+                buf.append(ch);
+                break;
 
             case ',':
             case '+':
@@ -207,9 +227,12 @@ public class AttributeValue {
             case '#': // required by RFC 1779
             case '=': // required by RFC 1779
                 buf.append('\\');
+                buf.append(ch);
+                break;
 
             default:
                 buf.append(ch);
+                break;
             }
         }
 
@@ -217,7 +240,6 @@ public class AttributeValue {
     }
 
     public String makeCanonical() {
-
         int length = rawString.length();
         if (length == 0) {
             return rawString;
@@ -233,11 +255,9 @@ public class AttributeValue {
 
         int bufLength;
         for (; index < length; index++) {
-
             char ch = rawString.charAt(index);
 
             switch (ch) {
-
             case ' ':
                 bufLength = buf.length();
                 if (bufLength == 0 || buf.charAt(bufLength - 1) == ' ') {

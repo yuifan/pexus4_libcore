@@ -51,7 +51,7 @@ import org.apache.harmony.security.fortress.Engine;
 public abstract class MessageDigest extends MessageDigestSpi {
 
     // Used to access common engine functionality
-    private static final Engine engine = new Engine("MessageDigest");
+    private static final Engine ENGINE = new Engine("MessageDigest");
 
     // The provider
     private Provider provider;
@@ -86,20 +86,18 @@ public abstract class MessageDigest extends MessageDigestSpi {
     public static MessageDigest getInstance(String algorithm)
             throws NoSuchAlgorithmException {
         if (algorithm == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("algorithm == null");
         }
-        MessageDigest result;
-        synchronized (engine) {
-            engine.getInstance(algorithm, null);
-            if (engine.spi instanceof MessageDigest) {
-                result = (MessageDigest) engine.spi;
-                result.algorithm = algorithm;
-                result.provider = engine.provider;
-                return result;
-            }
-            return new MessageDigestImpl((MessageDigestSpi) engine.spi,
-                    engine.provider, algorithm);
+        Engine.SpiAndProvider sap = ENGINE.getInstance(algorithm, null);
+        Object spi = sap.spi;
+        Provider provider = sap.provider;
+        if (spi instanceof MessageDigest) {
+            MessageDigest result = (MessageDigest) spi;
+            result.algorithm = algorithm;
+            result.provider = provider;
+            return result;
         }
+        return new MessageDigestImpl((MessageDigestSpi) sap.spi, sap.provider, algorithm);
     }
 
     /**
@@ -151,24 +149,19 @@ public abstract class MessageDigest extends MessageDigestSpi {
     public static MessageDigest getInstance(String algorithm, Provider provider)
             throws NoSuchAlgorithmException {
         if (provider == null) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("provider == null");
         }
         if (algorithm == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("algorithm == null");
         }
-        MessageDigest result;
-        synchronized (engine) {
-            engine.getInstance(algorithm, provider, null);
-            if (engine.spi instanceof MessageDigest) {
-                result = (MessageDigest) engine.spi;
-                result.algorithm = algorithm;
-                result.provider = provider;
-                return result;
-            }
-            result = new MessageDigestImpl((MessageDigestSpi) engine.spi,
-                    provider, algorithm);
+        Object spi = ENGINE.getInstance(algorithm, provider, null);
+        if (spi instanceof MessageDigest) {
+            MessageDigest result = (MessageDigest) spi;
+            result.algorithm = algorithm;
+            result.provider = provider;
             return result;
         }
+        return new MessageDigestImpl((MessageDigestSpi) spi, provider, algorithm);
     }
 
     /**
@@ -224,7 +217,7 @@ public abstract class MessageDigest extends MessageDigestSpi {
      */
     public void update(byte[] input) {
         if (input == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("input == null");
         }
         engineUpdate(input, 0, input.length);
     }

@@ -175,7 +175,7 @@ public class Timer {
         private boolean finished;
 
         /**
-         * Vector consists of scheduled events, sorted according to
+         * Contains scheduled events, sorted according to
          * {@code when} field of TaskScheduled object.
          */
         private TimerHeap tasks = new TimerHeap();
@@ -324,7 +324,6 @@ public class Timer {
         private final TimerImpl impl;
 
         FinalizerHelper(TimerImpl impl) {
-            super();
             this.impl = impl;
         }
 
@@ -362,9 +361,8 @@ public class Timer {
      * @throws NullPointerException is {@code name} is {@code null}
      */
     public Timer(String name, boolean isDaemon) {
-        super();
-        if (name == null){
-            throw new NullPointerException("name is null");
+        if (name == null) {
+            throw new NullPointerException("name == null");
         }
         this.impl = new TimerImpl(name, isDaemon);
         this.finalizer = new FinalizerHelper(impl);
@@ -435,7 +433,7 @@ public class Timer {
      */
     public void schedule(TimerTask task, Date when) {
         if (when.getTime() < 0) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("when < 0: " + when.getTime());
         }
         long delay = when.getTime() - System.currentTimeMillis();
         scheduleImpl(task, delay < 0 ? 0 : delay, -1, false);
@@ -456,7 +454,7 @@ public class Timer {
      */
     public void schedule(TimerTask task, long delay) {
         if (delay < 0) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("delay < 0: " + delay);
         }
         scheduleImpl(task, delay, -1, false);
     }
@@ -471,7 +469,7 @@ public class Timer {
      * @param period
      *            amount of time in milliseconds between subsequent executions.
      * @throws IllegalArgumentException
-     *                if {@code delay < 0} or {@code period < 0}.
+     *                if {@code delay < 0} or {@code period <= 0}.
      * @throws IllegalStateException
      *                if the {@code Timer} has been canceled, or if the task has been
      *                scheduled or canceled.
@@ -494,7 +492,7 @@ public class Timer {
      * @param period
      *            amount of time in milliseconds between subsequent executions.
      * @throws IllegalArgumentException
-     *                if {@code when.getTime() < 0} or {@code period < 0}.
+     *                if {@code when.getTime() < 0} or {@code period <= 0}.
      * @throws IllegalStateException
      *                if the {@code Timer} has been canceled, or if the task has been
      *                scheduled or canceled.
@@ -518,7 +516,7 @@ public class Timer {
      * @param period
      *            amount of time in milliseconds between subsequent executions.
      * @throws IllegalArgumentException
-     *                if {@code delay < 0} or {@code period < 0}.
+     *                if {@code delay < 0} or {@code period <= 0}.
      * @throws IllegalStateException
      *                if the {@code Timer} has been canceled, or if the task has been
      *                scheduled or canceled.
@@ -541,7 +539,7 @@ public class Timer {
      * @param period
      *            amount of time in milliseconds between subsequent executions.
      * @throws IllegalArgumentException
-     *                if {@code when.getTime() < 0} or {@code period < 0}.
+     *                if {@code when.getTime() < 0} or {@code period <= 0}.
      * @throws IllegalStateException
      *                if the {@code Timer} has been canceled, or if the task has been
      *                scheduled or canceled.

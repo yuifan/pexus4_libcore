@@ -123,28 +123,28 @@ public final class X500Principal implements Serializable, Principal {
      */
     public X500Principal(String name) {
         if (name == null) {
-            throw new NullPointerException("Name cannot be null");
+            throw new NullPointerException("name == null");
         }
         try {
             dn = new Name(name);
         } catch (IOException e) {
-            throw incorrectInputName(e);
+            throw incorrectInputName(e, name);
         }
     }
 
     public X500Principal(String name, Map<String,String> keywordMap){
         if (name == null) {
-            throw new NullPointerException("Name cannot be null");
+            throw new NullPointerException("name == null");
         }
         try {
             dn = new Name(substituteNameFromMap(name, keywordMap));
         } catch (IOException e) {
-            throw incorrectInputName(e);
+            throw incorrectInputName(e, name);
         }
     }
 
-    private IllegalArgumentException incorrectInputName(IOException e) {
-        IllegalArgumentException iae = new IllegalArgumentException("Incorrect input name");
+    private IllegalArgumentException incorrectInputName(IOException e, String name) {
+        IllegalArgumentException iae = new IllegalArgumentException("Incorrect input name:" + name);
         iae.initCause(e);
         throw iae;
     }
@@ -223,7 +223,7 @@ public final class X500Principal implements Serializable, Principal {
         String rfc1779Name = dn.getName(RFC1779);
         String rfc2253Name = dn.getName(RFC2253);
 
-        if (format.toUpperCase().equals("RFC1779")) {
+        if (format.equalsIgnoreCase("RFC1779")) {
             StringBuilder resultName = new StringBuilder(rfc1779Name);
             int fromIndex = resultName.length();
             int equalIndex = -1;
@@ -243,7 +243,7 @@ public final class X500Principal implements Serializable, Principal {
                 fromIndex = commaIndex;
             }
             return resultName.toString();
-        } else if (format.toUpperCase().equals("RFC2253")) {
+        } else if (format.equalsIgnoreCase("RFC2253")) {
             StringBuilder resultName = new StringBuilder(rfc2253Name);
             StringBuilder subsidyName = new StringBuilder(rfc1779Name);
 
@@ -277,7 +277,7 @@ public final class X500Principal implements Serializable, Principal {
             }
             return resultName.toString();
         } else {
-            throw new IllegalArgumentException("invalid format specified");
+            throw new IllegalArgumentException("invalid format specified: " + format);
         }
     }
 

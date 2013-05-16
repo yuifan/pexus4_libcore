@@ -42,11 +42,7 @@ public abstract class AbstractSelectableChannel extends SelectableChannel {
      */
     private List<SelectionKey> keyList = new ArrayList<SelectionKey>();
 
-    // Marker class so lock type shows up in profilers
-    static private class BlockingLock {
-    }
-
-    private final Object blockingLock = new BlockingLock();
+    private final Object blockingLock = new Object();
 
     boolean isBlocking = true;
 
@@ -57,7 +53,6 @@ public abstract class AbstractSelectableChannel extends SelectableChannel {
      *            the selector provider that creates this channel.
      */
     protected AbstractSelectableChannel(SelectorProvider selectorProvider) {
-        super();
         provider = selectorProvider;
     }
 
@@ -93,9 +88,8 @@ public abstract class AbstractSelectableChannel extends SelectableChannel {
      */
     @Override
     synchronized public final SelectionKey keyFor(Selector selector) {
-        for (int i = 0; i < keyList.size(); i++) {
-            SelectionKey key = keyList.get(i);
-            if (null != key && key.selector() == selector) {
+        for (SelectionKey key : keyList) {
+            if (key != null && key.selector() == selector) {
                 return key;
             }
         }
@@ -136,7 +130,7 @@ public abstract class AbstractSelectableChannel extends SelectableChannel {
             throw new ClosedChannelException();
         }
         if (!((interestSet & ~validOps()) == 0)) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("no valid ops in interest set: " + interestSet);
         }
 
         synchronized (blockingLock) {
@@ -144,17 +138,16 @@ public abstract class AbstractSelectableChannel extends SelectableChannel {
                 throw new IllegalBlockingModeException();
             }
             if (!selector.isOpen()) {
-                if (0 == interestSet) {
+                if (interestSet == 0) {
                     // throw ISE exactly to keep consistency
                     throw new IllegalSelectorException();
                 }
                 // throw NPE exactly to keep consistency
-                throw new NullPointerException();
+                throw new NullPointerException("selector not open");
             }
             SelectionKey key = keyFor(selector);
-            if (null == key) {
-                key = ((AbstractSelector) selector).register(this, interestSet,
-                        attachment);
+            if (key == null) {
+                key = ((AbstractSelector) selector).register(this, interestSet, attachment);
                 keyList.add(key);
             } else {
                 if (!key.isValid()) {
@@ -179,9 +172,8 @@ public abstract class AbstractSelectableChannel extends SelectableChannel {
     @Override
     synchronized protected final void implCloseChannel() throws IOException {
         implCloseSelectableChannel();
-        for (int i = 0; i < keyList.size(); i++) {
-            SelectionKey key = keyList.get(i);
-            if (null != key) {
+        for (SelectionKey key : keyList) {
+            if (key != null) {
                 key.cancel();
             }
         }
@@ -241,39 +233,36 @@ public abstract class AbstractSelectableChannel extends SelectableChannel {
      */
     @Override
     public final SelectableChannel configureBlocking(boolean blockingMode) throws IOException {
-        if (isOpen()) {
-            synchronized (blockingLock) {
-                if (isBlocking == blockingMode) {
-                    return this;
-                }
-                if (blockingMode && containsValidKeys()) {
-                    throw new IllegalBlockingModeException();
-                }
-                implConfigureBlocking(blockingMode);
-                isBlocking = blockingMode;
-            }
-            return this;
+        if (!isOpen()) {
+            throw new ClosedChannelException();
         }
-        throw new ClosedChannelException();
+        synchronized (blockingLock) {
+            if (isBlocking == blockingMode) {
+                return this;
+            }
+            if (blockingMode && containsValidKeys()) {
+                throw new IllegalBlockingModeException();
+            }
+            implConfigureBlocking(blockingMode);
+            isBlocking = blockingMode;
+        }
+        return this;
     }
 
     /**
-     * Implements the setting of the blocking mode.
+     * Implements the configuration of blocking/non-blocking mode.
      *
-     * @param blockingMode
-     *            {@code true} for setting this channel's mode to blocking,
-     *            {@code false} to set it to non-blocking.
+     * @param blocking true for blocking, false for non-blocking.
      * @throws IOException
      *             if an I/O error occurs.
      */
-    protected abstract void implConfigureBlocking(boolean blockingMode)
-            throws IOException;
+    protected abstract void implConfigureBlocking(boolean blocking) throws IOException;
 
     /*
      * package private for deregister method in AbstractSelector.
      */
     synchronized void deregister(SelectionKey k) {
-        if (null != keyList) {
+        if (keyList != null) {
             keyList.remove(k);
         }
     }
@@ -283,8 +272,7 @@ public abstract class AbstractSelectableChannel extends SelectableChannel {
      * otherwise.
      */
     private synchronized boolean containsValidKeys() {
-        for (int i = 0; i < keyList.size(); i++) {
-            SelectionKey key = keyList.get(i);
+        for (SelectionKey key : keyList) {
             if (key != null && key.isValid()) {
                 return true;
             }

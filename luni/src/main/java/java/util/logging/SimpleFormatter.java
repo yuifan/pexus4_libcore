@@ -21,6 +21,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.text.MessageFormat;
 import java.util.Date;
+import libcore.io.IoUtils;
 
 /**
  * {@code SimpleFormatter} can be used to print a summary of the information
@@ -31,7 +32,6 @@ public class SimpleFormatter extends Formatter {
      * Constructs a new {@code SimpleFormatter}.
      */
     public SimpleFormatter() {
-        super();
     }
 
     /**
@@ -48,11 +48,10 @@ public class SimpleFormatter extends Formatter {
         sb.append(MessageFormat.format("{0, date} {0, time} ",
                 new Object[] { new Date(r.getMillis()) }));
         sb.append(r.getSourceClassName()).append(" ");
-        sb.append(r.getSourceMethodName()).append(
-                LogManager.getSystemLineSeparator());
+        sb.append(r.getSourceMethodName()).append(System.lineSeparator());
         sb.append(r.getLevel().getName()).append(": ");
-        sb.append(formatMessage(r)).append(LogManager.getSystemLineSeparator());
-        if (null != r.getThrown()) {
+        sb.append(formatMessage(r)).append(System.lineSeparator());
+        if (r.getThrown() != null) {
             sb.append("Throwable occurred: ");
             Throwable t = r.getThrown();
             PrintWriter pw = null;
@@ -62,13 +61,7 @@ public class SimpleFormatter extends Formatter {
                 t.printStackTrace(pw);
                 sb.append(sw.toString());
             } finally {
-                if (pw != null) {
-                    try {
-                        pw.close();
-                    } catch (Exception e) {
-                        // ignore
-                    }
-                }
+                IoUtils.closeQuietly(pw);
             }
         }
         return sb.toString();

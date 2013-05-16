@@ -35,10 +35,6 @@ public abstract class ResponseCache {
      * Returns the system's default response cache, or null.
      */
     public static ResponseCache getDefault() {
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            sm.checkPermission(new NetPermission("getResponseCache"));
-        }
         return defaultResponseCache;
     }
 
@@ -46,10 +42,6 @@ public abstract class ResponseCache {
      * Sets the system's default response cache. Use null to remove the response cache.
      */
     public static void setDefault(ResponseCache responseCache) {
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            sm.checkPermission(new NetPermission("setResponseCache"));
-        }
         defaultResponseCache = responseCache;
     }
 
@@ -80,7 +72,7 @@ public abstract class ResponseCache {
      *
      * @param uri
      *            the reference to the requested resource.
-     * @param conn
+     * @param connection
      *            the connection to fetch the response.
      * @return a CacheRequest object with a WriteableByteChannel if the resource
      *         has to be cached, {@code null} otherwise.
@@ -89,5 +81,5 @@ public abstract class ResponseCache {
      * @throws IllegalArgumentException
      *             if any one of the parameters is set to {@code null}.
      */
-    public abstract CacheRequest put(URI uri, URLConnection conn) throws IOException;
+    public abstract CacheRequest put(URI uri, URLConnection connection) throws IOException;
 }

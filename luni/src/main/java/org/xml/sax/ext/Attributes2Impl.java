@@ -5,9 +5,9 @@
 
 package org.xml.sax.ext;
 
+import libcore.util.EmptyArray;
 import org.xml.sax.Attributes;
 import org.xml.sax.helpers.AttributesImpl;
-
 
 /**
  * SAX2 extension helper for additional Attributes information,
@@ -37,18 +37,16 @@ import org.xml.sax.helpers.AttributesImpl;
  */
 public class Attributes2Impl extends AttributesImpl implements Attributes2
 {
-    private boolean    declared [];
-    private boolean    specified [];
+    private boolean[] declared;
+    private boolean[] specified;
 
 
     /**
      * Construct a new, empty Attributes2Impl object.
      */
     public Attributes2Impl () {
-        // BEGIN android-added
-        declared = new boolean[0];
-        specified = new boolean[0];
-        // END android-added
+        declared = EmptyArray.BOOLEAN;
+        specified = EmptyArray.BOOLEAN;
     }
 
 
@@ -246,12 +244,8 @@ public class Attributes2Impl extends AttributesImpl implements Attributes2
 
     int length = getLength ();
 
-    // BEGIN android-changed
     if (length > specified.length) {
-    // END android-changed
-        boolean    newFlags [];
-
-        newFlags = new boolean [length];
+        boolean[] newFlags = new boolean [length];
         System.arraycopy (declared, 0, newFlags, 0, declared.length);
         declared = newFlags;
 

@@ -20,6 +20,8 @@ package java.util.zip;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
+import libcore.io.Streams;
 
 /**
  * An {@code InputStream} filter to compress data. Callers read
@@ -70,11 +72,13 @@ public class DeflaterInputStream extends FilterInputStream {
      */
     public DeflaterInputStream(InputStream in, Deflater deflater, int bufferSize) {
         super(in);
-        if (in == null || deflater == null) {
-            throw new NullPointerException();
+        if (in == null) {
+            throw new NullPointerException("in == null");
+        } else if (deflater == null) {
+            throw new NullPointerException("deflater == null");
         }
         if (bufferSize <= 0) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("bufferSize <= 0: " + bufferSize);
         }
         this.def = deflater;
         this.buf = new byte[bufferSize];
@@ -97,39 +101,20 @@ public class DeflaterInputStream extends FilterInputStream {
      *
      * @return the byte or -1 if the end of the stream has been reached.
      */
-    @Override
-    public int read() throws IOException {
-        byte[] result = new byte[1];
-        if (read(result, 0, 1) == -1) {
-            return -1;
-        }
-        return result[0] & 0xff;
+    @Override public int read() throws IOException {
+        return Streams.readSingleByte(this);
     }
 
     /**
      * Reads compressed data into a byte buffer. The result will be bytes of compressed
      * data corresponding to an uncompressed byte or bytes read from the underlying stream.
-     *
-     * @param b
-     *            the byte buffer that compressed data will be read into.
-     * @param off
-     *            the offset in the byte buffer where compressed data will start
-     *            to be read into.
-     * @param len
-     *            the length of the compressed data that is expected to read.
      * @return the number of bytes read or -1 if the end of the compressed input
      *         stream has been reached.
      */
-    @Override
-    public int read(byte[] b, int off, int len) throws IOException {
+    @Override public int read(byte[] buffer, int offset, int byteCount) throws IOException {
         checkClosed();
-        if (b == null) {
-            throw new NullPointerException();
-        }
-        if (off < 0 || len < 0 || len > b.length - off) {
-            throw new IndexOutOfBoundsException();
-        }
-        if (len == 0) {
+        Arrays.checkOffsetAndCount(buffer.length, offset, byteCount);
+        if (byteCount == 0) {
             return 0;
         }
 
@@ -138,22 +123,22 @@ public class DeflaterInputStream extends FilterInputStream {
         }
 
         int count = 0;
-        while (count < len && !def.finished()) {
+        while (count < byteCount && !def.finished()) {
             if (def.needsInput()) {
                 // read data from input stream
-                int byteCount = in.read(buf);
-                if (byteCount == -1) {
+                int bytesRead = in.read(buf);
+                if (bytesRead == -1) {
                     def.finish();
                 } else {
-                    def.setInput(buf, 0, byteCount);
+                    def.setInput(buf, 0, bytesRead);
                 }
             }
-            int byteCount = def.deflate(buf, 0, Math.min(buf.length, len - count));
-            if (byteCount == -1) {
+            int bytesDeflated = def.deflate(buf, 0, Math.min(buf.length, byteCount - count));
+            if (bytesDeflated == -1) {
                 break;
             }
-            System.arraycopy(buf, 0, b, off + count, byteCount);
-            count += byteCount;
+            System.arraycopy(buf, 0, buffer, offset + count, bytesDeflated);
+            count += bytesDeflated;
         }
         if (count == 0) {
             count = -1;
@@ -168,25 +153,9 @@ public class DeflaterInputStream extends FilterInputStream {
      * skip {@code Integer.MAX_VALUE} bytes.
      */
     @Override
-    public long skip(long n) throws IOException {
-        if (n < 0) {
-            throw new IllegalArgumentException();
-        }
-        if (n > Integer.MAX_VALUE) {
-            n = Integer.MAX_VALUE;
-        }
-        checkClosed();
-
-        int remaining = (int) n;
-        byte[] tmp = new byte[Math.min(remaining, DEFAULT_BUFFER_SIZE)];
-        while (remaining > 0) {
-            int count = read(tmp, 0, Math.min(remaining, tmp.length));
-            if (count == -1) {
-                break;
-            }
-            remaining -= count;
-        }
-        return n - remaining;
+    public long skip(long byteCount) throws IOException {
+        byteCount = Math.min(Integer.MAX_VALUE, byteCount);
+        return Streams.skipByReading(this, byteCount);
     }
 
     /**

@@ -3,75 +3,94 @@
  */
 [
 {
-  description: "Dalvik doesn't support XML Schemas, DTDs or validation
-                http://code.google.com/p/android/issues/detail?id=7395",
-  result: EXEC_FAILED,
-  name: "tests.xml.DomTest#testEntityDeclarations",
+ description: "javasqlite doesn't honor query timeouts",
+ bug: 5213614,
+ names: [
+   "libcore.sqlite.QueryTimeoutTest#testExecuteUpdate",
+   "libcore.sqlite.QueryTimeoutTest#testPreparedStatementFetch",
+   "libcore.sqlite.QueryTimeoutTest#testPreparedStatementUpdate",
+   "libcore.sqlite.QueryTimeoutTest#testTimeoutAndStatementReuse"
+  ]
+},
+{
+  description: "Dalvik doesn't support XML Schemas, DTDs or validation",
+  bug: 3268630,
+  name: "libcore.xml.DomTest#testEntityDeclarations",
   substring: "This implementation does not parse entity declarations"
 },
 {
-  description: "This file contains expectations for tests that we'd like to eventually fix, but aren't urgent.
-                Dalvik doesn't support XML Schemas, DTDs or validation
-                http://code.google.com/p/android/issues/detail?id=7395",
-  result: EXEC_FAILED,
-  name: "tests.xml.DomTest#testGetWholeTextWithEntityReference",
+  description: "Dalvik doesn't support XML Schemas, DTDs or validation",
+  bug: 3268630,
+  name: "libcore.xml.DomTest#testGetWholeTextWithEntityReference",
   substring: "This implementation doesn't resolve entity references in getWholeText"
 },
 {
-  description: "This file contains expectations for tests that we'd like to eventually fix, but aren't urgent.
-                Dalvik doesn't support XML Schemas, DTDs or validation
-                http://code.google.com/p/android/issues/detail?id=7395",
-  result: EXEC_FAILED,
-  name: "tests.xml.DomTest#testIsElementContentWhitespaceWithDeclaration",
+  description: "Dalvik doesn't support XML Schemas, DTDs or validation",
+  name: "libcore.xml.DomTest#testExpandingEntityReferencesOff",
+  bug: 3268630,
+  substring: "This implementation doesn't include children in entity references"
+},
+{
+  description: "Dalvik doesn't support XML Schemas, DTDs or validation",
+  name: "libcore.xml.DomTest#testExpandingEntityReferencesOn",
+  bug: 3268630,
+  substring: "This implementation doesn't expand entity references"
+},
+{
+  description: "Dalvik doesn't support XML Schemas, DTDs or validation",
+  bug: 3268630,
+  name: "libcore.xml.DomTest#testIsElementContentWhitespaceWithDeclaration",
   substring: "This implementation does not recognize element content whitespace"
 },
 {
-  description: "This file contains expectations for tests that we'd like to eventually fix, but aren't urgent.
-                Dalvik doesn't support XML Schemas, DTDs or validation
-                http://code.google.com/p/android/issues/detail?id=7395",
-  result: EXEC_FAILED,
-  name: "tests.xml.DomTest#testNotations",
+  description: "Dalvik doesn't support XML Schemas, DTDs or validation",
+  bug: 3268630,
+  name: "libcore.xml.DomTest#testNotations",
   substring: "This implementation does not parse notations"
 },
 {
-  description: "This file contains expectations for tests that we'd like to eventually fix, but aren't urgent.
-                Dalvik doesn't support XML Schemas, DTDs or validation
-                http://code.google.com/p/android/issues/detail?id=7395",
-  result: EXEC_FAILED,
-  name: "tests.xml.DeclarationTest#testGetXmlEncoding",
-  substring: "This implementation doesn't parse the encoding from the XML declaration expected:<ISO-8859-1> but was:<null>"
+  description: "Dalvik doesn't support XML Schemas, DTDs or validation",
+  bug: 3268630,
+  names: [
+    "tests.org.w3c.dom.HCNotationsRemoveNamedItemNS#testRemoveNamedItemNS",
+    "tests.org.w3c.dom.HCNotationsSetNamedItemNS#testNotationsSetNamedItemNS"
+  ]
 },
 {
-  description: "This file contains expectations for tests that we'd like to eventually fix, but aren't urgent.
-                Dalvik doesn't support XML Schemas, DTDs or validation
-                http://code.google.com/p/android/issues/detail?id=7395",
-  result: EXEC_FAILED,
-  name: "tests.xml.DeclarationTest#testGetXmlStandalone",
-  substring: "This implementation doesn't parse standalone from the XML declaration expected:<true> but was:<false>"
+  description: "Dalvik doesn't support XML Schemas, DTDs or validation",
+  bug: 3268630,
+  name: "libcore.xml.DeclarationTest#testGetXmlEncoding",
+  substring: "This implementation doesn't parse the encoding from the XML declaration"
 },
 {
-  description: "This file contains expectations for tests that we'd like to eventually fix, but aren't urgent.
-                Dalvik doesn't support XML Schemas, DTDs or validation
-                http://code.google.com/p/android/issues/detail?id=7395",
-  result: EXEC_FAILED,
-  name: "tests.xml.DeclarationTest#testGetXmlVersion",
-  substring: "This implementation doesn't parse the version from the XML declaration expected:<...1> but was:<...0>"
+  description: "Dalvik doesn't support XML Schemas, DTDs or validation",
+  bug: 3268630,
+  name: "libcore.xml.DeclarationTest#testGetXmlStandalone",
+  substring: "This implementation doesn't parse standalone from the XML declaration"
 },
 {
-  description: "This file contains expectations for tests that we'd like to eventually fix, but aren't urgent.
-                Dalvik doesn't support XML Schemas, DTDs or validation
-                http://code.google.com/p/android/issues/detail?id=7395",
-  result: EXEC_FAILED,
-  name: "tests.xml.NormalizeTest#testSchemaTypeDtd",
+  description: "Dalvik doesn't support XML Schemas, DTDs or validation",
+  bug: 3268630,
+  name: "libcore.xml.DeclarationTest#testGetXmlVersion",
+  substring: "This implementation doesn't parse the version from the XML declaration"
+},
+{
+  description: "Dalvik doesn't support XML Schemas, DTDs or validation",
+  bug: 3268630,
+  name: "libcore.xml.NormalizeTest#testSchemaTypeDtd",
   substring: "This implementation's setParameter() supports an unexpected value: schema-type=http://www.w3.org/TR/REC-xml"
 },
 {
-  description: "This file contains expectations for tests that we'd like to eventually fix, but aren't urgent.
-                Dalvik doesn't support XML Schemas, DTDs or validation
-                http://code.google.com/p/android/issues/detail?id=7395",
-  result: EXEC_FAILED,
+  description: "Dalvik doesn't support XML Schemas, DTDs or validation",
+  bug: 3268630,
   name: "tests.api.javax.xml.parsers.DocumentBuilderTest#testSetEntityResolver",
   substring: "java.lang.ClassCastException: org.apache.harmony.xml.dom.EntityReferenceImpl"
+},
+{
+  description: "Dalvik doesn't support XML Schemas, DTDs or validation",
+  bug: 3268630,
+  name: "libcore.xml.DeclarationTest.testGetXmlVersion",
+  substring: "This implementation doesn't parse the version from the XML declaration"
 },
 {
   description: "the lack of schema parsing also extends to XML parsing in prefs",
@@ -107,31 +126,31 @@
 {
   description: "low-impact XML bugs:",
   result: EXEC_FAILED,
-  name: "tests.xml.DomTest#testAttributeNamedIdIsNotAnIdByDefault",
+  name: "libcore.xml.DomTest#testAttributeNamedIdIsNotAnIdByDefault",
   substring: "This implementation incorrectly interprets the \"id\" attribute as an identifier by default"
 },
 {
   description: "low-impact XML bugs:",
   result: EXEC_FAILED,
-  name: "tests.xml.DomTest#testDocumentAddChild",
+  name: "libcore.xml.DomTest#testDocumentAddChild",
   substring: "Document nodes shouldn't accept child nodes"
 },
 {
   description: "low-impact XML bugs:",
   result: EXEC_FAILED,
-  name: "tests.xml.DomTest#testElementTraversalFeature",
+  name: "libcore.xml.DomTest#testElementTraversalFeature",
   substring: "This implementation is expected to support ElementTraversal v. 1.0 but does not."
 },
 {
   description: "low-impact XML bugs:",
   result: EXEC_FAILED,
-  name: "tests.xml.DomTest#testLoadSaveFeature",
+  name: "libcore.xml.DomTest#testLoadSaveFeature",
   substring: "This implementation is expected to support LS v. 3.0 but does not."
 },
 {
   description: "low-impact XML bugs:",
   result: EXEC_FAILED,
-  name: "tests.xml.SaxTest#testYesPrefixesYesNamespaces",
+  name: "libcore.xml.SaxTest#testYesPrefixesYesNamespaces",
   substring: "The 'namespace-prefix' feature is not supported while the 'namespaces' feature is enabled."
 },
 {

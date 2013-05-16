@@ -93,7 +93,6 @@ public class CoderResult {
      *            the length of the erroneous input
      */
     private CoderResult(int type, int length) {
-        super();
         this.type = type;
         this.length = length;
     }
@@ -115,14 +114,14 @@ public class CoderResult {
             Integer key = Integer.valueOf(length);
             synchronized (_malformedErrors) {
                 CoderResult r = _malformedErrors.get(key);
-                if (null == r) {
+                if (r == null) {
                     r = new CoderResult(TYPE_MALFORMED_INPUT, length);
                     _malformedErrors.put(key, r);
                 }
                 return r;
             }
         }
-        throw new IllegalArgumentException("Length must be greater than 0; was " + length);
+        throw new IllegalArgumentException("length <= 0: " + length);
     }
 
     /**
@@ -143,14 +142,14 @@ public class CoderResult {
             Integer key = Integer.valueOf(length);
             synchronized (_unmappableErrors) {
                 CoderResult r = _unmappableErrors.get(key);
-                if (null == r) {
+                if (r == null) {
                     r = new CoderResult(TYPE_UNMAPPABLE_CHAR, length);
                     _unmappableErrors.put(key, r);
                 }
                 return r;
             }
         }
-        throw new IllegalArgumentException("Length must be greater than 0; was " + length);
+        throw new IllegalArgumentException("length <= 0: " + length);
     }
 
     /**

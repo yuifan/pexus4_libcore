@@ -18,15 +18,13 @@
 package java.nio.channels.spi;
 
 import java.io.IOException;
+import java.nio.SelectorProviderImpl;
 import java.nio.channels.Channel;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.Pipe;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.ServiceLoader;
-import org.apache.harmony.nio.internal.SelectorProviderImpl;
 
 /**
  * {@code SelectorProvider} is an abstract base class that declares methods for
@@ -39,21 +37,13 @@ import org.apache.harmony.nio.internal.SelectorProviderImpl;
  * the system default provider is returned.
  */
 public abstract class SelectorProvider {
+
     private static SelectorProvider provider = null;
 
     /**
      * Constructs a new {@code SelectorProvider}.
-     *
-     * @throws SecurityException
-     *             if there is a security manager installed that does not permit
-     *             the runtime permission labeled "selectorProvider".
      */
     protected SelectorProvider() {
-        super();
-        if (null != System.getSecurityManager()) {
-            System.getSecurityManager().checkPermission(
-                    new RuntimePermission("selectorProvider"));
-        }
     }
 
     /**
@@ -79,18 +69,14 @@ public abstract class SelectorProvider {
                 provider = loadProviderByJar();
             }
             if (provider == null) {
-                provider = AccessController.doPrivileged(new PrivilegedAction<SelectorProvider>() {
-                    public SelectorProvider run() {
-                        return new SelectorProviderImpl();
-                    }
-                });
+                provider = new SelectorProviderImpl();
             }
         }
         return provider;
     }
 
     private static SelectorProvider loadProviderByJar() {
-        for (SelectorProvider provider : ServiceLoader.load(SelectorProvider.class, null)) {
+        for (SelectorProvider provider : ServiceLoader.load(SelectorProvider.class)) {
             return provider;
         }
         return null;
@@ -143,21 +129,15 @@ public abstract class SelectorProvider {
     public abstract SocketChannel openSocketChannel() throws IOException;
 
     /**
-     * Returns the channel inherited from the instance that created this
-     * virtual machine.
+     * Returns the channel inherited from the process that created this VM.
+     * On Android, this method always returns null because stdin and stdout are
+     * never connected to a socket.
      *
      * @return the channel.
      * @throws IOException
      *             if an I/O error occurs.
-     * @throws SecurityException
-     *             if there is a security manager installed that does not permit
-     *             the runtime permission labeled "selectorProvider".
      */
     public Channel inheritedChannel() throws IOException {
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            sm.checkPermission(new RuntimePermission("inheritedChannel"));
-        }
         // Android never has stdin/stdout connected to a socket.
         return null;
     }

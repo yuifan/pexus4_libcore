@@ -17,6 +17,8 @@
 
 package java.io;
 
+import java.util.Arrays;
+
 /**
  * A specialized {@link Writer} for class for writing content to an (internal)
  * char array. As bytes are written to this writer, the char array may be
@@ -43,7 +45,6 @@ public class CharArrayWriter extends Writer {
      * {@code lock} to synchronize access to this writer.
      */
     public CharArrayWriter() {
-        super();
         buf = new char[32];
         lock = buf;
     }
@@ -59,7 +60,6 @@ public class CharArrayWriter extends Writer {
      *             if {@code initialSize < 0}.
      */
     public CharArrayWriter(int initialSize) {
-        super();
         if (initialSize < 0) {
             throw new IllegalArgumentException("size < 0");
         }
@@ -164,21 +164,7 @@ public class CharArrayWriter extends Writer {
      */
     @Override
     public void write(char[] buffer, int offset, int len) {
-        // avoid int overflow
-        // BEGIN android-changed
-        // Exception priorities (in case of multiple errors) differ from
-        // RI, but are spec-compliant.
-        // made implicit null check explicit,
-        // removed redundant check,
-        // added null check, used (offset | len) < 0 instead of
-        // (offset < 0) || (len < 0) to safe one operation
-        if (buffer == null) {
-            throw new NullPointerException("buffer == null");
-        }
-        if ((offset | len) < 0 || len > buffer.length - offset) {
-            throw new IndexOutOfBoundsException();
-        }
-        // END android-changed
+        Arrays.checkOffsetAndCount(buffer.length, offset, len);
         synchronized (lock) {
             expand(len);
             System.arraycopy(buffer, offset, this.buf, this.count, len);
@@ -203,41 +189,28 @@ public class CharArrayWriter extends Writer {
     }
 
     /**
-     * Writes {@code count} number of characters starting at {@code offset} from
+     * Writes {@code count} characters starting at {@code offset} from
      * the string {@code str} to this CharArrayWriter.
      *
-     * @param str
-     *            the non-null string containing the characters to write.
-     * @param offset
-     *            the index of the first character in {@code str} to write.
-     * @param len
-     *            the number of characters to retrieve and write.
      * @throws NullPointerException
      *             if {@code str} is {@code null}.
      * @throws StringIndexOutOfBoundsException
-     *             if {@code offset < 0} or {@code len < 0}, or if
-     *             {@code offset + len} is bigger than the length of
+     *             if {@code offset < 0} or {@code count < 0}, or if
+     *             {@code offset + count} is bigger than the length of
      *             {@code str}.
      */
     @Override
-    public void write(String str, int offset, int len) {
+    public void write(String str, int offset, int count) {
         if (str == null) {
             throw new NullPointerException("str == null");
         }
-        // avoid int overflow
-        // BEGIN android-changed
-        // Exception priorities (in case of multiple errors) differ from
-        // RI, but are spec-compliant.
-        // removed redundant check, used (offset | len) < 0
-        // instead of (offset < 0) || (len < 0) to safe one operation
-        if ((offset | len) < 0 || len > str.length() - offset) {
-            throw new StringIndexOutOfBoundsException();
+        if ((offset | count) < 0 || offset > str.length() - count) {
+            throw new StringIndexOutOfBoundsException(str, offset, count);
         }
-        // END android-changed
         synchronized (lock) {
-            expand(len);
-            str.getChars(offset, offset + len, buf, this.count);
-            this.count += len;
+            expand(count);
+            str.getChars(offset, offset + count, buf, this.count);
+            this.count += count;
         }
     }
 
@@ -285,11 +258,10 @@ public class CharArrayWriter extends Writer {
      */
     @Override
     public CharArrayWriter append(CharSequence csq) {
-        if (null == csq) {
-            append(TOKEN_NULL, 0, TOKEN_NULL.length());
-        } else {
-            append(csq, 0, csq.length());
+        if (csq == null) {
+            csq = "null";
         }
+        append(csq, 0, csq.length());
         return this;
     }
 
@@ -318,8 +290,8 @@ public class CharArrayWriter extends Writer {
      */
     @Override
     public CharArrayWriter append(CharSequence csq, int start, int end) {
-        if (null == csq) {
-            csq = TOKEN_NULL;
+        if (csq == null) {
+            csq = "null";
         }
         String output = csq.subSequence(start, end).toString();
         write(output, 0, output.length());

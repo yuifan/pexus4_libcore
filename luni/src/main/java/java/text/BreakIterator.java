@@ -17,9 +17,9 @@
 
 package java.text;
 
-import com.ibm.icu4jni.text.NativeBreakIterator;
-import com.ibm.icu4jni.util.ICU;
 import java.util.Locale;
+import libcore.icu.ICU;
+import libcore.icu.NativeBreakIterator;
 
 /**
  * Locates boundaries in text. This class defines a protocol for objects that
@@ -237,7 +237,6 @@ public abstract class BreakIterator implements Cloneable {
      * Default constructor, for use by subclasses.
      */
     protected BreakIterator() {
-        super();
     }
 
     /*
@@ -386,6 +385,9 @@ public abstract class BreakIterator implements Cloneable {
      *            the new text string to be analyzed.
      */
     public void setText(String newText) {
+        if (newText == null) {
+            throw new NullPointerException("newText == null");
+        }
         wrapped.setText(newText);
     }
 
@@ -478,10 +480,7 @@ public abstract class BreakIterator implements Cloneable {
     public abstract void setText(CharacterIterator newText);
 
     /**
-     * Creates a copy of this iterator, all status information including the
-     * current position are kept the same.
-     *
-     * @return a copy of this iterator.
+     * Returns a copy of this iterator.
      */
     @Override
     public Object clone() {
@@ -490,7 +489,7 @@ public abstract class BreakIterator implements Cloneable {
             cloned.wrapped = (NativeBreakIterator) wrapped.clone();
             return cloned;
         } catch (CloneNotSupportedException e) {
-            throw new AssertionError(e); // android-changed
+            throw new AssertionError(e);
         }
     }
 }

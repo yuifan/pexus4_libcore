@@ -28,79 +28,45 @@ import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import libcore.io.ErrnoException;
 import libcore.io.IoUtils;
+import libcore.io.Libcore;
+import libcore.util.MutableInt;
+import static libcore.io.OsConstants.*;
 
 /**
  * Manages child processes.
  */
 final class ProcessManager {
-
-    /**
-     * constant communicated from native code indicating that a
-     * child died, but it was unable to determine the status
-     */
-    private static final int WAIT_STATUS_UNKNOWN = -1;
-
-    /**
-     * constant communicated from native code indicating that there
-     * are currently no children to wait for
-     */
-    private static final int WAIT_STATUS_NO_CHILDREN = -2;
-
-    /**
-     * constant communicated from native code indicating that a wait()
-     * call returned -1 and set an undocumented (and hence unexpected) errno
-     */
-    private static final int WAIT_STATUS_STRANGE_ERRNO = -3;
-
-    /**
-     * Initializes native static state.
-     */
-    static native void staticInitialize();
-    static {
-        staticInitialize();
-    }
-
     /**
      * Map from pid to Process. We keep weak references to the Process objects
      * and clean up the entries when no more external references are left. The
      * process objects themselves don't require much memory, but file
-     * descriptors (associated with stdin/out/err in this case) can be
+     * descriptors (associated with stdin/stdout/stderr in this case) can be
      * a scarce resource.
      */
     private final Map<Integer, ProcessReference> processReferences
             = new HashMap<Integer, ProcessReference>();
 
     /** Keeps track of garbage-collected Processes. */
-    private final ProcessReferenceQueue referenceQueue
-            = new ProcessReferenceQueue();
+    private final ProcessReferenceQueue referenceQueue = new ProcessReferenceQueue();
 
     private ProcessManager() {
         // Spawn a thread to listen for signals from child processes.
-        Thread processThread = new Thread(ProcessManager.class.getName()) {
-            @Override
-            public void run() {
+        Thread reaperThread = new Thread(ProcessManager.class.getName()) {
+            @Override public void run() {
                 watchChildren();
             }
         };
-        processThread.setDaemon(true);
-        processThread.start();
+        reaperThread.setDaemon(true);
+        reaperThread.start();
     }
-
-    /**
-     * Kills the process with the given ID.
-     *
-     * @parm pid ID of process to kill
-     */
-    private static native void kill(int pid) throws IOException;
 
     /**
      * Cleans up after garbage collected processes. Requires the lock on the
      * map.
      */
-    void cleanUp() {
+    private void cleanUp() {
         ProcessReference reference;
         while ((reference = referenceQueue.poll()) != null) {
             synchronized (processReferences) {
@@ -110,10 +76,40 @@ final class ProcessManager {
     }
 
     /**
-     * Listens for signals from processes and calls back to
-     * {@link #onExit(int,int)}.
+     * Loops indefinitely and calls ProcessManager.onExit() when children exit.
      */
-    native void watchChildren();
+    private void watchChildren() {
+        MutableInt status = new MutableInt(-1);
+        while (true) {
+            try {
+                // Wait for children in our process group.
+                int pid = Libcore.os.waitpid(0, status, 0);
+
+                // Work out what onExit wants to hear.
+                int exitValue;
+                if (WIFEXITED(status.value)) {
+                    exitValue = WEXITSTATUS(status.value);
+                } else if (WIFSIGNALED(status.value)) {
+                    exitValue = WTERMSIG(status.value);
+                } else if (WIFSTOPPED(status.value)) {
+                    exitValue = WSTOPSIG(status.value);
+                } else {
+                    throw new AssertionError("unexpected status from waitpid: " + status.value);
+                }
+
+                onExit(pid, exitValue);
+            } catch (ErrnoException errnoException) {
+                if (errnoException.errno == ECHILD) {
+                    // Expected errno: there are no children to wait for.
+                    // onExit will sleep until it is informed of another child coming to life.
+                    waitForMoreChildren();
+                    continue;
+                } else {
+                    throw new AssertionError(errnoException);
+                }
+            }
+        }
+    }
 
     /**
      * Called by {@link #watchChildren()} when a child process exits.
@@ -121,40 +117,12 @@ final class ProcessManager {
      * @param pid ID of process that exited
      * @param exitValue value the process returned upon exit
      */
-    void onExit(int pid, int exitValue) {
+    private void onExit(int pid, int exitValue) {
         ProcessReference processReference = null;
-
         synchronized (processReferences) {
             cleanUp();
-            if (pid >= 0) {
-                processReference = processReferences.remove(pid);
-            } else if (exitValue == WAIT_STATUS_NO_CHILDREN) {
-                if (processReferences.isEmpty()) {
-                    /*
-                     * There are no eligible children; wait for one to be
-                     * added. The wait() will return due to the
-                     * notifyAll() call below.
-                     */
-                    try {
-                        processReferences.wait();
-                    } catch (InterruptedException ex) {
-                        // This should never happen.
-                        throw new AssertionError("unexpected interrupt");
-                    }
-                } else {
-                    /*
-                     * A new child was spawned just before we entered
-                     * the synchronized block. We can just fall through
-                     * without doing anything special and land back in
-                     * the native wait().
-                     */
-                }
-            } else {
-                // Something weird is happening; abort!
-                throw new AssertionError("unexpected wait() behavior");
-            }
+            processReference = processReferences.remove(pid);
         }
-
         if (processReference != null) {
             ProcessImpl process = processReference.get();
             if (process != null) {
@@ -163,45 +131,64 @@ final class ProcessManager {
         }
     }
 
+    private void waitForMoreChildren() {
+        synchronized (processReferences) {
+            if (processReferences.isEmpty()) {
+                // There are no eligible children; wait for one to be added.
+                // This wait will return because of the notifyAll call in exec.
+                try {
+                    processReferences.wait();
+                } catch (InterruptedException ex) {
+                    // This should never happen.
+                    throw new AssertionError("unexpected interrupt");
+                }
+            } else {
+                /*
+                 * A new child was spawned just before we entered
+                 * the synchronized block. We can just fall through
+                 * without doing anything special and land back in
+                 * the native waitpid().
+                 */
+            }
+        }
+    }
+
     /**
      * Executes a native process. Fills in in, out, and err and returns the
      * new process ID upon success.
      */
-    static native int exec(String[] command, String[] environment,
+    private static native int exec(String[] command, String[] environment,
             String workingDirectory, FileDescriptor in, FileDescriptor out,
             FileDescriptor err, boolean redirectErrorStream) throws IOException;
 
     /**
      * Executes a process and returns an object representing it.
      */
-    Process exec(String[] taintedCommand, String[] taintedEnvironment, File workingDirectory,
+    public Process exec(String[] taintedCommand, String[] taintedEnvironment, File workingDirectory,
             boolean redirectErrorStream) throws IOException {
         // Make sure we throw the same exceptions as the RI.
         if (taintedCommand == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("taintedCommand == null");
         }
         if (taintedCommand.length == 0) {
-            throw new IndexOutOfBoundsException();
+            throw new IndexOutOfBoundsException("taintedCommand.length == 0");
         }
 
         // Handle security and safety by copying mutable inputs and checking them.
         String[] command = taintedCommand.clone();
         String[] environment = taintedEnvironment != null ? taintedEnvironment.clone() : null;
-        SecurityManager securityManager = System.getSecurityManager();
-        if (securityManager != null) {
-            securityManager.checkExec(command[0]);
-        }
+
         // Check we're not passing null Strings to the native exec.
-        for (String arg : command) {
-            if (arg == null) {
-                throw new NullPointerException();
+        for (int i = 0; i < command.length; i++) {
+            if (command[i] == null) {
+                throw new NullPointerException("taintedCommand[" + i + "] == null");
             }
         }
         // The environment is allowed to be null or empty, but no element may be null.
         if (environment != null) {
-            for (String env : environment) {
-                if (env == null) {
-                    throw new NullPointerException();
+            for (int i = 0; i < environment.length; i++) {
+                if (environment[i] == null) {
+                    throw new NullPointerException("taintedEnvironment[" + i + "] == null");
                 }
             }
         }
@@ -229,8 +216,7 @@ final class ProcessManager {
                 throw wrapper;
             }
             ProcessImpl process = new ProcessImpl(pid, in, out, err);
-            ProcessReference processReference
-                    = new ProcessReference(process, referenceQueue);
+            ProcessReference processReference = new ProcessReference(process, referenceQueue);
             processReferences.put(pid, processReference);
 
             /*
@@ -244,25 +230,22 @@ final class ProcessManager {
     }
 
     static class ProcessImpl extends Process {
+        private final int pid;
 
-        /** Process ID. */
-        final int id;
-
-        final InputStream errorStream;
+        private final InputStream errorStream;
 
         /** Reads output from process. */
-        final InputStream inputStream;
+        private final InputStream inputStream;
 
         /** Sends output to process. */
-        final OutputStream outputStream;
+        private final OutputStream outputStream;
 
         /** The process's exit value. */
-        Integer exitValue = null;
-        final Object exitValueMutex = new Object();
+        private Integer exitValue = null;
+        private final Object exitValueMutex = new Object();
 
-        ProcessImpl(int id, FileDescriptor in, FileDescriptor out,
-                FileDescriptor err) {
-            this.id = id;
+        ProcessImpl(int pid, FileDescriptor in, FileDescriptor out, FileDescriptor err) {
+            this.pid = pid;
 
             this.errorStream = new ProcessInputStream(err);
             this.inputStream = new ProcessInputStream(in);
@@ -270,21 +253,27 @@ final class ProcessManager {
         }
 
         public void destroy() {
-            try {
-                kill(this.id);
-            } catch (IOException e) {
-                Logger.getLogger(Runtime.class.getName()).log(Level.FINE,
-                        "Failed to destroy process " + id + ".", e);
+            // If the process hasn't already exited, send it SIGKILL.
+            synchronized (exitValueMutex) {
+                if (exitValue == null) {
+                    try {
+                        Libcore.os.kill(pid, SIGKILL);
+                    } catch (ErrnoException e) {
+                        System.logI("Failed to destroy process " + pid, e);
+                    }
+                }
             }
+            // Close any open streams.
+            IoUtils.closeQuietly(inputStream);
+            IoUtils.closeQuietly(errorStream);
+            IoUtils.closeQuietly(outputStream);
         }
 
         public int exitValue() {
             synchronized (exitValueMutex) {
                 if (exitValue == null) {
-                    throw new IllegalThreadStateException(
-                            "Process has not yet terminated.");
+                    throw new IllegalThreadStateException("Process has not yet terminated: " + pid);
                 }
-
                 return exitValue;
             }
         }
@@ -319,7 +308,7 @@ final class ProcessManager {
 
         @Override
         public String toString() {
-            return "Process[id=" + id + "]";
+            return "Process[pid=" + pid + "]";
         }
     }
 
@@ -327,10 +316,9 @@ final class ProcessManager {
 
         final int processId;
 
-        public ProcessReference(ProcessImpl referent,
-                ProcessReferenceQueue referenceQueue) {
+        public ProcessReference(ProcessImpl referent, ProcessReferenceQueue referenceQueue) {
             super(referent, referenceQueue);
-            this.processId = referent.id;
+            this.processId = referent.pid;
         }
     }
 
@@ -344,10 +332,10 @@ final class ProcessManager {
         }
     }
 
-    static final ProcessManager instance = new ProcessManager();
+    private static final ProcessManager instance = new ProcessManager();
 
     /** Gets the process manager. */
-    static ProcessManager getInstance() {
+    public static ProcessManager getInstance() {
         return instance;
     }
 
@@ -367,12 +355,10 @@ final class ProcessManager {
                 super.close();
             } finally {
                 synchronized (this) {
-                    if (fd != null && fd.valid()) {
-                        try {
-                            IoUtils.close(fd);
-                        } finally {
-                            fd = null;
-                        }
+                    try {
+                        IoUtils.close(fd);
+                    } finally {
+                        fd = null;
                     }
                 }
             }
@@ -395,12 +381,10 @@ final class ProcessManager {
                 super.close();
             } finally {
                 synchronized (this) {
-                    if (fd != null && fd.valid()) {
-                        try {
-                            IoUtils.close(fd);
-                        } finally {
-                            fd = null;
-                        }
+                    try {
+                        IoUtils.close(fd);
+                    } finally {
+                        fd = null;
                     }
                 }
             }

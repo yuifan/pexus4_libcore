@@ -171,7 +171,8 @@ public class Object {
      * Also, no object reference other than null is equal to null.
      *
      * <p>The default implementation returns {@code true} only if {@code this ==
-     * o}. See <a href="{@docRoot}/reference/java/lang/Object.html#writing_equals">Writing a correct {@code equals} method</a>
+     * o}. See <a href="{@docRoot}reference/java/lang/Object.html#writing_equals">Writing a correct
+     * {@code equals} method</a>
      * if you intend implementing your own {@code equals} method.
      *
      * <p>The general contract for the {@code equals} and {@link
@@ -191,31 +192,34 @@ public class Object {
     }
 
     /**
-     * Called before the object's memory is reclaimed by the VM. This
-     * can only happen once the garbage collector has detected that the
-     * object is no longer reachable by any thread of the
-     * running application.
-     * <p>
-     * The method can be used to free system resources or perform other cleanup
-     * before the object is garbage collected. The default implementation of the
-     * method is empty, which is also expected by the VM, but subclasses can
-     * override {@code finalize()} as required. Uncaught exceptions which are
-     * thrown during the execution of this method cause it to terminate
-     * immediately but are otherwise ignored.
-     * <p>
-     * Note that the VM does guarantee that {@code finalize()} is called at most
-     * once for any object, but it doesn't guarantee when (if at all) {@code
-     * finalize()} will be called. For example, object B's {@code finalize()}
-     * can delay the execution of object A's {@code finalize()} method and
-     * therefore it can delay the reclamation of A's memory. To be safe, use a
-     * {@link java.lang.ref.ReferenceQueue}, because it provides more control
-     * over the way the VM deals with references during garbage collection.
-     * </p>
+     * Invoked when the garbage collector has detected that this instance is no longer reachable.
+     * The default implementation does nothing, but this method can be overridden to free resources.
      *
-     * @throws Throwable
-     *             any exception which is raised during finalization; these are
-     *             ignored by the virtual machine.
+     * <p>Note that objects that override {@code finalize} are significantly more expensive than
+     * objects that don't. Finalizers may be run a long time after the object is no longer
+     * reachable, depending on memory pressure, so it's a bad idea to rely on them for cleanup.
+     * Note also that finalizers are run on a single VM-wide finalizer thread,
+     * so doing blocking work in a finalizer is a bad idea. A finalizer is usually only necessary
+     * for a class that has a native peer and needs to call a native method to destroy that peer.
+     * Even then, it's better to provide an explicit {@code close} method (and implement
+     * {@link java.io.Closeable}), and insist that callers manually dispose of instances. This
+     * works well for something like files, but less well for something like a {@code BigInteger}
+     * where typical calling code would have to deal with lots of temporaries. Unfortunately,
+     * code that creates lots of temporaries is the worst kind of code from the point of view of
+     * the single finalizer thread.
+     *
+     * <p>If you <i>must</i> use finalizers, consider at least providing your own
+     * {@link java.lang.ref.ReferenceQueue} and having your own thread process that queue.
+     *
+     * <p>Unlike constructors, finalizers are not automatically chained. You are responsible for
+     * calling {@code super.finalize()} yourself.
+     *
+     * <p>Uncaught exceptions thrown by finalizers are ignored and do not terminate the finalizer
+     * thread.
+     *
+     * See <i>Effective Java</i> Item 7, "Avoid finalizers" for more.
      */
+    @FindBugsSuppressWarnings("FI_EMPTY")
     protected void finalize() throws Throwable {
     }
 
@@ -234,7 +238,7 @@ public class Object {
      *
      * @return this object's {@code Class} instance.
      */
-    public final native Class<? extends Object> getClass();
+    public final native Class<?> getClass();
 
     /**
      * Returns an integer hash code for this object. By contract, any two
@@ -245,7 +249,8 @@ public class Object {
      * <p>Note that hash values must not change over time unless information used in equals
      * comparisons also changes.
      *
-     * <p>See <a href="{@docRoot}/reference/java/lang/Object.html#writing_hashCode">Writing a correct {@code hashCode} method</a>
+     * <p>See <a href="{@docRoot}reference/java/lang/Object.html#writing_hashCode">Writing a correct
+     * {@code hashCode} method</a>
      * if you intend implementing your own {@code hashCode} method.
      *
      * @return this object's hash code.
@@ -257,7 +262,7 @@ public class Object {
      * Causes a thread which is waiting on this object's monitor (by means of
      * calling one of the {@code wait()} methods) to be woken up. If more than
      * one thread is waiting, one of them is chosen at the discretion of the
-     * virtual machine. The chosen thread will not run immediately. The thread
+     * VM. The chosen thread will not run immediately. The thread
      * that called {@code notify()} has to release the object's monitor first.
      * Also, the chosen thread still has to compete against other threads that
      * try to synchronize on the same object.
@@ -317,7 +322,8 @@ public class Object {
      * default implementation is equivalent to the following expression:
      * <pre>
      *   getClass().getName() + '@' + Integer.toHexString(hashCode())</pre>
-     * <p>See <a href="{@docRoot}/reference/java/lang/Object.html#writing_toString">Writing a useful {@code toString} method</a>
+     * <p>See <a href="{@docRoot}reference/java/lang/Object.html#writing_toString">Writing a useful
+     * {@code toString} method</a>
      * if you intend implementing your own {@code toString} method.
      *
      * @return a printable representation of this object.
@@ -355,7 +361,7 @@ public class Object {
      * @see java.lang.Thread
      */
     public final void wait() throws InterruptedException {
-        wait(0 ,0);
+        wait(0, 0);
     }
 
     /**

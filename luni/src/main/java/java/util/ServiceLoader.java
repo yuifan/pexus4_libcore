@@ -20,8 +20,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
+import libcore.io.IoUtils;
 
 /**
  * A service-provider loader.
@@ -79,7 +78,7 @@ public final class ServiceLoader<S> implements Iterable<S> {
         // It makes no sense for service to be null.
         // classLoader is null if you want the system class loader.
         if (service == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("service == null");
         }
         this.service = service;
         this.classLoader = classLoader;
@@ -166,20 +165,16 @@ public final class ServiceLoader<S> implements Iterable<S> {
      * @hide
      */
     public static <S> S loadFromSystemProperty(final Class<S> service) {
-        return AccessController.doPrivileged(new PrivilegedAction<S>() {
-            public S run() {
-                try {
-                    final String className = System.getProperty(service.getName());
-                    if (className != null) {
-                        Class<?> c = ClassLoader.getSystemClassLoader().loadClass(className);
-                        return (S) c.newInstance();
-                    }
-                    return null;
-                } catch (Exception e) {
-                    throw new Error(e);
-                }
+        try {
+            final String className = System.getProperty(service.getName());
+            if (className != null) {
+                Class<?> c = ClassLoader.getSystemClassLoader().loadClass(className);
+                return (S) c.newInstance();
             }
-        });
+            return null;
+        } catch (Exception e) {
+            throw new Error(e);
+        }
     }
 
     @Override
@@ -249,12 +244,7 @@ public final class ServiceLoader<S> implements Iterable<S> {
                 } catch (Exception e) {
                     throw new ServiceConfigurationError("Couldn't read " + url, e);
                 } finally {
-                    try {
-                        if (reader != null) {
-                            reader.close();
-                        }
-                    } catch (IOException ex) {
-                    }
+                    IoUtils.closeQuietly(reader);
                 }
             }
         }

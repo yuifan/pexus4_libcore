@@ -74,7 +74,7 @@ public final class Float extends Number implements Comparable<Float> {
     public static final float MIN_NORMAL = 1.1754943508222875E-38f;
 
     /**
-     * Maximum exponent that a finite value of the {@code float} type may have.
+     * Maximum base-2 exponent that a finite value of the {@code float} type may have.
      * Equal to {@code Math.getExponent(Float.MAX_VALUE)}.
      *
      * @since 1.6
@@ -82,7 +82,7 @@ public final class Float extends Number implements Comparable<Float> {
     public static final int MAX_EXPONENT = 127;
 
     /**
-     * Minimum exponent that a normal value of the {@code float} type may have.
+     * Minimum base-2 exponent that a normal value of the {@code float} type may have.
      * Equal to {@code Math.getExponent(Float.MIN_NORMAL)}.
      *
      * @since 1.6
@@ -98,8 +98,7 @@ public final class Float extends Number implements Comparable<Float> {
     @SuppressWarnings("unchecked")
     public static final Class<Float> TYPE
             = (Class<Float>) float[].class.getComponentType();
-
-    // Note: This can't be set to "float.class", since *that* is
+    // Note: Float.TYPE can't be set to "float.class", since *that* is
     // defined to be "java.lang.Float.TYPE";
 
     /**
@@ -136,7 +135,7 @@ public final class Float extends Number implements Comparable<Float> {
      * @param string
      *            the string representation of a float value.
      * @throws NumberFormatException
-     *             if {@code string} can not be decoded into a float value.
+     *             if {@code string} can not be parsed as a float value.
      * @see #parseFloat(String)
      */
     public Float(String string) throws NumberFormatException {
@@ -190,37 +189,23 @@ public final class Float extends Number implements Comparable<Float> {
      */
     @Override
     public boolean equals(Object object) {
-        return (object == this)
-                || (object instanceof Float)
-                && (floatToIntBits(this.value) == floatToIntBits(((Float) object).value));
+        return (object instanceof Float) &&
+                (floatToIntBits(this.value) == floatToIntBits(((Float) object).value));
     }
 
     /**
-     * Converts the specified float value to a binary representation conforming
-     * to the IEEE 754 floating-point single precision bit layout. All
-     * <em>Not-a-Number (NaN)</em> values are converted to a single NaN
-     * representation ({@code 0x7fc00000}).
-     *
-     * @param value
-     *            the float value to convert.
-     * @return the IEEE 754 floating-point single precision representation of
-     *         {@code value}.
-     * @see #floatToRawIntBits(float)
-     * @see #intBitsToFloat(int)
+     * Returns an integer corresponding to the bits of the given
+     * <a href="http://en.wikipedia.org/wiki/IEEE_754-1985">IEEE 754</a> single precision
+     * float {@code value}. All <em>Not-a-Number (NaN)</em> values are converted to a single NaN
+     * representation ({@code 0x7fc00000}) (compare to {@link #floatToRawIntBits}).
      */
     public static native int floatToIntBits(float value);
 
     /**
-     * Converts the specified float value to a binary representation conforming
-     * to the IEEE 754 floating-point single precision bit layout.
-     * <em>Not-a-Number (NaN)</em> values are preserved.
-     *
-     * @param value
-     *            the float value to convert.
-     * @return the IEEE 754 floating-point single precision representation of
-     *         {@code value}.
-     * @see #floatToIntBits(float)
-     * @see #intBitsToFloat(int)
+     * Returns an integer corresponding to the bits of the given
+     * <a href="http://en.wikipedia.org/wiki/IEEE_754-1985">IEEE 754</a> single precision
+     * float {@code value}. <em>Not-a-Number (NaN)</em> values are preserved (compare
+     * to {@link #floatToIntBits}).
      */
     public static native int floatToRawIntBits(float value);
 
@@ -240,15 +225,8 @@ public final class Float extends Number implements Comparable<Float> {
     }
 
     /**
-     * Converts the specified IEEE 754 floating-point single precision bit
-     * pattern to a Java float value.
-     *
-     * @param bits
-     *            the IEEE 754 floating-point single precision representation of
-     *            a float value.
-     * @return the float value converted from {@code bits}.
-     * @see #floatToIntBits(float)
-     * @see #floatToRawIntBits(float)
+     * Returns the <a href="http://en.wikipedia.org/wiki/IEEE_754-1985">IEEE 754</a>
+     * single precision float corresponding to the given {@code bits}.
      */
     public static native float intBitsToFloat(int bits);
 
@@ -314,14 +292,12 @@ public final class Float extends Number implements Comparable<Float> {
      *            the string representation of a float value.
      * @return the primitive float value represented by {@code string}.
      * @throws NumberFormatException
-     *             if {@code string} is {@code null}, has a length of zero or
-     *             can not be parsed as a float value.
+     *             if {@code string} can not be parsed as a float value.
      * @see #valueOf(String)
      * @since 1.2
      */
     public static float parseFloat(String string) throws NumberFormatException {
-        return org.apache.harmony.luni.util.FloatingPointParser
-                .parseFloat(string);
+        return StringToReal.parseFloat(string);
     }
 
     @Override
@@ -354,8 +330,7 @@ public final class Float extends Number implements Comparable<Float> {
      * @return a {@code Float} instance containing the float value represented
      *         by {@code string}.
      * @throws NumberFormatException
-     *             if {@code string} is {@code null}, has a length of zero or
-     *             can not be parsed as a float value.
+     *             if {@code string} can not be parsed as a float value.
      * @see #parseFloat(String)
      */
     public static Float valueOf(String string) throws NumberFormatException {
@@ -432,7 +407,7 @@ public final class Float extends Number implements Comparable<Float> {
      */
     public static String toHexString(float f) {
         /*
-         * Reference: http://en.wikipedia.org/wiki/IEEE_754
+         * Reference: http://en.wikipedia.org/wiki/IEEE_754-1985
          */
         if (f != f) {
             return "NaN";

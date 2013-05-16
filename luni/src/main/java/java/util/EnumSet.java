@@ -15,25 +15,13 @@
  */
 package java.util;
 
-// BEGIN android-added
-
 import java.io.Serializable;
-import org.apache.harmony.kernel.vm.LangAccess;
 
 /**
  * An EnumSet is a specialized Set to be used with enums as keys.
  */
 public abstract class EnumSet<E extends Enum<E>> extends AbstractSet<E>
         implements Cloneable, Serializable {
-    // BEGIN android-added
-    /*
-     * null-ok; package access to {@code java.lang}, set during
-     * first need. This shouldn't be used directly. Instead, use {@link
-     * SpecialAccess#LANG}, which is guaranteed to be initialized.
-     */
-    static /*package*/ LangAccess LANG_BOOTSTRAP = null;
-    // END android-added
-
     private static final long serialVersionUID = 1009687484059888093L;
 
     final Class<E> elementClass;
@@ -55,15 +43,13 @@ public abstract class EnumSet<E extends Enum<E>> extends AbstractSet<E>
      */
     public static <E extends Enum<E>> EnumSet<E> noneOf(Class<E> elementType) {
         if (!elementType.isEnum()) {
-            throw new ClassCastException();
+            throw new ClassCastException(elementType.getClass().getName() + " is not an Enum");
         }
-        // BEGIN android-changed
-        E[] enums = SpecialAccess.LANG.getEnumValuesInOrder(elementType);
+        E[] enums = Enum.getSharedConstants(elementType);
         if (enums.length <= 64) {
             return new MiniEnumSet<E>(elementType, enums);
         }
         return new HugeEnumSet<E>(elementType, enums);
-        // END android-changed
     }
 
     /**
@@ -118,7 +104,7 @@ public abstract class EnumSet<E extends Enum<E>> extends AbstractSet<E>
             return copyOf((EnumSet<E>) c);
         }
         if (c.isEmpty()) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("empty collection");
         }
         Iterator<E> iterator = c.iterator();
         E element = iterator.next();
@@ -298,7 +284,7 @@ public abstract class EnumSet<E extends Enum<E>> extends AbstractSet<E>
      */
     public static <E extends Enum<E>> EnumSet<E> range(E start, E end) {
         if (start.compareTo(end) > 0) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("start is behind end");
         }
         EnumSet<E> set = EnumSet.noneOf(start.getDeclaringClass());
         set.setRange(start, end);

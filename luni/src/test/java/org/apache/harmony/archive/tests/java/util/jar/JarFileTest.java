@@ -69,6 +69,12 @@ public class JarFileTest extends TestCase {
 
     private final String jarName5 = "hyts_signed_inc.jar";
 
+    private final String jarName6 = "hyts_signed_sha256withrsa.jar";
+
+    private final String jarName7 = "hyts_signed_sha256digest_sha256withrsa.jar";
+
+    private final String jarName8 = "hyts_signed_sha512digest_sha512withecdsa.jar";
+
     private final String entryName = "foo/bar/A.class";
 
     private final String entryName3 = "coucou/FileAccess.class";
@@ -104,7 +110,7 @@ public class JarFileTest extends TestCase {
     }
 
     /**
-     * @tests java.util.jar.JarFile#JarFile(java.io.File)
+     * java.util.jar.JarFile#JarFile(java.io.File)
      */
     public void test_ConstructorLjava_io_File() {
         try {
@@ -123,7 +129,7 @@ public class JarFileTest extends TestCase {
     }
 
     /**
-     * @tests java.util.jar.JarFile#JarFile(java.lang.String)
+     * java.util.jar.JarFile#JarFile(java.lang.String)
      */
     public void test_ConstructorLjava_lang_String() {
         try {
@@ -143,7 +149,7 @@ public class JarFileTest extends TestCase {
     }
 
     /**
-     * @tests java.util.jar.JarFile#JarFile(java.lang.String, boolean)
+     * java.util.jar.JarFile#JarFile(java.lang.String, boolean)
      */
     public void test_ConstructorLjava_lang_StringZ() {
         try {
@@ -163,7 +169,7 @@ public class JarFileTest extends TestCase {
     }
 
     /**
-     * @tests java.util.jar.JarFile#JarFile(java.io.File, boolean)
+     * java.util.jar.JarFile#JarFile(java.io.File, boolean)
      */
     public void test_ConstructorLjava_io_FileZ() {
         try {
@@ -182,7 +188,7 @@ public class JarFileTest extends TestCase {
     }
 
     /**
-     * @tests java.util.jar.JarFile#JarFile(java.io.File, boolean, int)
+     * java.util.jar.JarFile#JarFile(java.io.File, boolean, int)
      */
     public void test_ConstructorLjava_io_FileZI() {
         try {
@@ -216,8 +222,8 @@ public class JarFileTest extends TestCase {
     /**
      * Constructs JarFile object.
      *
-     * @tests java.util.jar.JarFile#JarFile(java.io.File)
-     * @tests java.util.jar.JarFile#JarFile(java.lang.String)
+     * java.util.jar.JarFile#JarFile(java.io.File)
+     * java.util.jar.JarFile#JarFile(java.lang.String)
      */
     public void testConstructor_file() throws IOException {
         File f = new File(resources, jarName);
@@ -229,7 +235,7 @@ public class JarFileTest extends TestCase {
     }
 
     /**
-     * @tests java.util.jar.JarFile#entries()
+     * java.util.jar.JarFile#entries()
      */
     public void test_entries() throws Exception {
         /*
@@ -271,7 +277,7 @@ public class JarFileTest extends TestCase {
 
     /**
      * @throws IOException
-     * @tests java.util.jar.JarFile#getJarEntry(java.lang.String)
+     * java.util.jar.JarFile#getJarEntry(java.lang.String)
      */
     public void test_getEntryLjava_lang_String() throws IOException {
         try {
@@ -308,7 +314,7 @@ public class JarFileTest extends TestCase {
 
     /**
      * @throws IOException
-     * @tests java.util.jar.JarFile#getJarEntry(java.lang.String)
+     * java.util.jar.JarFile#getJarEntry(java.lang.String)
      */
     public void test_getJarEntryLjava_lang_String() throws IOException {
         try {
@@ -345,7 +351,7 @@ public class JarFileTest extends TestCase {
 
 
     /**
-     * @tests java.util.jar.JarFile#getJarEntry(java.lang.String)
+     * java.util.jar.JarFile#getJarEntry(java.lang.String)
      */
     public void testGetJarEntry() throws Exception {
         Support_Resources.copyFile(resources, null, jarName);
@@ -424,7 +430,7 @@ public class JarFileTest extends TestCase {
     }
 
     /**
-     * @tests java.util.jar.JarFile#getManifest()
+     * java.util.jar.JarFile#getManifest()
      */
     public void test_getManifest() {
         // Test for method java.util.jar.Manifest
@@ -515,12 +521,12 @@ public class JarFileTest extends TestCase {
     }
 
     /**
-     * @tests java.util.jar.JarFile#getInputStream(java.util.zip.ZipEntry)
+     * java.util.jar.JarFile#getInputStream(java.util.zip.ZipEntry)
      */
     // This test doesn't pass on RI. If entry size is set up incorrectly,
     // SecurityException is thrown. But SecurityException is thrown on RI only
     // if jar file is signed incorrectly.
-    public void test_getInputStreamLjava_util_jar_JarEntry_subtest0() {
+    public void test_getInputStreamLjava_util_jar_JarEntry_subtest0() throws Exception {
         File signedFile = null;
         try {
             Support_Resources.copyFile(resources, null, jarName4);
@@ -582,6 +588,42 @@ public class JarFileTest extends TestCase {
         } catch (Exception e) {
             fail("Exception during test 5: " + e);
         }
+
+        // SHA1 digest, SHA256withRSA signed JAR
+        checkSignedJar(jarName6);
+
+        // SHA-256 digest, SHA256withRSA signed JAR
+        checkSignedJar(jarName7);
+
+        // SHA-512 digest, SHA512withECDSA signed JAR
+        checkSignedJar(jarName8);
+    }
+
+    private void checkSignedJar(String jarName) throws Exception {
+        Support_Resources.copyFile(resources, null, jarName);
+
+        File file = new File(resources, jarName);
+
+        JarFile jarFile = new JarFile(file, true);
+
+        boolean foundCerts = false;
+
+        Enumeration<JarEntry> e = jarFile.entries();
+        while (e.hasMoreElements()) {
+            JarEntry entry = e.nextElement();
+            InputStream is = jarFile.getInputStream(entry);
+            is.skip(100000);
+            is.close();
+            Certificate[] certs = entry.getCertificates();
+            if (certs != null && certs.length > 0) {
+                foundCerts = true;
+                break;
+            }
+        }
+
+        assertTrue(
+                "No certificates found during signed jar test for jar \""
+                        + jarName + "\"", foundCerts);
     }
 
     /*
@@ -788,7 +830,7 @@ public class JarFileTest extends TestCase {
 
     /**
      * @throws IOException
-     * @tests java.util.jar.JarFile#getInputStream(java.util.zip.ZipEntry)
+     * java.util.jar.JarFile#getInputStream(java.util.zip.ZipEntry)
      */
     public void test_getInputStreamLjava_util_jar_JarEntry() throws IOException {
         File localFile = null;

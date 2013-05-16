@@ -17,289 +17,464 @@
 
 package java.nio;
 
-import org.apache.harmony.luni.platform.PlatformAddress;
-import org.apache.harmony.luni.platform.PlatformAddressFactory;
-import org.apache.harmony.nio.internal.DirectBuffer;
+import java.nio.channels.FileChannel.MapMode;
 
-/**
- * DirectByteBuffer, ReadWriteDirectByteBuffer and ReadOnlyDirectByteBuffer
- * compose the implementation of platform memory based byte buffers.
- * <p>
- * DirectByteBuffer implements all the shared readonly methods and is extended
- * by the other two classes.
- * </p>
- * <p>
- * All methods are marked final for runtime performance.
- * </p>
- *
- */
-abstract class DirectByteBuffer extends BaseByteBuffer implements DirectBuffer {
+import libcore.io.Memory;
+import libcore.io.SizeOf;
 
-    // This class will help us track whether the address is valid or not.
-    static final class SafeAddress {
-        protected volatile boolean isValid = true;
+class DirectByteBuffer extends MappedByteBuffer {
+  // This is the offset into {@code Buffer.block} at which this buffer logically starts.
+  // TODO: rewrite this so we set 'block' to an OffsetMemoryBlock?
+  protected final int offset;
 
-        protected final PlatformAddress address;
+  private final boolean isReadOnly;
 
-        protected SafeAddress(PlatformAddress address) {
-            super();
-            this.address = address;
-        }
+  protected DirectByteBuffer(MemoryBlock block, int capacity, int offset, boolean isReadOnly, MapMode mapMode) {
+    super(block, capacity, mapMode);
+
+    long baseSize = block.getSize();
+    if (baseSize >= 0 && (capacity + offset) > baseSize) {
+      throw new IllegalArgumentException("capacity + offset > baseSize");
     }
 
-    // This is a wrapped reference to the base address of the buffer memory.
-    protected final SafeAddress safeAddress;
+    this.effectiveDirectAddress = block.toLong() + offset;
 
-    // This is the offset from the base address at which this buffer logically
-    // starts.
-    protected final int offset;
+    this.offset = offset;
+    this.isReadOnly = isReadOnly;
+  }
 
-    /*
-     * Constructs a new direct byte buffer of the given capacity on newly
-     * allocated OS memory. The memory will have been zeroed. When the instance
-     * is discarded the OS memory will be freed if it has not already been done
-     * so by an explicit call to #free(). Callers are encouraged to explicitly
-     * free the memory where possible.
-     */
-    DirectByteBuffer(int capacity) {
-        this(new SafeAddress(PlatformAddressFactory.alloc(capacity, (byte) 0)),
-                capacity, 0);
-        safeAddress.address.autoFree();
+  // Used by the JNI NewDirectByteBuffer function.
+  DirectByteBuffer(long address, int capacity) {
+    this(MemoryBlock.wrapFromJni(address, capacity), capacity, 0, false, null);
+  }
+
+  private static DirectByteBuffer copy(DirectByteBuffer other, int markOfOther, boolean isReadOnly) {
+    DirectByteBuffer buf = new DirectByteBuffer(other.block, other.capacity(), other.offset, isReadOnly, other.mapMode);
+    buf.limit = other.limit;
+    buf.position = other.position();
+    buf.mark = markOfOther;
+    return buf;
+  }
+
+  @Override public ByteBuffer asReadOnlyBuffer() {
+    return copy(this, mark, true);
+  }
+
+  @Override public ByteBuffer compact() {
+    if (isReadOnly) {
+      throw new ReadOnlyBufferException();
     }
+    Memory.memmove(this, 0, this, position, remaining());
+    position = limit - position;
+    limit = capacity;
+    mark = UNSET_MARK;
+    return this;
+  }
 
-    DirectByteBuffer(SafeAddress address, int capacity, int offset) {
-        super(capacity);
+  @Override public ByteBuffer duplicate() {
+    return copy(this, mark, isReadOnly);
+  }
 
-        // BEGIN android-added
-        PlatformAddress baseAddress = address.address;
-        long baseSize = baseAddress.getSize();
+  @Override public ByteBuffer slice() {
+    return new DirectByteBuffer(block, remaining(), offset + position, isReadOnly, mapMode);
+  }
 
-        if ((baseSize >= 0) && ((offset + capacity) > baseSize)) {
-            throw new IllegalArgumentException("slice out of range");
-        }
-        // END android-added
+  @Override public boolean isReadOnly() {
+    return isReadOnly;
+  }
 
-        this.safeAddress = address;
-        this.offset = offset;
+  @Override byte[] protectedArray() {
+    if (isReadOnly) {
+      throw new ReadOnlyBufferException();
     }
-
-    /*
-     * Override ByteBuffer.get(byte[], int, int) to improve performance.
-     *
-     * (non-Javadoc)
-     *
-     * @see java.nio.ByteBuffer#get(byte[], int, int)
-     */
-    @Override
-    public final ByteBuffer get(byte[] dst, int off, int len) {
-        int length = dst.length;
-        if ((off < 0) || (len < 0) || (long) off + (long) len > length) {
-            throw new IndexOutOfBoundsException();
-        }
-        if (len > remaining()) {
-            throw new BufferUnderflowException();
-        }
-        getBaseAddress().getByteArray(offset + position, dst, off, len);
-        position += len;
-        return this;
+    byte[] array = this.block.array();
+    if (array == null) {
+      throw new UnsupportedOperationException();
     }
+    return array;
+  }
 
-    @Override
-    public final byte get() {
-        if (position == limit) {
-            throw new BufferUnderflowException();
-        }
-        return getBaseAddress().getByte(offset + position++);
-    }
+  @Override int protectedArrayOffset() {
+    protectedArray(); // Throw if we don't have an array or are read-only.
+    return offset;
+  }
 
-    @Override
-    public final byte get(int index) {
-        if (index < 0 || index >= limit) {
-            throw new IndexOutOfBoundsException();
-        }
-        return getBaseAddress().getByte(offset + index);
-    }
+  @Override boolean protectedHasArray() {
+    return !isReadOnly && (block.array() != null);
+  }
 
-    @Override
-    public final double getDouble() {
-        int newPosition = position + 8;
-        if (newPosition > limit) {
-            throw new BufferUnderflowException();
-        }
-        double result = getBaseAddress().getDouble(offset + position, order);
-        position = newPosition;
-        return result;
-    }
+  @Override public final ByteBuffer get(byte[] dst, int dstOffset, int byteCount) {
+    checkGetBounds(1, dst.length, dstOffset, byteCount);
+    this.block.peekByteArray(offset + position, dst, dstOffset, byteCount);
+    position += byteCount;
+    return this;
+  }
 
-    @Override
-    public final double getDouble(int index) {
-        if (index < 0 || (long) index + 8 > limit) {
-            throw new IndexOutOfBoundsException();
-        }
-        return getBaseAddress().getDouble(offset + index, order);
-    }
+  final void get(char[] dst, int dstOffset, int charCount) {
+    int byteCount = checkGetBounds(SizeOf.CHAR, dst.length, dstOffset, charCount);
+    this.block.peekCharArray(offset + position, dst, dstOffset, charCount, order.needsSwap);
+    position += byteCount;
+  }
 
-    @Override
-    public final float getFloat() {
-        int newPosition = position + 4;
-        if (newPosition > limit) {
-            throw new BufferUnderflowException();
-        }
-        float result = getBaseAddress().getFloat(offset + position, order);
-        position = newPosition;
-        return result;
-    }
+  final void get(double[] dst, int dstOffset, int doubleCount) {
+    int byteCount = checkGetBounds(SizeOf.DOUBLE, dst.length, dstOffset, doubleCount);
+    this.block.peekDoubleArray(offset + position, dst, dstOffset, doubleCount, order.needsSwap);
+    position += byteCount;
+  }
 
-    @Override
-    public final float getFloat(int index) {
-        if (index < 0 || (long) index + 4 > limit) {
-            throw new IndexOutOfBoundsException();
-        }
-        return getBaseAddress().getFloat(offset + index, order);
-    }
+  final void get(float[] dst, int dstOffset, int floatCount) {
+    int byteCount = checkGetBounds(SizeOf.FLOAT, dst.length, dstOffset, floatCount);
+    this.block.peekFloatArray(offset + position, dst, dstOffset, floatCount, order.needsSwap);
+    position += byteCount;
+  }
 
-    @Override
-    public final int getInt() {
-        int newPosition = position + 4;
-        if (newPosition > limit) {
-            throw new BufferUnderflowException();
-        }
-        int result = getBaseAddress().getInt(offset + position, order);
-        position = newPosition;
-        return result;
-    }
+  final void get(int[] dst, int dstOffset, int intCount) {
+    int byteCount = checkGetBounds(SizeOf.INT, dst.length, dstOffset, intCount);
+    this.block.peekIntArray(offset + position, dst, dstOffset, intCount, order.needsSwap);
+    position += byteCount;
+  }
 
-    @Override
-    public final int getInt(int index) {
-        if (index < 0 || (long) index + 4 > limit) {
-            throw new IndexOutOfBoundsException();
-        }
-        return getBaseAddress().getInt(offset + index, order);
-    }
+  final void get(long[] dst, int dstOffset, int longCount) {
+    int byteCount = checkGetBounds(SizeOf.LONG, dst.length, dstOffset, longCount);
+    this.block.peekLongArray(offset + position, dst, dstOffset, longCount, order.needsSwap);
+    position += byteCount;
+  }
 
-    @Override
-    public final long getLong() {
-        int newPosition = position + 8;
-        if (newPosition > limit) {
-            throw new BufferUnderflowException();
-        }
-        long result = getBaseAddress().getLong(offset + position, order);
-        position = newPosition;
-        return result;
-    }
+  final void get(short[] dst, int dstOffset, int shortCount) {
+    int byteCount = checkGetBounds(SizeOf.SHORT, dst.length, dstOffset, shortCount);
+    this.block.peekShortArray(offset + position, dst, dstOffset, shortCount, order.needsSwap);
+    position += byteCount;
+  }
 
-    @Override
-    public final long getLong(int index) {
-        if (index < 0 || (long) index + 8 > limit) {
-            throw new IndexOutOfBoundsException();
-        }
-        return getBaseAddress().getLong(offset + index, order);
+  @Override public final byte get() {
+    if (position == limit) {
+      throw new BufferUnderflowException();
     }
+    return this.block.peekByte(offset + position++);
+  }
 
-    @Override
-    public final short getShort() {
-        int newPosition = position + 2;
-        if (newPosition > limit) {
-            throw new BufferUnderflowException();
-        }
-        short result = getBaseAddress().getShort(offset + position, order);
-        position = newPosition;
-        return result;
-    }
+  @Override public final byte get(int index) {
+    checkIndex(index);
+    return this.block.peekByte(offset + index);
+  }
 
-    @Override
-    public final short getShort(int index) {
-        if (index < 0 || (long) index + 2 > limit) {
-            throw new IndexOutOfBoundsException();
-        }
-        return getBaseAddress().getShort(offset + index, order);
+  @Override public final char getChar() {
+    int newPosition = position + SizeOf.CHAR;
+    if (newPosition > limit) {
+      throw new BufferUnderflowException();
     }
+    char result = (char) this.block.peekShort(offset + position, order);
+    position = newPosition;
+    return result;
+  }
 
-    @Override
-    public final boolean isDirect() {
-        return true;
-    }
+  @Override public final char getChar(int index) {
+    checkIndex(index, SizeOf.CHAR);
+    return (char) this.block.peekShort(offset + index, order);
+  }
 
-    public final boolean isAddressValid() {
-        return safeAddress.isValid;
+  @Override public final double getDouble() {
+    int newPosition = position + SizeOf.DOUBLE;
+    if (newPosition > limit) {
+      throw new BufferUnderflowException();
     }
+    double result = Double.longBitsToDouble(this.block.peekLong(offset + position, order));
+    position = newPosition;
+    return result;
+  }
 
-    public final void addressValidityCheck() {
-        if (!isAddressValid()) {
-            throw new IllegalStateException("Cannot use a direct byte buffer after it has been explicitly freed");
-        }
-    }
+  @Override public final double getDouble(int index) {
+    checkIndex(index, SizeOf.DOUBLE);
+    return Double.longBitsToDouble(this.block.peekLong(offset + index, order));
+  }
 
-    private void markAddressInvalid() {
-        safeAddress.isValid = false;
+  @Override public final float getFloat() {
+    int newPosition = position + SizeOf.FLOAT;
+    if (newPosition > limit) {
+      throw new BufferUnderflowException();
     }
+    float result = Float.intBitsToFloat(this.block.peekInt(offset + position, order));
+    position = newPosition;
+    return result;
+  }
 
-    /*
-     * Returns the base address of the buffer (i.e. before offset).
-     */
-    public final PlatformAddress getBaseAddress() {
-        addressValidityCheck();
-        return safeAddress.address;
-    }
+  @Override public final float getFloat(int index) {
+    checkIndex(index, SizeOf.FLOAT);
+    return Float.intBitsToFloat(this.block.peekInt(offset + index, order));
+  }
 
-    /**
-     * Returns the platform address of the start of this buffer instance.
-     * <em>You must not attempt to free the returned address!!</em> It may not
-     * be an address that was explicitly malloc'ed (i.e. if this buffer is the
-     * result of a split); and it may be memory shared by multiple buffers.
-     * <p>
-     * If you can guarantee that you want to free the underlying memory call the
-     * #free() method on this instance -- generally applications will rely on
-     * the garbage collector to autofree this memory.
-     * </p>
-     *
-     * @return the effective address of the start of the buffer.
-     * @throws IllegalStateException
-     *             if this buffer address is known to have been freed
-     *             previously.
-     */
-    public final PlatformAddress getEffectiveAddress() {
-        // BEGIN android-changed
-        PlatformAddress addr = getBaseAddress().offsetBytes(offset);
-        effectiveDirectAddress = addr.toInt();
-        return addr;
-        // END android-changed
+  @Override public final int getInt() {
+    int newPosition = position + SizeOf.INT;
+    if (newPosition > limit) {
+      throw new BufferUnderflowException();
     }
+    int result = this.block.peekInt(offset + position, order);
+    position = newPosition;
+    return result;
+  }
 
-    /**
-     * Explicitly free the memory used by this direct byte buffer. If the memory
-     * has already been freed then this is a no-op. Once the memory has been
-     * freed then operations requiring access to the memory will throw an
-     * <code>IllegalStateException</code>.
-     * <p>
-     * Note this is is possible that the memory is freed by code that reaches
-     * into the address and explicitly frees it 'beneith' us -- this is bad
-     * form.
-     * </p>
-     */
-    public final void free() {
-        if (isAddressValid()) {
-            markAddressInvalid();
-            safeAddress.address.free();
-        }
-    }
+  @Override public final int getInt(int index) {
+    checkIndex(index, SizeOf.INT);
+    return this.block.peekInt(offset + index, order);
+  }
 
-    @Override
-    final protected byte[] protectedArray() {
-        throw new UnsupportedOperationException();
+  @Override public final long getLong() {
+    int newPosition = position + SizeOf.LONG;
+    if (newPosition > limit) {
+      throw new BufferUnderflowException();
     }
+    long result = this.block.peekLong(offset + position, order);
+    position = newPosition;
+    return result;
+  }
 
-    @Override
-    final protected int protectedArrayOffset() {
-        throw new UnsupportedOperationException();
-    }
+  @Override public final long getLong(int index) {
+    checkIndex(index, SizeOf.LONG);
+    return this.block.peekLong(offset + index, order);
+  }
 
-    @Override
-    final protected boolean protectedHasArray() {
-        return false;
+  @Override public final short getShort() {
+    int newPosition = position + SizeOf.SHORT;
+    if (newPosition > limit) {
+      throw new BufferUnderflowException();
     }
+    short result = this.block.peekShort(offset + position, order);
+    position = newPosition;
+    return result;
+  }
 
-    public final int getByteCapacity() {
-        return capacity;
+  @Override public final short getShort(int index) {
+    checkIndex(index, SizeOf.SHORT);
+    return this.block.peekShort(offset + index, order);
+  }
+
+  @Override public final boolean isDirect() {
+    return true;
+  }
+
+  public final void free() {
+    block.free();
+  }
+
+  @Override public final CharBuffer asCharBuffer() {
+    return ByteBufferAsCharBuffer.asCharBuffer(this);
+  }
+
+  @Override public final DoubleBuffer asDoubleBuffer() {
+    return ByteBufferAsDoubleBuffer.asDoubleBuffer(this);
+  }
+
+  @Override public final FloatBuffer asFloatBuffer() {
+    return ByteBufferAsFloatBuffer.asFloatBuffer(this);
+  }
+
+  @Override public final IntBuffer asIntBuffer() {
+    return ByteBufferAsIntBuffer.asIntBuffer(this);
+  }
+
+  @Override public final LongBuffer asLongBuffer() {
+    return ByteBufferAsLongBuffer.asLongBuffer(this);
+  }
+
+  @Override public final ShortBuffer asShortBuffer() {
+    return ByteBufferAsShortBuffer.asShortBuffer(this);
+  }
+
+  @Override public ByteBuffer put(byte value) {
+    if (isReadOnly) {
+      throw new ReadOnlyBufferException();
     }
+    if (position == limit) {
+      throw new BufferOverflowException();
+    }
+    this.block.pokeByte(offset + position++, value);
+    return this;
+  }
+
+  @Override public ByteBuffer put(int index, byte value) {
+    if (isReadOnly) {
+      throw new ReadOnlyBufferException();
+    }
+    checkIndex(index);
+    this.block.pokeByte(offset + index, value);
+    return this;
+  }
+
+  @Override public ByteBuffer put(byte[] src, int srcOffset, int byteCount) {
+    if (isReadOnly) {
+      throw new ReadOnlyBufferException();
+    }
+    checkPutBounds(1, src.length, srcOffset, byteCount);
+    this.block.pokeByteArray(offset + position, src, srcOffset, byteCount);
+    position += byteCount;
+    return this;
+  }
+
+  final void put(char[] src, int srcOffset, int charCount) {
+    int byteCount = checkPutBounds(SizeOf.CHAR, src.length, srcOffset, charCount);
+    this.block.pokeCharArray(offset + position, src, srcOffset, charCount, order.needsSwap);
+    position += byteCount;
+  }
+
+  final void put(double[] src, int srcOffset, int doubleCount) {
+    int byteCount = checkPutBounds(SizeOf.DOUBLE, src.length, srcOffset, doubleCount);
+    this.block.pokeDoubleArray(offset + position, src, srcOffset, doubleCount, order.needsSwap);
+    position += byteCount;
+  }
+
+  final void put(float[] src, int srcOffset, int floatCount) {
+    int byteCount = checkPutBounds(SizeOf.FLOAT, src.length, srcOffset, floatCount);
+    this.block.pokeFloatArray(offset + position, src, srcOffset, floatCount, order.needsSwap);
+    position += byteCount;
+  }
+
+  final void put(int[] src, int srcOffset, int intCount) {
+    int byteCount = checkPutBounds(SizeOf.INT, src.length, srcOffset, intCount);
+    this.block.pokeIntArray(offset + position, src, srcOffset, intCount, order.needsSwap);
+    position += byteCount;
+  }
+
+  final void put(long[] src, int srcOffset, int longCount) {
+    int byteCount = checkPutBounds(SizeOf.LONG, src.length, srcOffset, longCount);
+    this.block.pokeLongArray(offset + position, src, srcOffset, longCount, order.needsSwap);
+    position += byteCount;
+  }
+
+  final void put(short[] src, int srcOffset, int shortCount) {
+    int byteCount = checkPutBounds(SizeOf.SHORT, src.length, srcOffset, shortCount);
+    this.block.pokeShortArray(offset + position, src, srcOffset, shortCount, order.needsSwap);
+    position += byteCount;
+  }
+
+  @Override public ByteBuffer putChar(char value) {
+    if (isReadOnly) {
+      throw new ReadOnlyBufferException();
+    }
+    int newPosition = position + SizeOf.CHAR;
+    if (newPosition > limit) {
+      throw new BufferOverflowException();
+    }
+    this.block.pokeShort(offset + position, (short) value, order);
+    position = newPosition;
+    return this;
+  }
+
+  @Override public ByteBuffer putChar(int index, char value) {
+    if (isReadOnly) {
+      throw new ReadOnlyBufferException();
+    }
+    checkIndex(index, SizeOf.CHAR);
+    this.block.pokeShort(offset + index, (short) value, order);
+    return this;
+  }
+
+  @Override public ByteBuffer putDouble(double value) {
+    if (isReadOnly) {
+      throw new ReadOnlyBufferException();
+    }
+    int newPosition = position + SizeOf.DOUBLE;
+    if (newPosition > limit) {
+      throw new BufferOverflowException();
+    }
+    this.block.pokeLong(offset + position, Double.doubleToRawLongBits(value), order);
+    position = newPosition;
+    return this;
+  }
+
+  @Override public ByteBuffer putDouble(int index, double value) {
+    if (isReadOnly) {
+      throw new ReadOnlyBufferException();
+    }
+    checkIndex(index, SizeOf.DOUBLE);
+    this.block.pokeLong(offset + index, Double.doubleToRawLongBits(value), order);
+    return this;
+  }
+
+  @Override public ByteBuffer putFloat(float value) {
+    if (isReadOnly) {
+      throw new ReadOnlyBufferException();
+    }
+    int newPosition = position + SizeOf.FLOAT;
+    if (newPosition > limit) {
+      throw new BufferOverflowException();
+    }
+    this.block.pokeInt(offset + position, Float.floatToRawIntBits(value), order);
+    position = newPosition;
+    return this;
+  }
+
+  @Override public ByteBuffer putFloat(int index, float value) {
+    if (isReadOnly) {
+      throw new ReadOnlyBufferException();
+    }
+    checkIndex(index, SizeOf.FLOAT);
+    this.block.pokeInt(offset + index, Float.floatToRawIntBits(value), order);
+    return this;
+  }
+
+  @Override public ByteBuffer putInt(int value) {
+    if (isReadOnly) {
+      throw new ReadOnlyBufferException();
+    }
+    int newPosition = position + SizeOf.INT;
+    if (newPosition > limit) {
+      throw new BufferOverflowException();
+    }
+    this.block.pokeInt(offset + position, value, order);
+    position = newPosition;
+    return this;
+  }
+
+  @Override public ByteBuffer putInt(int index, int value) {
+    if (isReadOnly) {
+      throw new ReadOnlyBufferException();
+    }
+    checkIndex(index, SizeOf.INT);
+    this.block.pokeInt(offset + index, value, order);
+    return this;
+  }
+
+  @Override public ByteBuffer putLong(long value) {
+    if (isReadOnly) {
+      throw new ReadOnlyBufferException();
+    }
+    int newPosition = position + SizeOf.LONG;
+    if (newPosition > limit) {
+      throw new BufferOverflowException();
+    }
+    this.block.pokeLong(offset + position, value, order);
+    position = newPosition;
+    return this;
+  }
+
+  @Override public ByteBuffer putLong(int index, long value) {
+    if (isReadOnly) {
+      throw new ReadOnlyBufferException();
+    }
+    checkIndex(index, SizeOf.LONG);
+    this.block.pokeLong(offset + index, value, order);
+    return this;
+  }
+
+  @Override public ByteBuffer putShort(short value) {
+    if (isReadOnly) {
+      throw new ReadOnlyBufferException();
+    }
+    int newPosition = position + SizeOf.SHORT;
+    if (newPosition > limit) {
+      throw new BufferOverflowException();
+    }
+    this.block.pokeShort(offset + position, value, order);
+    position = newPosition;
+    return this;
+  }
+
+  @Override public ByteBuffer putShort(int index, short value) {
+    if (isReadOnly) {
+      throw new ReadOnlyBufferException();
+    }
+    checkIndex(index, SizeOf.SHORT);
+    this.block.pokeShort(offset + index, value, order);
+    return this;
+  }
 }

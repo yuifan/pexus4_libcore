@@ -36,8 +36,8 @@ public class MissingFormatArgumentException extends IllegalFormatException {
      *           the specified conversion that lacks the argument.
      */
     public MissingFormatArgumentException(String s) {
-        if (null == s) {
-            throw new NullPointerException();
+        if (s == null) {
+            throw new NullPointerException("s == null");
         }
         this.s = s;
     }

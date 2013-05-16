@@ -24,7 +24,7 @@ import java.io.ObjectStreamException;
 import java.io.Serializable;
 import static java.util.TreeMap.Bound.*;
 import static java.util.TreeMap.Relation.*;
-import libcore.base.Objects;
+import libcore.util.Objects;
 
 /**
  * A map whose entries are sorted by their keys. All optional operations such as
@@ -132,7 +132,7 @@ public class TreeMap<K, V> extends AbstractMap<K, V>
      *
      * <p>The constructed map <strong>will always use</strong> {@code
      * copyFrom}'s ordering. Because the {@code TreeMap} constructor overloads
-     * are ambigous, prefer to construct a map and populate it in two steps:
+     * are ambiguous, prefer to construct a map and populate it in two steps:
      * <pre>   {@code
      *   TreeMap<String, Integer> customOrderedMap
      *       = new TreeMap<String, Integer>(copyFrom.comparator());
@@ -251,7 +251,7 @@ public class TreeMap<K, V> extends AbstractMap<K, V>
     Node<K, V> find(K key, Relation relation) {
         if (root == null) {
             if (comparator == NATURAL_ORDER && !(key instanceof Comparable)) {
-                throw new ClassCastException(key.getClass().getName()); // NullPointerException ok
+                throw new ClassCastException(key.getClass().getName() + " is not Comparable"); // NullPointerException ok
             }
             if (relation == Relation.CREATE) {
                 root = new Node<K, V>(null, key);
@@ -441,7 +441,7 @@ public class TreeMap<K, V> extends AbstractMap<K, V>
             if (parent.left == node) {
                 parent.left = replacement;
             } else {
-                assert (parent.right == node);
+                // assert (parent.right == node);
                 parent.right = replacement;
             }
         } else {
@@ -474,7 +474,7 @@ public class TreeMap<K, V> extends AbstractMap<K, V>
                 if (rightDelta == -1 || (rightDelta == 0 && !insert)) {
                     rotateLeft(node); // AVL right right
                 } else {
-                    assert (rightDelta == 1);
+                    // assert (rightDelta == 1);
                     rotateRight(right); // AVL right left
                     rotateLeft(node);
                 }
@@ -492,7 +492,7 @@ public class TreeMap<K, V> extends AbstractMap<K, V>
                 if (leftDelta == 1 || (leftDelta == 0 && !insert)) {
                     rotateRight(node); // AVL left left
                 } else {
-                    assert (leftDelta == -1);
+                    // assert (leftDelta == -1);
                     rotateLeft(left); // AVL left right
                     rotateRight(node);
                 }
@@ -507,7 +507,7 @@ public class TreeMap<K, V> extends AbstractMap<K, V>
                 }
 
             } else {
-                assert (delta == -1 || delta == 1);
+                // assert (delta == -1 || delta == 1);
                 node.height = Math.max(leftHeight, rightHeight) + 1;
                 if (!insert) {
                     break; // the height hasn't changed, so rebalancing is done!
@@ -1094,11 +1094,11 @@ public class TreeMap<K, V> extends AbstractMap<K, V>
      * A map with optional limits on its range.
      */
     final class BoundedMap extends AbstractMap<K, V> implements NavigableMap<K, V>, Serializable {
-        private final boolean ascending;
-        private final K from;
-        private final Bound fromBound;
-        private final K to;
-        private final Bound toBound;
+        private final transient boolean ascending;
+        private final transient K from;
+        private final transient Bound fromBound;
+        private final transient K to;
+        private final transient Bound toBound;
 
         BoundedMap(boolean ascending, K from, Bound fromBound, K to, Bound toBound) {
             /*
@@ -1364,19 +1364,20 @@ public class TreeMap<K, V> extends AbstractMap<K, V>
         }
 
         public Comparator<? super K> comparator() {
-          if (ascending) {
-            return TreeMap.this.comparator();
-          } else {
-            return Collections.reverseOrder(comparator);
-          }
+            Comparator<? super K> forward = TreeMap.this.comparator();
+            if (ascending) {
+                return forward;
+            } else {
+                return Collections.reverseOrder(forward);
+            }
         }
 
         /*
          * View factory methods.
          */
 
-        private BoundedEntrySet entrySet;
-        private BoundedKeySet keySet;
+        private transient BoundedEntrySet entrySet;
+        private transient BoundedKeySet keySet;
 
         @Override public Set<Entry<K, V>> entrySet() {
             BoundedEntrySet result = entrySet;
@@ -1665,7 +1666,7 @@ public class TreeMap<K, V> extends AbstractMap<K, V>
     private static final long serialVersionUID = 919286545866124006L;
 
     private void writeObject(ObjectOutputStream stream) throws IOException {
-        stream.putFields().put("comparator", comparator != NATURAL_ORDER ? comparator : null);
+        stream.putFields().put("comparator", comparator());
         stream.writeFields();
         stream.writeInt(size);
         for (Map.Entry<K, V> entry : entrySet()) {

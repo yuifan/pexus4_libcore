@@ -35,9 +35,6 @@ package java.io;
  * @see Reader
  */
 public abstract class Writer implements Appendable, Closeable, Flushable {
-
-    static final String TOKEN_NULL = "null";
-
     /**
      * The object used to synchronize access to the writer.
      */
@@ -48,7 +45,6 @@ public abstract class Writer implements Appendable, Closeable, Flushable {
      * synchronize critical sections.
      */
     protected Writer() {
-        super();
         lock = this;
     }
 
@@ -63,7 +59,7 @@ public abstract class Writer implements Appendable, Closeable, Flushable {
      */
     protected Writer(Object lock) {
         if (lock == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("lock == null");
         }
         this.lock = lock;
     }
@@ -95,9 +91,6 @@ public abstract class Writer implements Appendable, Closeable, Flushable {
      *             if this writer is closed or another I/O error occurs.
      */
     public void write(char[] buf) throws IOException {
-        // BEGIN android-note
-        // changed array notation to be consistent with the rest of harmony
-        // END android-note
         write(buf, 0, buf.length);
     }
 
@@ -117,11 +110,7 @@ public abstract class Writer implements Appendable, Closeable, Flushable {
      * @throws IOException
      *             if this writer is closed or another I/O error occurs.
      */
-    public abstract void write(char[] buf, int offset, int count)
-            throws IOException;
-    // BEGIN android-note
-    // changed array notation to be consistent with the rest of harmony
-    // END android-note
+    public abstract void write(char[] buf, int offset, int count) throws IOException;
 
     /**
      * Writes one character to the target. Only the two least significant bytes
@@ -169,12 +158,11 @@ public abstract class Writer implements Appendable, Closeable, Flushable {
      *             offset + count} is greater than the length of {@code str}.
      */
     public void write(String str, int offset, int count) throws IOException {
-        if (count < 0) { // other cases tested by getChars()
-            throw new StringIndexOutOfBoundsException();
+        if ((offset | count) < 0 || offset > str.length() - count) {
+            throw new StringIndexOutOfBoundsException(str, offset, count);
         }
         char[] buf = new char[count];
         str.getChars(offset, offset + count, buf, 0);
-
         synchronized (lock) {
             write(buf, 0, buf.length);
         }
@@ -208,11 +196,10 @@ public abstract class Writer implements Appendable, Closeable, Flushable {
      *             if this writer is closed or another I/O error occurs.
      */
     public Writer append(CharSequence csq) throws IOException {
-        if (null == csq) {
-            write(TOKEN_NULL);
-        } else {
-            write(csq.toString());
+        if (csq == null) {
+            csq = "null";
         }
+        write(csq.toString());
         return this;
     }
 
@@ -239,13 +226,11 @@ public abstract class Writer implements Appendable, Closeable, Flushable {
      *             either {@code start} or {@code end} are greater or equal than
      *             the length of {@code csq}.
      */
-    public Writer append(CharSequence csq, int start, int end)
-            throws IOException {
-        if (null == csq) {
-            write(TOKEN_NULL.substring(start, end));
-        } else {
-            write(csq.subSequence(start, end).toString());
+    public Writer append(CharSequence csq, int start, int end) throws IOException {
+        if (csq == null) {
+            csq = "null";
         }
+        write(csq.subSequence(start, end).toString());
         return this;
     }
 

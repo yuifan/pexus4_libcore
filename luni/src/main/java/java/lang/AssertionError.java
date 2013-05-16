@@ -30,7 +30,15 @@ public class AssertionError extends Error {
      * Constructs a new {@code AssertionError} with no message.
      */
     public AssertionError() {
-        super();
+    }
+
+    /**
+     * Constructs a new {@code AssertionError} with the given detail message and cause.
+     * @since 1.7
+     * @hide 1.7
+     */
+    public AssertionError(String detailMessage, Throwable cause) {
+        super(detailMessage, cause);
     }
 
     /**
@@ -44,9 +52,10 @@ public class AssertionError extends Error {
      *            optionally the cause.
      */
     public AssertionError(Object detailMessage) {
-        super(String.valueOf(detailMessage),
-                (detailMessage instanceof Throwable ? (Throwable) detailMessage
-                        : null));
+        super(String.valueOf(detailMessage));
+        if (detailMessage instanceof Throwable) {
+            initCause((Throwable) detailMessage);
+        }
     }
 
     /**

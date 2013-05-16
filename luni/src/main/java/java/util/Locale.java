@@ -17,15 +17,12 @@
 
 package java.util;
 
-import com.ibm.icu4jni.util.ICU;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
-import java.security.AccessController;
-import org.apache.harmony.luni.util.PriviAction;
-import org.apache.harmony.luni.util.Util;
+import libcore.icu.ICU;
 
 /**
  * {@code Locale} represents a language/country/variant combination. Locales are used to
@@ -58,8 +55,8 @@ import org.apache.harmony.luni.util.Util;
  * nor any locales for other languages (such as de_DE). The opposite may well be true for a device
  * sold in Europe.
  *
- * <p>You can use {@code getDefault} to get an appropriate locale for the <i>user</i> of
- * the device you're running on, or {@code getAvailableLocales} to get a list of all the locales
+ * <p>You can use {@link Locale#getDefault} to get an appropriate locale for the <i>user</i> of the
+ * device you're running on, or {@link Locale#getAvailableLocales} to get a list of all the locales
  * available on the device you're running on.
  *
  * <a name="locale_data"><h3>Locale data</h3></a>
@@ -69,114 +66,126 @@ import org.apache.harmony.luni.util.Util;
  * <p>Here are the versions of ICU (and the corresponding CLDR and Unicode versions) used in
  * various Android releases:
  * <table BORDER="1" WIDTH="100%" CELLPADDING="3" CELLSPACING="0" SUMMARY="">
- * <tr><td>cupcake/donut/eclair</td> <td>ICU 3.8</td> <td><a href="http://www.unicode.org/press/pr-cldr1.5.html">CLDR 1.5</a></td> <td><a href="http://www.unicode.org/versions/Unicode5.0.0/">Unicode 5.0</a></td></tr>
- * <tr><td>froyo</td>                <td>ICU 4.2</td> <td><a href="http://www.unicode.org/press/pr-cldr1.7.html">CLDR 1.7</a></td> <td><a href="http://www.unicode.org/versions/Unicode5.1.0/">Unicode 5.1</a></td></tr>
- * <tr><td>gingerbread</td>          <td>ICU 4.4</td> <td><a href="http://www.unicode.org/press/pr-cldr1.8.html">CLDR 1.8</a></td> <td><a href="http://www.unicode.org/versions/Unicode5.2.0/">Unicode 5.2</a></td></tr>
+ * <tr><td>cupcake/donut/eclair</td> <td>ICU 3.8</td> <td><a href="http://cldr.unicode.org/index/downloads/cldr-1-5">CLDR 1.5</a></td>  <td><a href="http://www.unicode.org/versions/Unicode5.0.0/">Unicode 5.0</a></td></tr>
+ * <tr><td>froyo</td>                <td>ICU 4.2</td> <td><a href="http://cldr.unicode.org/index/downloads/cldr-1-7">CLDR 1.7</a></td>  <td><a href="http://www.unicode.org/versions/Unicode5.1.0/">Unicode 5.1</a></td></tr>
+ * <tr><td>gingerbread/honeycomb</td><td>ICU 4.4</td> <td><a href="http://cldr.unicode.org/index/downloads/cldr-1-8">CLDR 1.8</a></td>  <td><a href="http://www.unicode.org/versions/Unicode5.2.0/">Unicode 5.2</a></td></tr>
+ * <tr><td>ice cream sandwich</td>   <td>ICU 4.6</td> <td><a href="http://cldr.unicode.org/index/downloads/cldr-1-9">CLDR 1.9</a></td>  <td><a href="http://www.unicode.org/versions/Unicode6.0.0/">Unicode 6.0</a></td></tr>
+ * <tr><td>jelly bean</td>           <td>ICU 4.8</td> <td><a href="http://cldr.unicode.org/index/downloads/cldr-2-0">CLDR 2.0</a></td>  <td><a href="http://www.unicode.org/versions/Unicode6.0.0/">Unicode 6.0</a></td></tr>
+ * <tr><td>later</td>                <td>ICU 49</td>  <td><a href="http://cldr.unicode.org/index/downloads/cldr-21">CLDR 21.0</a></td> <td><a href="http://www.unicode.org/versions/Unicode6.1.0/">Unicode 6.1</a></td></tr>
  * </table>
  *
  * <a name="default_locale"><h3>Be wary of the default locale</h3></a>
  * <p>Note that there are many convenience methods that automatically use the default locale, but
- * these may not be as convenient as you imagine. The default locale is appropriate for anything
- * that involves presenting data to the user. You should use the user's date/time formats, number
- * formats, rules for conversion to lowercase, and so on. A common mistake is to implicitly use the
- * default locale when producing output meant to be machine-readable. This tends to work on the
- * developer's test devices but fail when run on a device whose user is in a less conventional
- * locale. For example, if you're formatting integers some locales will use non-ASCII decimal
+ * using them may lead to subtle bugs.
+ *
+ * <p>The default locale is appropriate for tasks that involve presenting data to the user. In
+ * this case, you want to use the user's date/time formats, number
+ * formats, rules for conversion to lowercase, and so on. In this case, it's safe to use the
+ * convenience methods.
+ *
+ * <p>The default locale is <i>not</i> appropriate for machine-readable output. The best choice
+ * there is usually {@code Locale.US}&nbsp;&ndash; this locale is guaranteed to be available on all
+ * devices, and the fact that it has no surprising special cases and is frequently used (especially
+ * for computer-computer communication) means that it tends to be the most efficient choice too.
+ *
+ * <p>A common mistake is to implicitly use the default locale when producing output meant to be
+ * machine-readable. This tends to work on the developer's test devices (especially because so many
+ * developers use en_US), but fails when run on a device whose user is in a more complex locale.
+ *
+ * <p>For example, if you're formatting integers some locales will use non-ASCII decimal
  * digits. As another example, if you're formatting floating-point numbers some locales will use
- * {@code ','} as the decimal point. That's correct for human-readable output, but likely to cause
- * problems if presented to another computer ({@code Double.parseDouble} can't parse such a number,
- * for example). The best choice for computer-readable output is usually {@code Locale.US}: this
- * locale is guaranteed to be available on all devices, and the combination of no surprising
- * behavior and frequent use (especially for computer-computer communication) means that it tends
- * to be the most efficient choice too.
+ * {@code ','} as the decimal point and {@code '.'} for digit grouping. That's correct for
+ * human-readable output, but likely to cause problems if presented to another
+ * computer ({@link Double#parseDouble} can't parse such a number, for example).
+ * You should also be wary of the {@link String#toLowerCase} and
+ * {@link String#toUpperCase} overloads that don't take a {@code Locale}: in Turkey, for example,
+ * the characters {@code 'i'} and {@code 'I'} won't be converted to {@code 'I'} and {@code 'i'}.
+ * This is the correct behavior for Turkish text (such as user input), but inappropriate for, say,
+ * HTTP headers.
  */
 public final class Locale implements Cloneable, Serializable {
 
     private static final long serialVersionUID = 9149081749638150636L;
 
-    // Initialize a default which is used during static
-    // initialization of the default for the platform.
-    private static Locale defaultLocale = new Locale();
-
     /**
      * Locale constant for en_CA.
      */
-    public static final Locale CANADA = new Locale("en", "CA");
+    public static final Locale CANADA = new Locale(true, "en", "CA");
 
     /**
      * Locale constant for fr_CA.
      */
-    public static final Locale CANADA_FRENCH = new Locale("fr", "CA");
+    public static final Locale CANADA_FRENCH = new Locale(true, "fr", "CA");
 
     /**
      * Locale constant for zh_CN.
      */
-    public static final Locale CHINA = new Locale("zh", "CN");
+    public static final Locale CHINA = new Locale(true, "zh", "CN");
 
     /**
      * Locale constant for zh.
      */
-    public static final Locale CHINESE = new Locale("zh", "");
+    public static final Locale CHINESE = new Locale(true, "zh", "");
 
     /**
      * Locale constant for en.
      */
-    public static final Locale ENGLISH = new Locale("en", "");
+    public static final Locale ENGLISH = new Locale(true, "en", "");
 
     /**
      * Locale constant for fr_FR.
      */
-    public static final Locale FRANCE = new Locale("fr", "FR");
+    public static final Locale FRANCE = new Locale(true, "fr", "FR");
 
     /**
      * Locale constant for fr.
      */
-    public static final Locale FRENCH = new Locale("fr", "");
+    public static final Locale FRENCH = new Locale(true, "fr", "");
 
     /**
      * Locale constant for de.
      */
-    public static final Locale GERMAN = new Locale("de", "");
+    public static final Locale GERMAN = new Locale(true, "de", "");
 
     /**
      * Locale constant for de_DE.
      */
-    public static final Locale GERMANY = new Locale("de", "DE");
+    public static final Locale GERMANY = new Locale(true, "de", "DE");
 
     /**
      * Locale constant for it.
      */
-    public static final Locale ITALIAN = new Locale("it", "");
+    public static final Locale ITALIAN = new Locale(true, "it", "");
 
     /**
      * Locale constant for it_IT.
      */
-    public static final Locale ITALY = new Locale("it", "IT");
+    public static final Locale ITALY = new Locale(true, "it", "IT");
 
     /**
      * Locale constant for ja_JP.
      */
-    public static final Locale JAPAN = new Locale("ja", "JP");
+    public static final Locale JAPAN = new Locale(true, "ja", "JP");
 
     /**
      * Locale constant for ja.
      */
-    public static final Locale JAPANESE = new Locale("ja", "");
+    public static final Locale JAPANESE = new Locale(true, "ja", "");
 
     /**
      * Locale constant for ko_KR.
      */
-    public static final Locale KOREA = new Locale("ko", "KR");
+    public static final Locale KOREA = new Locale(true, "ko", "KR");
 
     /**
      * Locale constant for ko.
      */
-    public static final Locale KOREAN = new Locale("ko", "");
+    public static final Locale KOREAN = new Locale(true, "ko", "");
 
     /**
      * Locale constant for zh_CN.
      */
-    public static final Locale PRC = new Locale("zh", "CN");
+    public static final Locale PRC = new Locale(true, "zh", "CN");
 
     /**
      * Locale constant for the root locale. The root locale has an empty language,
@@ -184,40 +193,43 @@ public final class Locale implements Cloneable, Serializable {
      *
      * @since 1.6
      */
-    public static final Locale ROOT = new Locale("", "", "");
+    public static final Locale ROOT = new Locale(true, "", "");
 
     /**
      * Locale constant for zh_CN.
      */
-    public static final Locale SIMPLIFIED_CHINESE = new Locale("zh", "CN");
+    public static final Locale SIMPLIFIED_CHINESE = new Locale(true, "zh", "CN");
 
     /**
      * Locale constant for zh_TW.
      */
-    public static final Locale TAIWAN = new Locale("zh", "TW");
+    public static final Locale TAIWAN = new Locale(true, "zh", "TW");
 
     /**
      * Locale constant for zh_TW.
      */
-    public static final Locale TRADITIONAL_CHINESE = new Locale("zh", "TW");
+    public static final Locale TRADITIONAL_CHINESE = new Locale(true, "zh", "TW");
 
     /**
      * Locale constant for en_GB.
      */
-    public static final Locale UK = new Locale("en", "GB");
+    public static final Locale UK = new Locale(true, "en", "GB");
 
     /**
      * Locale constant for en_US.
      */
-    public static final Locale US = new Locale("en", "US");
+    public static final Locale US = new Locale(true, "en", "US");
 
-    private static final PropertyPermission setLocalePermission = new PropertyPermission(
-            "user.language", "write");
+    /**
+     * The current default locale. It is temporarily assigned to US because we
+     * need a default locale to lookup the real default locale.
+     */
+    private static Locale defaultLocale = US;
 
     static {
-        String language = AccessController.doPrivileged(new PriviAction<String>("user.language", "en"));
-        String region = AccessController.doPrivileged(new PriviAction<String>("user.region", "US"));
-        String variant = AccessController.doPrivileged(new PriviAction<String>("user.variant", ""));
+        String language = System.getProperty("user.language", "en");
+        String region = System.getProperty("user.region", "US");
+        String variant = System.getProperty("user.variant", "");
         defaultLocale = new Locale(language, region, variant);
     }
 
@@ -227,13 +239,16 @@ public final class Locale implements Cloneable, Serializable {
     private transient String cachedToStringResult;
 
     /**
-     * Constructs a default which is used during static initialization of the
-     * default for the platform.
+     * There's a circular dependency between toLowerCase/toUpperCase and
+     * Locale.US. Work around this by avoiding these methods when constructing
+     * the built-in locales.
+     *
+     * @param unused required for this constructor to have a unique signature
      */
-    private Locale() {
-        languageCode = "en";
-        countryCode = "US";
-        variantCode = "";
+    private Locale(boolean unused, String lowerCaseLanguageCode, String upperCaseCountryCode) {
+        this.languageCode = lowerCaseLanguageCode;
+        this.countryCode = upperCaseCountryCode;
+        this.variantCode = "";
     }
 
     /**
@@ -256,19 +271,18 @@ public final class Locale implements Cloneable, Serializable {
      */
     public Locale(String language, String country, String variant) {
         if (language == null || country == null || variant == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("language=" + language +
+                                           ",country=" + country +
+                                           ",variant=" + variant);
         }
-        if(language.isEmpty() && country.isEmpty()){
+        if (language.isEmpty() && country.isEmpty()) {
             languageCode = "";
             countryCode = "";
             variantCode = variant;
             return;
         }
-        // BEGIN android-changed
-        // this.uLocale = new ULocale(language, country, variant);
-        // languageCode = uLocale.getLanguage();
-        languageCode = Util.toASCIILowerCase(language);
-        // END android-changed
+
+        languageCode = language.toLowerCase(Locale.US);
         // Map new language codes to the obsolete language
         // codes so the correct resource bundles will be used.
         if (languageCode.equals("he")) {
@@ -279,11 +293,7 @@ public final class Locale implements Cloneable, Serializable {
             languageCode = "ji";
         }
 
-        // countryCode is defined in ASCII character set
-        // BEGIN android-changed
-        // countryCode = country.length()!=0?uLocale.getCountry():"";
-        countryCode = Util.toASCIIUpperCase(country);
-        // END android-changed
+        countryCode = country.toUpperCase(Locale.US);
 
         // Work around for be compatible with RI
         variantCode = variant;
@@ -389,9 +399,18 @@ public final class Locale implements Cloneable, Serializable {
         if (languageCode.isEmpty()) {
             return "";
         }
-        String result = ICU.getDisplayLanguageNative(toString(), locale.toString());
+
+        // http://b/8049507 --- frameworks/base should use fil_PH instead of tl_PH.
+        // Until then, we're stuck covering their tracks, making it look like they're
+        // using "fil" when they're not.
+        String localeString = toString();
+        if (languageCode.equals("tl")) {
+            localeString = toNewString("fil", countryCode, variantCode);
+        }
+
+        String result = ICU.getDisplayLanguageNative(localeString, locale.toString());
         if (result == null) { // TODO: do we need to do this, or does ICU do it for us?
-            result = ICU.getDisplayLanguageNative(toString(), Locale.getDefault().toString());
+            result = ICU.getDisplayLanguageNative(localeString, Locale.getDefault().toString());
         }
         return result;
     }
@@ -406,10 +425,17 @@ public final class Locale implements Cloneable, Serializable {
     /**
      * Returns this locale's language name, country name, and variant, localized
      * to {@code locale}. The exact output form depends on whether this locale
-     * corresponds to a specific language, country and variant, such as:
-     * {@code English}, {@code English (United States)}, {@code English (United
-     * States,Computer)}, {@code anglais (&#x00c9;tats-Unis)}, {@code anglais
-     * (&#x00c9;tats-Unis,informatique)}.
+     * corresponds to a specific language, country and variant.
+     *
+     * <p>For example:
+     * <ul>
+     * <li>{@code new Locale("en").getDisplayName(Locale.US)} -> {@code English}
+     * <li>{@code new Locale("en", "US").getDisplayName(Locale.US)} -> {@code English (United States)}
+     * <li>{@code new Locale("en", "US", "POSIX").getDisplayName(Locale.US)} -> {@code English (United States,Computer)}
+     * <li>{@code new Locale("en").getDisplayName(Locale.FRANCE)} -> {@code anglais}
+     * <li>{@code new Locale("en", "US").getDisplayName(Locale.FRANCE)} -> {@code anglais (États-Unis)}
+     * <li>{@code new Locale("en", "US", "POSIX").getDisplayName(Locale.FRANCE)} -> {@code anglais (États-Unis,informatique)}.
+     * </ul>
      */
     public String getDisplayName(Locale locale) {
         int count = 0;
@@ -444,24 +470,18 @@ public final class Locale implements Cloneable, Serializable {
     }
 
     /**
-     * Gets the full variant name in the default {@code Locale} for the variant code of
+     * Returns the full variant name in the default {@code Locale} for the variant code of
      * this {@code Locale}. If there is no matching variant name, the variant code is
      * returned.
-     *
-     * @return a variant name.
      */
     public final String getDisplayVariant() {
         return getDisplayVariant(getDefault());
     }
 
     /**
-     * Gets the full variant name in the specified {@code Locale} for the variant code
+     * Returns the full variant name in the specified {@code Locale} for the variant code
      * of this {@code Locale}. If there is no matching variant name, the variant code is
      * returned.
-     *
-     * @param locale
-     *            the {@code Locale} for which the display name is retrieved.
-     * @return a variant name.
      */
     public String getDisplayVariant(Locale locale) {
         if (variantCode.length() == 0) {
@@ -475,82 +495,63 @@ public final class Locale implements Cloneable, Serializable {
     }
 
     /**
-     * Gets the three letter ISO country code which corresponds to the country
+     * Returns the three-letter ISO 3166 country code which corresponds to the country
      * code for this {@code Locale}.
-     *
-     * @return a three letter ISO language code.
-     * @throws MissingResourceException
-     *                if there is no matching three letter ISO country code.
+     * @throws MissingResourceException if there's no 3-letter country code for this locale.
      */
-    public String getISO3Country() throws MissingResourceException {
-        if (countryCode.length() == 0) {
-            return countryCode;
+    public String getISO3Country() {
+        String code = ICU.getISO3CountryNative(toString());
+        if (!countryCode.isEmpty() && code.isEmpty()) {
+            throw new MissingResourceException("No 3-letter country code for locale: " + this, "FormatData_" + this, "ShortCountry");
         }
-        return ICU.getISO3CountryNative(toString());
+        return code;
     }
 
     /**
-     * Gets the three letter ISO language code which corresponds to the language
+     * Returns the three-letter ISO 639-2/T language code which corresponds to the language
      * code for this {@code Locale}.
-     *
-     * @return a three letter ISO language code.
-     * @throws MissingResourceException
-     *                if there is no matching three letter ISO language code.
+     * @throws MissingResourceException if there's no 3-letter language code for this locale.
      */
-    public String getISO3Language() throws MissingResourceException {
-        if (languageCode.length() == 0) {
-            return languageCode;
+    public String getISO3Language() {
+        String code = ICU.getISO3LanguageNative(toString());
+        if (!languageCode.isEmpty() && code.isEmpty()) {
+            throw new MissingResourceException("No 3-letter language code for locale: " + this, "FormatData_" + this, "ShortLanguage");
         }
-        return ICU.getISO3LanguageNative(toString());
+        return code;
     }
 
     /**
-     * Gets the list of two letter ISO country codes which can be used as the
-     * country code for a {@code Locale}.
-     *
-     * @return an array of strings.
+     * Returns an array of strings containing all the two-letter ISO 3166 country codes that can be
+     * used as the country code when constructing a {@code Locale}.
      */
     public static String[] getISOCountries() {
         return ICU.getISOCountries();
     }
 
     /**
-     * Gets the list of two letter ISO language codes which can be used as the
-     * language code for a {@code Locale}.
-     *
-     * @return an array of strings.
+     * Returns an array of strings containing all the two-letter ISO 639-1 language codes that can be
+     * used as the language code when constructing a {@code Locale}.
      */
     public static String[] getISOLanguages() {
         return ICU.getISOLanguages();
     }
 
     /**
-     * Gets the language code for this {@code Locale} or the empty string of no language
+     * Returns the language code for this {@code Locale} or the empty string if no language
      * was set.
-     *
-     * @return a language code.
      */
     public String getLanguage() {
         return languageCode;
     }
 
     /**
-     * Gets the variant code for this {@code Locale} or an empty {@code String} if no variant
+     * Returns the variant code for this {@code Locale} or an empty {@code String} if no variant
      * was set.
-     *
-     * @return a variant code.
      */
     public String getVariant() {
         return variantCode;
     }
 
-    /**
-     * Returns an integer hash code for the receiver. Objects which are equal
-     * return the same value for this method.
-     *
-     * @return the receiver's hash.
-     * @see #equals
-     */
     @Override
     public synchronized int hashCode() {
         return countryCode.hashCode() + languageCode.hashCode()
@@ -567,14 +568,8 @@ public final class Locale implements Cloneable, Serializable {
      */
     public synchronized static void setDefault(Locale locale) {
         if (locale == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("locale == null");
         }
-
-        SecurityManager security = System.getSecurityManager();
-        if (security != null) {
-            security.checkPermission(setLocalePermission);
-        }
-
         defaultLocale = locale;
     }
 
@@ -588,16 +583,17 @@ public final class Locale implements Cloneable, Serializable {
      * return the empty string.
      *
      * <p>Examples: "en", "en_US", "_US", "en__POSIX", "en_US_POSIX"
-     *
-     * @return the string representation of this {@code Locale}.
      */
     @Override
     public final String toString() {
         String result = cachedToStringResult;
-        return (result == null) ? (cachedToStringResult = toNewString()) : result;
+        if (result == null) {
+            result = cachedToStringResult = toNewString(languageCode, countryCode, variantCode);
+        }
+        return result;
     }
 
-    private String toNewString() {
+    private static String toNewString(String languageCode, String countryCode, String variantCode) {
         // The string form of a locale that only has a variant is the empty string.
         if (languageCode.length() == 0 && countryCode.length() == 0) {
             return "";
@@ -620,10 +616,11 @@ public final class Locale implements Cloneable, Serializable {
     }
 
     private static final ObjectStreamField[] serialPersistentFields = {
-            new ObjectStreamField("country", String.class),
-            new ObjectStreamField("hashcode", Integer.TYPE),
-            new ObjectStreamField("language", String.class),
-            new ObjectStreamField("variant", String.class) };
+        new ObjectStreamField("country", String.class),
+        new ObjectStreamField("hashcode", int.class),
+        new ObjectStreamField("language", String.class),
+        new ObjectStreamField("variant", String.class),
+    };
 
     private void writeObject(ObjectOutputStream stream) throws IOException {
         ObjectOutputStream.PutField fields = stream.putFields();

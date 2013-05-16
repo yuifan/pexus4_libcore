@@ -17,6 +17,8 @@
 
 package java.nio;
 
+import java.util.Arrays;
+
 /**
  * A buffer of ints.
  * <p>
@@ -42,9 +44,9 @@ public abstract class IntBuffer extends Buffer implements Comparable<IntBuffer> 
      */
     public static IntBuffer allocate(int capacity) {
         if (capacity < 0) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("capacity < 0: " + capacity);
         }
-        return BufferFactory.newIntBuffer(capacity);
+        return new IntArrayBuffer(new int[capacity]);
     }
 
     /**
@@ -65,44 +67,30 @@ public abstract class IntBuffer extends Buffer implements Comparable<IntBuffer> 
      * Creates a new int buffer by wrapping the given int array.
      * <p>
      * The new buffer's position will be {@code start}, limit will be
-     * {@code start + len}, capacity will be the length of the array.
+     * {@code start + intCount}, capacity will be the length of the array.
      *
      * @param array
      *            the int array which the new buffer will be based on.
      * @param start
      *            the start index, must not be negative and not greater than
      *            {@code array.length}
-     * @param len
+     * @param intCount
      *            the length, must not be negative and not greater than
      *            {@code array.length - start}.
      * @return the created int buffer.
      * @exception IndexOutOfBoundsException
-     *                if either {@code start} or {@code len} is invalid.
+     *                if either {@code start} or {@code intCount} is invalid.
      */
-    public static IntBuffer wrap(int[] array, int start, int len) {
-        if (array == null) {
-            throw new NullPointerException();
-        }
-        if (start < 0 || len < 0 || (long) len + (long) start > array.length) {
-            throw new IndexOutOfBoundsException();
-        }
-
-        IntBuffer buf = BufferFactory.newIntBuffer(array);
+    public static IntBuffer wrap(int[] array, int start, int intCount) {
+        Arrays.checkOffsetAndCount(array.length, start, intCount);
+        IntBuffer buf = new IntArrayBuffer(array);
         buf.position = start;
-        buf.limit = start + len;
-
+        buf.limit = start + intCount;
         return buf;
     }
 
-    /**
-     * Constructs a {@code IntBuffer} with given capacity.
-     *
-     * @param capacity
-     *            the capacity of the buffer.
-     */
     IntBuffer(int capacity) {
-        super(capacity);
-        _elementSizeShift = 2;
+        super(2, capacity, null);
     }
 
     public final int[] array() {
@@ -158,7 +146,6 @@ public abstract class IntBuffer extends Buffer implements Comparable<IntBuffer> 
                 : otherBuffer.remaining();
         int thisPos = position;
         int otherPos = otherBuffer.position;
-        // BEGIN android-changed
         int thisInt, otherInt;
         while (compareRemaining > 0) {
             thisInt = get(thisPos);
@@ -170,7 +157,6 @@ public abstract class IntBuffer extends Buffer implements Comparable<IntBuffer> 
             otherPos++;
             compareRemaining--;
         }
-        // END android-changed
         return remaining() - otherBuffer.remaining();
     }
 
@@ -255,27 +241,24 @@ public abstract class IntBuffer extends Buffer implements Comparable<IntBuffer> 
      *
      * @param dst
      *            the target int array.
-     * @param off
+     * @param dstOffset
      *            the offset of the int array, must not be negative and not
      *            greater than {@code dst.length}.
-     * @param len
+     * @param intCount
      *            the number of ints to read, must be no less than zero and not
-     *            greater than {@code dst.length - off}.
+     *            greater than {@code dst.length - dstOffset}.
      * @return this buffer.
      * @exception IndexOutOfBoundsException
-     *                if either {@code off} or {@code len} is invalid.
+     *                if either {@code dstOffset} or {@code intCount} is invalid.
      * @exception BufferUnderflowException
-     *                if {@code len} is greater than {@code remaining()}.
+     *                if {@code intCount} is greater than {@code remaining()}.
      */
-    public IntBuffer get(int[] dst, int off, int len) {
-        int length = dst.length;
-        if (off < 0 || len < 0 || (long) len + (long) off > length) {
-            throw new IndexOutOfBoundsException();
-        }
-        if (len > remaining()) {
+    public IntBuffer get(int[] dst, int dstOffset, int intCount) {
+        Arrays.checkOffsetAndCount(dst.length, dstOffset, intCount);
+        if (intCount > remaining()) {
             throw new BufferUnderflowException();
         }
-        for (int i = off; i < off + len; i++) {
+        for (int i = dstOffset; i < dstOffset + intCount; ++i) {
             dst[i] = get();
         }
         return this;
@@ -397,30 +380,29 @@ public abstract class IntBuffer extends Buffer implements Comparable<IntBuffer> 
      *
      * @param src
      *            the source int array.
-     * @param off
+     * @param srcOffset
      *            the offset of int array, must not be negative and not greater
      *            than {@code src.length}.
-     * @param len
+     * @param intCount
      *            the number of ints to write, must be no less than zero and not
-     *            greater than {@code src.length - off}.
+     *            greater than {@code src.length - srcOffset}.
      * @return this buffer.
      * @exception BufferOverflowException
-     *                if {@code remaining()} is less than {@code len}.
+     *                if {@code remaining()} is less than {@code intCount}.
      * @exception IndexOutOfBoundsException
-     *                if either {@code off} or {@code len} is invalid.
+     *                if either {@code srcOffset} or {@code intCount} is invalid.
      * @exception ReadOnlyBufferException
      *                if no changes may be made to the contents of this buffer.
      */
-    public IntBuffer put(int[] src, int off, int len) {
-        int length = src.length;
-        if (off < 0 || len < 0 || (long) len + (long) off > length) {
-            throw new IndexOutOfBoundsException();
+    public IntBuffer put(int[] src, int srcOffset, int intCount) {
+        if (isReadOnly()) {
+            throw new ReadOnlyBufferException();
         }
-
-        if (len > remaining()) {
+        Arrays.checkOffsetAndCount(src.length, srcOffset, intCount);
+        if (intCount > remaining()) {
             throw new BufferOverflowException();
         }
-        for (int i = off; i < off + len; i++) {
+        for (int i = srcOffset; i < srcOffset + intCount; ++i) {
             put(src[i]);
         }
         return this;
@@ -443,8 +425,11 @@ public abstract class IntBuffer extends Buffer implements Comparable<IntBuffer> 
      *                if no changes may be made to the contents of this buffer.
      */
     public IntBuffer put(IntBuffer src) {
+        if (isReadOnly()) {
+            throw new ReadOnlyBufferException();
+        }
         if (src == this) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("src == this");
         }
         if (src.remaining() > remaining()) {
             throw new BufferOverflowException();
@@ -487,22 +472,4 @@ public abstract class IntBuffer extends Buffer implements Comparable<IntBuffer> 
      * @return a sliced buffer that shares its content with this buffer.
      */
     public abstract IntBuffer slice();
-
-    /**
-     * Returns a string represents of the state of this int buffer.
-     *
-     * @return a string represents of the state of this int buffer.
-     */
-    @Override
-    public String toString() {
-        StringBuilder buf = new StringBuilder();
-        buf.append(getClass().getName());
-        buf.append(", status: capacity=");
-        buf.append(capacity());
-        buf.append(" position=");
-        buf.append(position());
-        buf.append(" limit=");
-        buf.append(limit());
-        return buf.toString();
-    }
 }

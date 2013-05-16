@@ -35,8 +35,8 @@ public class MissingFormatWidthException extends IllegalFormatException {
      *           the specified format specifier.
      */
     public MissingFormatWidthException(String s) {
-        if (null == s) {
-            throw new NullPointerException();
+        if (s == null) {
+            throw new NullPointerException("s == null");
         }
         this.s = s;
     }

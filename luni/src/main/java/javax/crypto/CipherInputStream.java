@@ -21,6 +21,7 @@ import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.GeneralSecurityException;
+import libcore.io.Streams;
 
 /**
  * This class wraps an {@code InputStream} and a cipher so that {@code read()}
@@ -34,11 +35,13 @@ import java.security.GeneralSecurityException;
  */
 public class CipherInputStream extends FilterInputStream {
 
+    private static final int I_BUFFER_SIZE = 20;
+
     private final Cipher cipher;
-    private final int I_BUFFER_SIZE = 20;
-    private final byte[] i_buffer = new byte[I_BUFFER_SIZE];
-    private int index; // index of the bytes to return from o_buffer
-    private byte[] o_buffer;
+    private final byte[] inputBuffer = new byte[I_BUFFER_SIZE];
+    private byte[] outputBuffer;
+    private int outputIndex; // index of the first byte to return from outputBuffer
+    private int outputLength; // count of the bytes to return from outputBuffer
     private boolean finished;
 
     /**
@@ -82,61 +85,47 @@ public class CipherInputStream extends FilterInputStream {
     @Override
     public int read() throws IOException {
         if (finished) {
-            return ((o_buffer == null) || (index == o_buffer.length))
-                            ? -1
-                            : o_buffer[index++] & 0xFF;
+            return (outputIndex == outputLength) ? -1 : outputBuffer[outputIndex++] & 0xFF;
         }
-        if ((o_buffer != null) && (index < o_buffer.length)) {
-            return o_buffer[index++] & 0xFF;
+        if (outputIndex < outputLength) {
+            return outputBuffer[outputIndex++] & 0xFF;
         }
-        index = 0;
-        o_buffer = null;
-        int num_read;
-        while (o_buffer == null) {
-            if ((num_read = in.read(i_buffer)) == -1) {
+        outputIndex = 0;
+        outputLength = 0;
+        while (outputLength == 0) {
+            // check output size on each iteration since pending state
+            // in the cipher can cause this to vary from call to call
+            int outputSize = cipher.getOutputSize(inputBuffer.length);
+            if ((outputBuffer == null) || (outputBuffer.length < outputSize)) {
+                this.outputBuffer = new byte[outputSize];
+            }
+            int byteCount = in.read(inputBuffer);
+            if (byteCount == -1) {
                 try {
-                    o_buffer = cipher.doFinal();
+                    outputLength = cipher.doFinal(outputBuffer, 0);
                 } catch (Exception e) {
                     throw new IOException(e.getMessage());
                 }
                 finished = true;
                 break;
             }
-            o_buffer = cipher.update(i_buffer, 0, num_read);
+            try {
+                outputLength = cipher.update(inputBuffer, 0, byteCount, outputBuffer, 0);
+            } catch (ShortBufferException e) {
+                throw new AssertionError(e);  // should not happen since we sized with getOutputSize
+            }
         }
         return read();
     }
 
     /**
-     * Reads the next {@code b.length} bytes from this input stream into buffer
-     * {@code b}.
-     *
-     * @param b
-     *            the buffer to be filled with data.
-     * @return the number of bytes filled into buffer {@code b}, or {@code -1}
-     *         if the end of the stream is reached.
-     * @throws IOException
-     *             if an error occurs.
-     */
-    @Override
-    public int read(byte[] b) throws IOException {
-        return read(b, 0, b.length);
-    }
-
-    /**
      * Reads the next {@code len} bytes from this input stream into buffer
-     * {@code b} starting at offset {@code off}.
+     * {@code buf} starting at offset {@code off}.
      * <p>
-     * if {@code b} is {@code null}, the next {@code len} bytes are read and
+     * if {@code buf} is {@code null}, the next {@code len} bytes are read and
      * discarded.
      *
-     * @param b
-     *            the buffer to be filled with data.
-     * @param off
-     *            the offset to start in the buffer.
-     * @param len
-     *            the maximum number of bytes to read.
-     * @return the number of bytes filled into buffer {@code b}, or {@code -1}
+     * @return the number of bytes filled into buffer {@code buf}, or {@code -1}
      *         of the of the stream is reached.
      * @throws IOException
      *             if an error occurs.
@@ -144,48 +133,27 @@ public class CipherInputStream extends FilterInputStream {
      *             if the underlying input stream is {@code null}.
      */
     @Override
-    public int read(byte[] b, int off, int len) throws IOException {
+    public int read(byte[] buf, int off, int len) throws IOException {
         if (in == null) {
-            throw new NullPointerException("Underlying input stream is null");
+            throw new NullPointerException("in == null");
         }
 
-        int read_b;
         int i;
-        for (i=0; i<len; i++) {
-            if ((read_b = read()) == -1) {
+        for (i = 0; i < len; ++i) {
+            int b = read();
+            if (b == -1) {
                 return (i == 0) ? -1 : i;
             }
-            if (b != null) {
-                b[off+i] = (byte) read_b;
+            if (buf != null) {
+                buf[off+i] = (byte) b;
             }
         }
         return i;
     }
 
-    /**
-     * Skips up to n bytes from this input stream.
-     * <p>
-     * The number of bytes skipped depends on the result of a call to
-     * {@link CipherInputStream#available() available}. The smaller of n and the
-     * result are the number of bytes being skipped.
-     *
-     * @param n
-     *            the number of bytes that should be skipped.
-     * @return the number of bytes actually skipped.
-     * @throws IOException
-     *             if an error occurs
-     */
     @Override
-    public long skip(long n) throws IOException {
-        long i = 0;
-        int available = available();
-        if (available < n) {
-            n = available;
-        }
-        while ((i < n) && (read() != -1)) {
-            i++;
-        }
-        return i;
+    public long skip(long byteCount) throws IOException {
+        return Streams.skipByReading(this, byteCount);
     }
 
     @Override

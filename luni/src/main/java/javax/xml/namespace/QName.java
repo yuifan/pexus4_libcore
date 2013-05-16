@@ -22,8 +22,6 @@ package javax.xml.namespace;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import javax.xml.XMLConstants;
 
 /**
@@ -85,21 +83,12 @@ public class QName implements Serializable {
      * <p>The compatibility Stream Unique Identifier that was introduced
      * with Java 5 SE SDK.</p>
      */
-    private static final long compatabilitySerialVersionUID = 4418622981026545151L;
+    private static final long compatibilitySerialVersionUID = 4418622981026545151L;
 
     static {
-        String compatPropValue = null;
-        try {
-            compatPropValue = (String)AccessController.doPrivileged(
-                    new PrivilegedAction() {
-                        public Object run() {
-                            return System.getProperty("org.apache.xml.namespace.QName.useCompatibleSerialVersionUID");
-                        }
-                    });
-        }
-        catch (Exception e) {}
+        String compatPropValue = System.getProperty("org.apache.xml.namespace.QName.useCompatibleSerialVersionUID");
         // If 1.0 use compatibility serialVersionUID
-        serialVersionUID = !"1.0".equals(compatPropValue) ? defaultSerialVersionUID : compatabilitySerialVersionUID;
+        serialVersionUID = !"1.0".equals(compatPropValue) ? defaultSerialVersionUID : compatibilitySerialVersionUID;
     }
 
     /**

@@ -27,8 +27,7 @@ package java.util;
  *
  * @since 1.2
  */
-public abstract class AbstractList<E> extends AbstractCollection<E> implements
-        List<E> {
+public abstract class AbstractList<E> extends AbstractCollection<E> implements List<E> {
 
     /**
      * A counter for changes to the list.
@@ -43,7 +42,6 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements
         int lastPosition = -1;
 
         SimpleListIterator() {
-            super();
             expectedModCount = modCount;
         }
 
@@ -87,11 +85,9 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements
         }
     }
 
-    private final class FullListIterator extends SimpleListIterator implements
-            ListIterator<E> {
+    private final class FullListIterator extends SimpleListIterator implements ListIterator<E> {
         FullListIterator(int start) {
-            super();
-            if (0 <= start && start <= size()) {
+            if (start >= 0 && start <= size()) {
                 pos = start - 1;
             } else {
                 throw new IndexOutOfBoundsException();
@@ -180,7 +176,6 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements
 
             SubAbstractListIterator(ListIterator<E> it,
                     SubAbstractList<E> list, int offset, int length) {
-                super();
                 iterator = it;
                 subList = list;
                 start = offset;
@@ -239,7 +234,6 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements
         }
 
         SubAbstractList(AbstractList<E> list, int start, int end) {
-            super();
             fullList = list;
             modCount = fullList.modCount;
             offset = start;
@@ -249,7 +243,7 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements
         @Override
         public void add(int location, E object) {
             if (modCount == fullList.modCount) {
-                if (0 <= location && location <= size) {
+                if (location >= 0 && location <= size) {
                     fullList.add(location + offset, object);
                     size++;
                     modCount = fullList.modCount;
@@ -264,7 +258,7 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements
         @Override
         public boolean addAll(int location, Collection<? extends E> collection) {
             if (modCount == fullList.modCount) {
-                if (0 <= location && location <= size) {
+                if (location >= 0 && location <= size) {
                     boolean result = fullList.addAll(location + offset,
                             collection);
                     if (result) {
@@ -294,7 +288,7 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements
         @Override
         public E get(int location) {
             if (modCount == fullList.modCount) {
-                if (0 <= location && location < size) {
+                if (location >= 0 && location < size) {
                     return fullList.get(location + offset);
                 }
                 throw new IndexOutOfBoundsException();
@@ -310,7 +304,7 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements
         @Override
         public ListIterator<E> listIterator(int location) {
             if (modCount == fullList.modCount) {
-                if (0 <= location && location <= size) {
+                if (location >= 0 && location <= size) {
                     return new SubAbstractListIterator<E>(fullList
                             .listIterator(location + offset), this, offset,
                             size);
@@ -323,7 +317,7 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements
         @Override
         public E remove(int location) {
             if (modCount == fullList.modCount) {
-                if (0 <= location && location < size) {
+                if (location >= 0 && location < size) {
                     E result = fullList.remove(location + offset);
                     size--;
                     modCount = fullList.modCount;
@@ -350,7 +344,7 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements
         @Override
         public E set(int location, E object) {
             if (modCount == fullList.modCount) {
-                if (0 <= location && location < size) {
+                if (location >= 0 && location < size) {
                     return fullList.set(location + offset, object);
                 }
                 throw new IndexOutOfBoundsException();
@@ -380,7 +374,6 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements
      * Constructs a new instance of this AbstractList.
      */
     protected AbstractList() {
-        super();
     }
 
     /**
@@ -405,7 +398,7 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements
      * @throws IllegalArgumentException
      *                if the object cannot be added to this List
      * @throws IndexOutOfBoundsException
-     *                if {@code location < 0 || >= size()}
+     *                if {@code location < 0 || location > size()}
      */
     public void add(int location, E object) {
         throw new UnsupportedOperationException();
@@ -450,7 +443,7 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements
      * @throws IllegalArgumentException
      *             if an object cannot be added to this list.
      * @throws IndexOutOfBoundsException
-     *             if {@code location < 0 || > size()}
+     *             if {@code location < 0 || location > size()}
      */
     public boolean addAll(int location, Collection<? extends E> collection) {
         Iterator<? extends E> it = collection.iterator();
@@ -514,7 +507,7 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements
      *            the index of the element to return.
      * @return the element at the specified index.
      * @throws IndexOutOfBoundsException
-     *             if {@code location < 0 || >= size()}
+     *             if {@code location < 0 || location >= size()}
      */
     public abstract E get(int location);
 
@@ -639,7 +632,7 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements
      * @throws UnsupportedOperationException
      *             if removing from this list is not supported.
      * @throws IndexOutOfBoundsException
-     *             if {@code location < 0 || >= size()}
+     *             if {@code location < 0 || location >= size()}
      */
     public E remove(int location) {
         throw new UnsupportedOperationException();
@@ -682,7 +675,7 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements
      * @throws IllegalArgumentException
      *             if an object cannot be added to this list.
      * @throws IndexOutOfBoundsException
-     *             if {@code location < 0 || >= size()}
+     *             if {@code location < 0 || location >= size()}
      */
     public E set(int location, E object) {
         throw new UnsupportedOperationException();
@@ -733,7 +726,7 @@ public abstract class AbstractList<E> extends AbstractCollection<E> implements
      *             if (start > end)
      */
     public List<E> subList(int start, int end) {
-        if (0 <= start && end <= size()) {
+        if (start >= 0 && end <= size()) {
             if (start <= end) {
                 if (this instanceof RandomAccess) {
                     return new SubAbstractListRandomAccess<E>(this, start, end);

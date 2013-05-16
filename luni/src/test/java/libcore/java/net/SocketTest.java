@@ -29,6 +29,10 @@ import java.net.SocketException;
 import java.net.SocketImpl;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class SocketTest extends junit.framework.TestCase {
     // See http://b/2980559.
@@ -49,7 +53,7 @@ public class SocketTest extends junit.framework.TestCase {
         try {
             // Bind to an ephemeral local port.
             s.bind(new InetSocketAddress("localhost", 0));
-            assertTrue(s.getLocalAddress().isLoopbackAddress());
+            assertTrue(s.getLocalAddress().toString(), s.getLocalAddress().isLoopbackAddress());
             // What local port did we get?
             int localPort = s.getLocalPort();
             assertTrue(localPort > 0);
@@ -201,5 +205,122 @@ public class SocketTest extends junit.framework.TestCase {
         Socket s = new Socket();
         s.setTrafficClass(123);
         assertEquals(123, s.getTrafficClass());
+    }
+
+    public void testReadAfterClose() throws Exception {
+        MockServer server = new MockServer();
+        server.enqueue(new byte[]{5, 3}, 0);
+        Socket socket = new Socket("localhost", server.port);
+        InputStream in = socket.getInputStream();
+        assertEquals(5, in.read());
+        assertEquals(3, in.read());
+        assertEquals(-1, in.read());
+        assertEquals(-1, in.read());
+        socket.close();
+        in.close();
+
+        /*
+         * Rather astonishingly, read() doesn't throw even though the stream is
+         * closed. This is consistent with the RI's behavior.
+         */
+        assertEquals(-1, in.read());
+        assertEquals(-1, in.read());
+
+        server.shutdown();
+    }
+
+    public void testWriteAfterClose() throws Exception {
+        MockServer server = new MockServer();
+        server.enqueue(new byte[0], 3);
+        Socket socket = new Socket("localhost", server.port);
+        OutputStream out = socket.getOutputStream();
+        out.write(5);
+        out.write(3);
+        socket.close();
+        out.close();
+
+        try {
+            out.write(9);
+            fail();
+        } catch (IOException expected) {
+        }
+
+        server.shutdown();
+    }
+
+    // http://b/5534202
+    public void testAvailable() throws Exception {
+        for (int i = 0; i < 100; i++) {
+            assertAvailableReturnsZeroAfterSocketReadsAllData();
+            System.out.println("Success on rep " + i);
+        }
+    }
+
+    private void assertAvailableReturnsZeroAfterSocketReadsAllData() throws Exception {
+        final byte[] data = "foo".getBytes();
+        final ServerSocket serverSocket = new ServerSocket(0);
+
+        new Thread() {
+            @Override public void run() {
+                try {
+                    Socket socket = serverSocket.accept();
+                    socket.getOutputStream().write(data);
+                    socket.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }.start();
+
+        Socket socket = new Socket("localhost", serverSocket.getLocalPort());
+        byte[] readBuffer = new byte[128];
+        InputStream in = socket.getInputStream();
+        int total = 0;
+        // to prevent available() from cheating after EOF, stop reading before -1 is returned
+        while (total < data.length) {
+            total += in.read(readBuffer);
+        }
+        assertEquals(0, in.available());
+
+        socket.close();
+        serverSocket.close();
+    }
+
+    static class MockServer {
+        private ExecutorService executor;
+        private ServerSocket serverSocket;
+        private int port = -1;
+
+        MockServer() throws IOException {
+            executor = Executors.newCachedThreadPool();
+            serverSocket = new ServerSocket(0);
+            serverSocket.setReuseAddress(true);
+            port = serverSocket.getLocalPort();
+        }
+
+        public Future<byte[]> enqueue(final byte[] sendBytes, final int receiveByteCount)
+                throws IOException {
+            return executor.submit(new Callable<byte[]>() {
+                @Override public byte[] call() throws Exception {
+                    Socket socket = serverSocket.accept();
+                    OutputStream out = socket.getOutputStream();
+                    out.write(sendBytes);
+
+                    InputStream in = socket.getInputStream();
+                    byte[] result = new byte[receiveByteCount];
+                    int total = 0;
+                    while (total < receiveByteCount) {
+                        total += in.read(result, total, result.length - total);
+                    }
+                    socket.close();
+                    return result;
+                }
+            });
+        }
+
+        public void shutdown() throws IOException {
+            serverSocket.close();
+            executor.shutdown();
+        }
     }
 }

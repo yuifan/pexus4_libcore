@@ -19,7 +19,6 @@ package java.net;
 
 import java.io.FileDescriptor;
 import java.io.IOException;
-import org.apache.harmony.luni.platform.Platform;
 
 /**
  * The abstract superclass for datagram and multicast socket implementations.
@@ -82,18 +81,7 @@ public abstract class DatagramSocketImpl implements SocketOptions {
     }
 
     /**
-     * Gets the local address to which the socket is bound.
-     *
-     * @return the local address to which the socket is bound.
-     */
-    InetAddress getLocalAddress() {
-        return Platform.getNetworkSystem().getSocketLocalAddress(fd);
-    }
-
-    /**
-     * Gets the local port of this socket.
-     *
-     * @return the local port to which this socket is bound.
+     * Returns the local port to which this socket is bound.
      */
     protected int getLocalPort() {
         return localPort;

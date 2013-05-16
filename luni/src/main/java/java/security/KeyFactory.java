@@ -31,18 +31,17 @@ public class KeyFactory {
     // The service name.
     private static final String SERVICE = "KeyFactory";
 
-    // The provider
-    private Provider provider;
-
-
     // Used to access common engine functionality
-    static private Engine engine = new Engine(SERVICE);
+    private static final Engine ENGINE = new Engine(SERVICE);
+
+    // The provider
+    private final Provider provider;
 
     // The SPI implementation.
-    private KeyFactorySpi spiImpl;
+    private final KeyFactorySpi spiImpl;
 
     // The algorithm.
-    private String algorithm;
+    private final String algorithm;
 
     /**
      * Constructs a new instance of {@code KeyFactory} with the specified
@@ -59,7 +58,7 @@ public class KeyFactory {
                          Provider provider,
                          String algorithm) {
         this.provider = provider;
-        this. algorithm = algorithm;
+        this.algorithm = algorithm;
         this.spiImpl = keyFacSpi;
     }
 
@@ -75,14 +74,12 @@ public class KeyFactory {
      *             if no provider provides the requested algorithm.
      */
     public static KeyFactory getInstance(String algorithm)
-                                throws NoSuchAlgorithmException {
+            throws NoSuchAlgorithmException {
         if (algorithm == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("algorithm == null");
         }
-        synchronized (engine) {
-            engine.getInstance(algorithm, null);
-            return new KeyFactory((KeyFactorySpi)engine.spi, engine.provider, algorithm);
-        }
+        Engine.SpiAndProvider sap = ENGINE.getInstance(algorithm, null);
+        return new KeyFactory((KeyFactorySpi) sap.spi, sap.provider, algorithm);
     }
 
     /**
@@ -101,9 +98,8 @@ public class KeyFactory {
      *             if the requested provider is not available.
      * @throws IllegalArgumentException if {@code provider == null || provider.isEmpty()}
      */
-    @SuppressWarnings("nls")
     public static KeyFactory getInstance(String algorithm, String provider)
-                                throws NoSuchAlgorithmException, NoSuchProviderException {
+            throws NoSuchAlgorithmException, NoSuchProviderException {
         if (provider == null || provider.isEmpty()) {
             throw new IllegalArgumentException();
         }
@@ -131,15 +127,13 @@ public class KeyFactory {
     public static KeyFactory getInstance(String algorithm, Provider provider)
                                  throws NoSuchAlgorithmException {
         if (provider == null) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("provider == null");
         }
         if (algorithm == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("algorithm == null");
         }
-        synchronized (engine) {
-            engine.getInstance(algorithm, provider, null);
-            return new KeyFactory((KeyFactorySpi)engine.spi, provider, algorithm);
-        }
+        Object spi = ENGINE.getInstance(algorithm, provider, null);
+        return new KeyFactory((KeyFactorySpi) spi, provider, algorithm);
     }
 
     /**

@@ -17,6 +17,8 @@
 
 package java.nio;
 
+import java.util.Arrays;
+
 /**
  * A buffer of doubles.
  * <p>
@@ -45,9 +47,9 @@ public abstract class DoubleBuffer extends Buffer implements
      */
     public static DoubleBuffer allocate(int capacity) {
         if (capacity < 0) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("capacity < 0: " + capacity);
         }
-        return BufferFactory.newDoubleBuffer(capacity);
+        return new DoubleArrayBuffer(new double[capacity]);
     }
 
     /**
@@ -68,42 +70,30 @@ public abstract class DoubleBuffer extends Buffer implements
      * Creates a new double buffer by wrapping the given double array.
      * <p>
      * The new buffer's position will be {@code start}, limit will be
-     * {@code start + len}, capacity will be the length of the array.
+     * {@code start + doubleCount}, capacity will be the length of the array.
      *
      * @param array
      *            the double array which the new buffer will be based on.
      * @param start
      *            the start index, must not be negative and not greater than
      *            {@code array.length}.
-     * @param len
+     * @param doubleCount
      *            the length, must not be negative and not greater than
      *            {@code array.length - start}.
      * @return the created double buffer.
      * @exception IndexOutOfBoundsException
-     *                if either {@code start} or {@code len} is invalid.
+     *                if either {@code start} or {@code doubleCount} is invalid.
      */
-    public static DoubleBuffer wrap(double[] array, int start, int len) {
-        int length = array.length;
-        if (start < 0 || len < 0 || (long) start + (long) len > length) {
-            throw new IndexOutOfBoundsException();
-        }
-
-        DoubleBuffer buf = BufferFactory.newDoubleBuffer(array);
+    public static DoubleBuffer wrap(double[] array, int start, int doubleCount) {
+        Arrays.checkOffsetAndCount(array.length, start, doubleCount);
+        DoubleBuffer buf = new DoubleArrayBuffer(array);
         buf.position = start;
-        buf.limit = start + len;
-
+        buf.limit = start + doubleCount;
         return buf;
     }
 
-    /**
-     * Constructs a {@code DoubleBuffer} with given capacity.
-     *
-     * @param capacity
-     *            the capacity of the buffer.
-     */
     DoubleBuffer(int capacity) {
-        super(capacity);
-        _elementSizeShift = 3;
+        super(3, capacity, null);
     }
 
     public final double[] array() {
@@ -264,28 +254,24 @@ public abstract class DoubleBuffer extends Buffer implements
      *
      * @param dst
      *            the target double array.
-     * @param off
+     * @param dstOffset
      *            the offset of the double array, must not be negative and not
      *            greater than {@code dst.length}.
-     * @param len
+     * @param doubleCount
      *            the number of doubles to read, must be no less than zero and
-     *            not greater than {@code dst.length - off}.
+     *            not greater than {@code dst.length - dstOffset}.
      * @return this buffer.
      * @exception IndexOutOfBoundsException
-     *                if either {@code off} or {@code len} is invalid.
+     *                if either {@code dstOffset} or {@code doubleCount} is invalid.
      * @exception BufferUnderflowException
-     *                if {@code len} is greater than {@code remaining()}.
+     *                if {@code doubleCount} is greater than {@code remaining()}.
      */
-    public DoubleBuffer get(double[] dst, int off, int len) {
-        int length = dst.length;
-        if (off < 0 || len < 0 || (long) off + (long) len > length) {
-            throw new IndexOutOfBoundsException();
-        }
-
-        if (len > remaining()) {
+    public DoubleBuffer get(double[] dst, int dstOffset, int doubleCount) {
+        Arrays.checkOffsetAndCount(dst.length, dstOffset, doubleCount);
+        if (doubleCount > remaining()) {
             throw new BufferUnderflowException();
         }
-        for (int i = off; i < off + len; i++) {
+        for (int i = dstOffset; i < dstOffset + doubleCount; ++i) {
             dst[i] = get();
         }
         return this;
@@ -409,30 +395,26 @@ public abstract class DoubleBuffer extends Buffer implements
      *
      * @param src
      *            the source double array.
-     * @param off
+     * @param srcOffset
      *            the offset of double array, must not be negative and not
      *            greater than {@code src.length}.
-     * @param len
+     * @param doubleCount
      *            the number of doubles to write, must be no less than zero and
-     *            not greater than {@code src.length - off}.
+     *            not greater than {@code src.length - srcOffset}.
      * @return this buffer.
      * @exception BufferOverflowException
-     *                if {@code remaining()} is less than {@code len}.
+     *                if {@code remaining()} is less than {@code doubleCount}.
      * @exception IndexOutOfBoundsException
-     *                if either {@code off} or {@code len} is invalid.
+     *                if either {@code srcOffset} or {@code doubleCount} is invalid.
      * @exception ReadOnlyBufferException
      *                if no changes may be made to the contents of this buffer.
      */
-    public DoubleBuffer put(double[] src, int off, int len) {
-        int length = src.length;
-        if (off < 0 || len < 0 || (long) off + (long) len > length) {
-            throw new IndexOutOfBoundsException();
-        }
-
-        if (len > remaining()) {
+    public DoubleBuffer put(double[] src, int srcOffset, int doubleCount) {
+        Arrays.checkOffsetAndCount(src.length, srcOffset, doubleCount);
+        if (doubleCount > remaining()) {
             throw new BufferOverflowException();
         }
-        for (int i = off; i < off + len; i++) {
+        for (int i = srcOffset; i < srcOffset + doubleCount; ++i) {
             put(src[i]);
         }
         return this;
@@ -455,8 +437,11 @@ public abstract class DoubleBuffer extends Buffer implements
      *                if no changes may be made to the contents of this buffer.
      */
     public DoubleBuffer put(DoubleBuffer src) {
+        if (isReadOnly()) {
+            throw new ReadOnlyBufferException();
+        }
         if (src == this) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("src == this");
         }
         if (src.remaining() > remaining()) {
             throw new BufferOverflowException();
@@ -499,22 +484,4 @@ public abstract class DoubleBuffer extends Buffer implements
      * @return a sliced buffer that shares its content with this buffer.
      */
     public abstract DoubleBuffer slice();
-
-    /**
-     * Returns a string representing the state of this double buffer.
-     *
-     * @return A string representing the state of this double buffer.
-     */
-    @Override
-    public String toString() {
-        StringBuilder buf = new StringBuilder();
-        buf.append(getClass().getName());
-        buf.append(", status: capacity=");
-        buf.append(capacity());
-        buf.append(" position=");
-        buf.append(position());
-        buf.append(" limit=");
-        buf.append(limit());
-        return buf.toString();
-    }
 }

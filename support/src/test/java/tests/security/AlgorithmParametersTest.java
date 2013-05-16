@@ -15,16 +15,13 @@
  */
 package tests.security;
 
-import dalvik.annotation.TestLevel;
-import dalvik.annotation.TestTargetNew;
-import dalvik.annotation.TestTargets;
 import java.security.AlgorithmParameters;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.InvalidParameterSpecException;
 import junit.framework.TestCase;
 
-public class AlgorithmParametersTest extends TestCase {
+public abstract class AlgorithmParametersTest extends TestCase {
 
     private final String algorithmName;
     private final TestHelper<AlgorithmParameters> helper;
@@ -37,23 +34,6 @@ public class AlgorithmParametersTest extends TestCase {
         this.parameterData = parameterData;
     }
 
-    @TestTargets({
-        @TestTargetNew(
-                level=TestLevel.ADDITIONAL,
-                method="getInstance",
-                args={String.class}
-        ),
-        @TestTargetNew(
-                level=TestLevel.ADDITIONAL,
-                method="init",
-                args={byte[].class}
-        ),
-        @TestTargetNew(
-                level=TestLevel.COMPLETE,
-                method="method",
-                args={}
-        )
-    })
     public void testAlgorithmParameters() {
         AlgorithmParameters algorithmParameters = null;
         try {

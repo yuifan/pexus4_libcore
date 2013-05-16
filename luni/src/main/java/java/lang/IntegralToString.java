@@ -108,6 +108,13 @@ public final class IntegralToString {
         'u', 'v', 'w', 'x', 'y', 'z'
     };
 
+    private static final char[] UPPER_CASE_DIGITS = {
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
+        'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
+        'U', 'V', 'W', 'X', 'Y', 'Z'
+    };
+
     private IntegralToString() {
     }
 
@@ -181,9 +188,9 @@ public final class IntegralToString {
                     // If -n is still negative, n is Integer.MIN_VALUE
                     quickResult = "-2147483648";
                 } else {
-                    String result = SMALL_NEGATIVE_VALUES[i];
-                    if (result == null) {
-                        SMALL_NEGATIVE_VALUES[i] = result =
+                    quickResult = SMALL_NEGATIVE_VALUES[i];
+                    if (quickResult == null) {
+                        SMALL_NEGATIVE_VALUES[i] = quickResult =
                                 i < 10 ? stringOf('-', ONES[i]) : stringOf('-', TENS[i], ONES[i]);
                     }
                 }
@@ -447,14 +454,41 @@ public final class IntegralToString {
         return new String(cursor, bufLen - cursor, buf);
     }
 
-    public static String intToHexString(int i) {
+    public static StringBuilder appendByteAsHex(StringBuilder sb, byte b, boolean upperCase) {
+        char[] digits = upperCase ? UPPER_CASE_DIGITS : DIGITS;
+        sb.append(digits[(b >> 4) & 0xf]);
+        sb.append(digits[b & 0xf]);
+        return sb;
+    }
+
+    public static String byteToHexString(byte b, boolean upperCase) {
+        char[] digits = upperCase ? UPPER_CASE_DIGITS : DIGITS;
+        char[] buf = new char[2]; // We always want two digits.
+        buf[0] = digits[(b >> 4) & 0xf];
+        buf[1] = digits[b & 0xf];
+        return new String(0, 2, buf);
+    }
+
+    public static String bytesToHexString(byte[] bytes, boolean upperCase) {
+        char[] digits = upperCase ? UPPER_CASE_DIGITS : DIGITS;
+        char[] buf = new char[bytes.length * 2];
+        int c = 0;
+        for (byte b : bytes) {
+            buf[c++] = digits[(b >> 4) & 0xf];
+            buf[c++] = digits[b & 0xf];
+        }
+        return new String(buf);
+    }
+
+    public static String intToHexString(int i, boolean upperCase, int minWidth) {
         int bufLen = 8;  // Max number of hex digits in an int
         char[] buf = new char[bufLen];
         int cursor = bufLen;
 
+        char[] digits = upperCase ? UPPER_CASE_DIGITS : DIGITS;
         do {
-            buf[--cursor] = DIGITS[i & 0xf];
-        } while ((i >>>= 4) != 0);
+            buf[--cursor] = digits[i & 0xf];
+        } while ((i >>>= 4) != 0 || (bufLen - cursor < minWidth));
 
         return new String(cursor, bufLen - cursor, buf);
     }
@@ -462,7 +496,7 @@ public final class IntegralToString {
     public static String longToHexString(long v) {
         int i = (int) v;
         if (v >= 0 && i == v) {
-            return intToHexString(i);
+            return intToHexString(i, false, 0);
         }
 
         int bufLen = 16;  // Max number of hex digits in a long

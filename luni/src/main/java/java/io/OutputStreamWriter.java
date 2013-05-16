@@ -23,7 +23,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
-import org.apache.harmony.luni.util.HistoricalNamesUtil;
+import java.util.Arrays;
 
 /**
  * A class for turning a character stream into a byte stream. Data written to
@@ -57,30 +57,30 @@ public class OutputStreamWriter extends Writer {
 
     /**
      * Constructs a new OutputStreamWriter using {@code out} as the target
-     * stream to write converted characters to and {@code enc} as the character
+     * stream to write converted characters to and {@code charsetName} as the character
      * encoding. If the encoding cannot be found, an
      * UnsupportedEncodingException error is thrown.
      *
      * @param out
      *            the target stream to write converted bytes to.
-     * @param enc
+     * @param charsetName
      *            the string describing the desired character encoding.
      * @throws NullPointerException
-     *             if {@code enc} is {@code null}.
+     *             if {@code charsetName} is {@code null}.
      * @throws UnsupportedEncodingException
-     *             if the encoding specified by {@code enc} cannot be found.
+     *             if the encoding specified by {@code charsetName} cannot be found.
      */
-    public OutputStreamWriter(OutputStream out, final String enc)
+    public OutputStreamWriter(OutputStream out, final String charsetName)
             throws UnsupportedEncodingException {
         super(out);
-        if (enc == null) {
-            throw new NullPointerException();
+        if (charsetName == null) {
+            throw new NullPointerException("charsetName == null");
         }
         this.out = out;
         try {
-            encoder = Charset.forName(enc).newEncoder();
+            encoder = Charset.forName(charsetName).newEncoder();
         } catch (Exception e) {
-            throw new UnsupportedEncodingException(enc);
+            throw new UnsupportedEncodingException(charsetName);
         }
         encoder.onMalformedInput(CodingErrorAction.REPLACE);
         encoder.onUnmappableCharacter(CodingErrorAction.REPLACE);
@@ -106,27 +106,27 @@ public class OutputStreamWriter extends Writer {
 
     /**
      * Constructs a new OutputStreamWriter using {@code out} as the target
-     * stream to write converted characters to and {@code enc} as the character
+     * stream to write converted characters to and {@code charsetEncoder} as the character
      * encoder.
      *
      * @param out
      *            the target stream to write converted bytes to.
-     * @param enc
+     * @param charsetEncoder
      *            the character encoder used for character conversion.
      */
-    public OutputStreamWriter(OutputStream out, CharsetEncoder enc) {
+    public OutputStreamWriter(OutputStream out, CharsetEncoder charsetEncoder) {
         super(out);
-        enc.charset();
+        charsetEncoder.charset();
         this.out = out;
-        encoder = enc;
+        encoder = charsetEncoder;
     }
 
     /**
      * Closes this writer. This implementation flushes the buffer as well as the
      * target stream. The target stream is then closed and the resources for the
      * buffer and converter are released.
-     * <p>
-     * Only the first invocation of this method has any effect. Subsequent calls
+     *
+     * <p>Only the first invocation of this method has any effect. Subsequent calls
      * do nothing.
      *
      * @throws IOException
@@ -136,9 +136,8 @@ public class OutputStreamWriter extends Writer {
     public void close() throws IOException {
         synchronized (lock) {
             if (encoder != null) {
-                encoder.flush(bytes);
-                flush();
-                out.flush();
+                drainEncoder();
+                flushBytes(false);
                 out.close();
                 encoder = null;
                 bytes = null;
@@ -156,15 +155,66 @@ public class OutputStreamWriter extends Writer {
      */
     @Override
     public void flush() throws IOException {
+        flushBytes(true);
+    }
+
+    private void flushBytes(boolean flushUnderlyingStream) throws IOException {
         synchronized (lock) {
             checkStatus();
-            int position;
-            if ((position = bytes.position()) > 0) {
+            int position = bytes.position();
+            if (position > 0) {
                 bytes.flip();
-                out.write(bytes.array(), 0, position);
+                out.write(bytes.array(), bytes.arrayOffset(), position);
                 bytes.clear();
             }
-            out.flush();
+            if (flushUnderlyingStream) {
+                out.flush();
+            }
+        }
+    }
+
+    private void convert(CharBuffer chars) throws IOException {
+        while (true) {
+            CoderResult result = encoder.encode(chars, bytes, false);
+            if (result.isOverflow()) {
+                // Make room and try again.
+                flushBytes(false);
+                continue;
+            } else if (result.isError()) {
+                result.throwException();
+            }
+            break;
+        }
+    }
+
+    private void drainEncoder() throws IOException {
+        // Strictly speaking, I think it's part of the CharsetEncoder contract that you call
+        // encode with endOfInput true before flushing. Our ICU-based implementations don't
+        // actually need this, and you'd hope that any reasonable implementation wouldn't either.
+        // CharsetEncoder.encode doesn't actually pass the boolean through to encodeLoop anyway!
+        CharBuffer chars = CharBuffer.allocate(0);
+        while (true) {
+            CoderResult result = encoder.encode(chars, bytes, true);
+            if (result.isError()) {
+                result.throwException();
+            } else if (result.isOverflow()) {
+                flushBytes(false);
+                continue;
+            }
+            break;
+        }
+
+        // Some encoders (such as ISO-2022-JP) have stuff to write out after all the
+        // characters (such as shifting back into a default state). In our implementation,
+        // this is actually the first time ICU is told that we've run out of input.
+        CoderResult result = encoder.flush(bytes);
+        while (!result.isUnderflow()) {
+            if (result.isOverflow()) {
+                flushBytes(false);
+                result = encoder.flush(bytes);
+            } else {
+                result.throwException();
+            }
         }
     }
 
@@ -175,17 +225,16 @@ public class OutputStreamWriter extends Writer {
     }
 
     /**
-     * Gets the name of the encoding that is used to convert characters to
-     * bytes.
-     *
-     * @return the string describing the converter or {@code null} if this
-     *         writer is closed.
+     * Returns the historical name of the encoding used by this writer to convert characters to
+     * bytes, or null if this writer has been closed. Most callers should probably keep
+     * track of the String or Charset they passed in; this method may not return the same
+     * name.
      */
     public String getEncoding() {
         if (encoder == null) {
             return null;
         }
-        return HistoricalNamesUtil.getHistoricalName(encoder.charset().name());
+        return HistoricalCharsetNames.get(encoder.charset());
     }
 
     /**
@@ -212,32 +261,9 @@ public class OutputStreamWriter extends Writer {
     public void write(char[] buffer, int offset, int count) throws IOException {
         synchronized (lock) {
             checkStatus();
-            if (offset < 0) {
-                throw new IndexOutOfBoundsException();
-            }
-            if (buffer == null) {
-                throw new NullPointerException("buffer == null");
-            }
-            if (count < 0 || offset > buffer.length - count) {
-                throw new IndexOutOfBoundsException();
-            }
+            Arrays.checkOffsetAndCount(buffer.length, offset, count);
             CharBuffer chars = CharBuffer.wrap(buffer, offset, count);
             convert(chars);
-        }
-    }
-
-    private void convert(CharBuffer chars) throws IOException {
-        CoderResult result = encoder.encode(chars, bytes, true);
-        while (true) {
-            if (result.isError()) {
-                throw new IOException(result.toString());
-            } else if (result.isOverflow()) {
-                // flush the output buffer
-                flush();
-                result = encoder.encode(chars, bytes, true);
-                continue;
-            }
-            break;
         }
     }
 
@@ -285,13 +311,13 @@ public class OutputStreamWriter extends Writer {
     public void write(String str, int offset, int count) throws IOException {
         synchronized (lock) {
             if (count < 0) {
-                throw new StringIndexOutOfBoundsException();
+                throw new StringIndexOutOfBoundsException(str, offset, count);
             }
             if (str == null) {
                 throw new NullPointerException("str == null");
             }
-            if (offset < 0 || offset > str.length() - count) {
-                throw new StringIndexOutOfBoundsException();
+            if ((offset | count) < 0 || offset > str.length() - count) {
+                throw new StringIndexOutOfBoundsException(str, offset, count);
             }
             checkStatus();
             CharBuffer chars = CharBuffer.wrap(str, offset, count + offset);

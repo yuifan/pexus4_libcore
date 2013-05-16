@@ -20,6 +20,8 @@ package java.util.zip;
 import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Arrays;
+import libcore.io.Streams;
 
 /**
  * This class provides an implementation of {@code FilterOutputStream} that
@@ -84,11 +86,11 @@ public class DeflaterOutputStream extends FilterOutputStream {
      * @param def
      *            is the specific {@code Deflater} that will be used to compress
      *            data.
-     * @param bsize
+     * @param bufferSize
      *            is the size to be used for the internal buffer.
      */
-    public DeflaterOutputStream(OutputStream os, Deflater def, int bsize) {
-        this(os, def, bsize, false);
+    public DeflaterOutputStream(OutputStream os, Deflater def, int bufferSize) {
+        this(os, def, bufferSize, false);
     }
 
     /**
@@ -111,17 +113,19 @@ public class DeflaterOutputStream extends FilterOutputStream {
      * @hide
      * @since 1.7
      */
-    public DeflaterOutputStream(OutputStream os, Deflater def, int bsize, boolean syncFlush) {
+    public DeflaterOutputStream(OutputStream os, Deflater def, int bufferSize, boolean syncFlush) {
         super(os);
-        if (os == null || def == null) {
-            throw new NullPointerException();
+        if (os == null) {
+            throw new NullPointerException("os == null");
+        } else if (def == null) {
+            throw new NullPointerException("def == null");
         }
-        if (bsize <= 0) {
-            throw new IllegalArgumentException();
+        if (bufferSize <= 0) {
+            throw new IllegalArgumentException("bufferSize <= 0: " + bufferSize);
         }
         this.def = def;
         this.syncFlush = syncFlush;
-        buf = new byte[bsize];
+        buf = new byte[bufferSize];
     }
 
     /**
@@ -149,6 +153,7 @@ public class DeflaterOutputStream extends FilterOutputStream {
      */
     @Override
     public void close() throws IOException {
+        // everything closed here should also be closed in ZipOutputStream.close()
         if (!def.finished()) {
             finish();
         }
@@ -169,51 +174,32 @@ public class DeflaterOutputStream extends FilterOutputStream {
         }
         def.finish();
         while (!def.finished()) {
-            if (def.needsInput()) {
-                def.setInput(buf, 0, 0);
-            }
             int byteCount = def.deflate(buf);
             out.write(buf, 0, byteCount);
         }
         done = true;
     }
 
-    @Override
-    public void write(int i) throws IOException {
-        byte[] b = new byte[1];
-        b[0] = (byte) i;
-        write(b, 0, 1);
+    @Override public void write(int i) throws IOException {
+        Streams.writeSingleByte(this, i);
     }
 
     /**
-     * Compresses {@code nbytes} of data from {@code buf} starting at
-     * {@code off} and writes it to the underlying stream.
-     *
-     * @param buffer
-     *            the buffer of data to compress.
-     * @param off
-     *            offset in buffer to extract data from.
-     * @param nbytes
-     *            the number of bytes of data to read from the buffer.
+     * Compresses {@code byteCount} bytes of data from {@code buf} starting at
+     * {@code offset} and writes it to the underlying stream.
      * @throws IOException
      *             If an error occurs during writing.
      */
-    @Override
-    public void write(byte[] buffer, int off, int nbytes) throws IOException {
+    @Override public void write(byte[] buffer, int offset, int byteCount) throws IOException {
         if (done) {
             throw new IOException("attempt to write after finish");
         }
-        // avoid int overflow, check null buf
-        if (off <= buffer.length && nbytes >= 0 && off >= 0
-                && buffer.length - off >= nbytes) {
-            if (!def.needsInput()) {
-                throw new IOException();
-            }
-            def.setInput(buffer, off, nbytes);
-            deflate();
-        } else {
-            throw new ArrayIndexOutOfBoundsException();
+        Arrays.checkOffsetAndCount(buffer.length, offset, byteCount);
+        if (!def.needsInput()) {
+            throw new IOException();
         }
+        def.setInput(buffer, offset, byteCount);
+        deflate();
     }
 
     /**

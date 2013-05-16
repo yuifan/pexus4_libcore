@@ -18,9 +18,6 @@
 package libcore.java.net;
 
 import dalvik.annotation.SideEffect;
-import dalvik.annotation.TestLevel;
-import dalvik.annotation.TestTargetClass;
-import dalvik.annotation.TestTargetNew;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -38,22 +35,10 @@ import java.util.List;
 import java.util.jar.Manifest;
 import org.apache.harmony.security.tests.support.TestCertUtils;
 import tests.support.Support_Configuration;
-import tests.support.Support_PortManager;
 import tests.support.Support_TestWebData;
 import tests.support.Support_TestWebServer;
 import tests.support.resource.Support_Resources;
 
-@TestTargetClass(
-    value = URLClassLoader.class,
-    untestedMethods = {
-        @TestTargetNew(
-            level = TestLevel.NOT_NECESSARY,
-            notes = "findClass uses defineClass which is not implemented",
-            method = "findClass",
-            args = {java.lang.String.class}
-        )
-    }
-)
 public class OldURLClassLoaderTest extends junit.framework.TestCase {
 
     URLClassLoader ucl;
@@ -68,7 +53,7 @@ public class OldURLClassLoaderTest extends junit.framework.TestCase {
     };
 
     /**
-     * @tests java.net.URLClassLoader#URLClassLoader(java.net.URL[])
+     * java.net.URLClassLoader#URLClassLoader(java.net.URL[])
      */
     public void test_Constructor$Ljava_net_URL() throws MalformedURLException {
         URL[] u = new URL[0];
@@ -99,7 +84,7 @@ public class OldURLClassLoaderTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.net.URLClassLoader#findResources(java.lang.String)
+     * java.net.URLClassLoader#findResources(java.lang.String)
      */
     public void test_findResourcesLjava_lang_String() throws Exception {
         Enumeration<URL> res = null;
@@ -142,12 +127,6 @@ public class OldURLClassLoaderTest extends junit.framework.TestCase {
         assertEquals("Incorrect number of resources returned", 2, i);
     }
 
-    @TestTargetNew(
-        level = TestLevel.COMPLETE,
-        notes = "",
-        method = "addURL",
-        args = { URL.class }
-    )
     public void test_addURLLjava_net_URL() throws MalformedURLException {
         URL[] u = new URL[0];
 
@@ -168,21 +147,6 @@ public class OldURLClassLoaderTest extends junit.framework.TestCase {
                                                             urls[j], result[j]);
             }
         }
-    }
-
-    public void test_getPermissions() throws MalformedURLException {
-        URL url = new URL("http://" + Support_Configuration.SpecialInetTestAddress);
-        Certificate[] chain = TestCertUtils.getCertChain();
-        CodeSource cs = new CodeSource(url, chain);
-        TestURLClassLoader cl = new TestURLClassLoader(new URL[] {url});
-        PermissionCollection permCol = cl.getPermissions(cs);
-        assertNotNull(permCol);
-
-        URL url1 = new URL("file://foo/foo.c");
-        TestURLClassLoader cl1 = new TestURLClassLoader(new URL[] {url});
-        CodeSource cs1 = new CodeSource(url1, chain);
-        PermissionCollection permCol1 = cl1.getPermissions(cs1);
-        assertNotNull(permCol1);
     }
 
     public void test_definePackage() throws MalformedURLException {
@@ -243,24 +207,14 @@ public class OldURLClassLoaderTest extends junit.framework.TestCase {
         }
     }
 
-    /**
-     * @tests java.net.URLClassLoader#findResource(java.lang.String)
-     */
-    @TestTargetNew(
-        level = TestLevel.PARTIAL_COMPLETE,
-        notes = "",
-        method = "findResource",
-        args = {java.lang.String.class}
-    )
     @SideEffect("Support_TestWebServer requires isolation.")
     public void test_findResourceLjava_lang_String() throws Exception {
-        int port = Support_PortManager.getNextPort();
         File tmp = File.createTempFile("test", ".txt");
 
         Support_TestWebServer server = new Support_TestWebServer();
         try {
 
-            server.initServer(port, tmp.getAbsolutePath(), "text/html");
+            int port = server.initServer(tmp.getAbsolutePath(), "text/html");
 
             URL[] urls = { new URL("http://localhost:" + port + "/") };
             ucl = new URLClassLoader(urls);
@@ -278,12 +232,6 @@ public class OldURLClassLoaderTest extends junit.framework.TestCase {
     /**
      * Regression for Harmony-2237
      */
-    @TestTargetNew(
-        level = TestLevel.PARTIAL_COMPLETE,
-        notes = "Regression test",
-        method = "findResource",
-        args = {java.lang.String.class}
-    )
     @SideEffect("Support_TestWebServer requires isolation.")
     public void test_findResource_String() throws Exception {
         File tempFile1 = File.createTempFile("textFile", ".txt");
@@ -294,9 +242,8 @@ public class OldURLClassLoaderTest extends junit.framework.TestCase {
         tempFile2.deleteOnExit();
 
         Support_TestWebServer server = new Support_TestWebServer();
-        int port = Support_PortManager.getNextPort();
         try {
-            server.initServer(port, false);
+            int port = server.initServer();
 
             String tempPath1 = tempFile1.getParentFile().getAbsolutePath() + "/";
             InputStream is = getClass().getResourceAsStream(

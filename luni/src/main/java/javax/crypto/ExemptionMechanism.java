@@ -36,7 +36,7 @@ import org.apache.harmony.security.fortress.Engine;
 public class ExemptionMechanism {
 
     // Used to access common engine functionality
-    private static final Engine engine = new Engine("ExemptionMechanism");
+    private static final Engine ENGINE = new Engine("ExemptionMechanism");
 
     // Store used provider
     private final Provider provider;
@@ -98,13 +98,10 @@ public class ExemptionMechanism {
     public static final ExemptionMechanism getInstance(String algorithm)
             throws NoSuchAlgorithmException {
         if (algorithm == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("algorithm == null");
         }
-        synchronized (engine) {
-            engine.getInstance(algorithm, null);
-            return new ExemptionMechanism((ExemptionMechanismSpi) engine.spi,
-                    engine.provider, algorithm);
-        }
+        Engine.SpiAndProvider sap = ENGINE.getInstance(algorithm, null);
+        return new ExemptionMechanism((ExemptionMechanismSpi) sap.spi, sap.provider, algorithm);
     }
 
     /**
@@ -137,7 +134,7 @@ public class ExemptionMechanism {
             throw new NoSuchProviderException(provider);
         }
         if (algorithm == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("algorithm == null");
         }
         return getInstance(algorithm, impProvider);
     }
@@ -162,16 +159,13 @@ public class ExemptionMechanism {
     public static final ExemptionMechanism getInstance(String algorithm,
             Provider provider) throws NoSuchAlgorithmException {
         if (algorithm == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("algorithm == null");
         }
         if (provider == null) {
             throw new IllegalArgumentException("provider == null");
         }
-        synchronized (engine) {
-            engine.getInstance(algorithm, provider, null);
-            return new ExemptionMechanism((ExemptionMechanismSpi) engine.spi,
-                    provider, algorithm);
-        }
+        Object spi = ENGINE.getInstance(algorithm, provider, null);
+        return new ExemptionMechanism((ExemptionMechanismSpi) spi, provider, algorithm);
     }
 
     /**
@@ -373,6 +367,8 @@ public class ExemptionMechanism {
         try {
             super.finalize();
         } catch (Throwable t) {
+            // for consistency with the RI, we must override Object.finalize() to
+            // remove the throws clause.
             throw new AssertionError(t);
         }
     }

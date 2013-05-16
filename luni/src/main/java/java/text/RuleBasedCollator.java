@@ -17,6 +17,8 @@
 
 package java.text;
 
+import libcore.icu.RuleBasedCollatorICU;
+
 /**
  * A concrete implementation class for {@code Collation}.
  * <p>
@@ -257,8 +259,7 @@ package java.text;
  * </blockquote>
  */
 public class RuleBasedCollator extends Collator {
-
-    RuleBasedCollator(com.ibm.icu4jni.text.Collator wrapper) {
+    RuleBasedCollator(RuleBasedCollatorICU wrapper) {
         super(wrapper);
     }
 
@@ -283,14 +284,13 @@ public class RuleBasedCollator extends Collator {
      */
     public RuleBasedCollator(String rules) throws ParseException {
         if (rules == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("rules == null");
         }
         if (rules.isEmpty()) {
             throw new ParseException("empty rules", 0);
         }
         try {
-            this.icuColl = new com.ibm.icu4jni.text.RuleBasedCollator(rules);
-            this.icuColl.setDecomposition(com.ibm.icu4jni.text.Collator.CANONICAL_DECOMPOSITION);
+            icuColl = new RuleBasedCollatorICU(rules);
         } catch (Exception e) {
             if (e instanceof ParseException) {
                 throw (ParseException) e;
@@ -314,11 +314,9 @@ public class RuleBasedCollator extends Collator {
      */
     public CollationElementIterator getCollationElementIterator(CharacterIterator source) {
         if (source == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("source == null");
         }
-        return new CollationElementIterator(
-                ((com.ibm.icu4jni.text.RuleBasedCollator) this.icuColl)
-                        .getCollationElementIterator(source));
+        return new CollationElementIterator(icuColl.getCollationElementIterator(source));
     }
 
     /**
@@ -330,11 +328,9 @@ public class RuleBasedCollator extends Collator {
      */
     public CollationElementIterator getCollationElementIterator(String source) {
         if (source == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("source == null");
         }
-        return new CollationElementIterator(
-                ((com.ibm.icu4jni.text.RuleBasedCollator) this.icuColl)
-                        .getCollationElementIterator(source));
+        return new CollationElementIterator(icuColl.getCollationElementIterator(source));
     }
 
     /**
@@ -350,7 +346,7 @@ public class RuleBasedCollator extends Collator {
      * @return the collation rules.
      */
     public String getRules() {
-        return ((com.ibm.icu4jni.text.RuleBasedCollator) this.icuColl).getRules();
+        return icuColl.getRules();
     }
 
     /**
@@ -389,10 +385,12 @@ public class RuleBasedCollator extends Collator {
      */
     @Override
     public int compare(String source, String target) {
-        if (source == null || target == null) {
-            throw new NullPointerException();
+        if (source == null) {
+            throw new NullPointerException("source == null");
+        } else if (target == null) {
+            throw new NullPointerException("target == null");
         }
-        return this.icuColl.compare(source, target);
+        return icuColl.compare(source, target);
     }
 
     /**
@@ -409,7 +407,7 @@ public class RuleBasedCollator extends Collator {
 
     @Override
     public int hashCode() {
-        return ((com.ibm.icu4jni.text.RuleBasedCollator) this.icuColl).getRules().hashCode();
+        return icuColl.getRules().hashCode();
     }
 
     /**

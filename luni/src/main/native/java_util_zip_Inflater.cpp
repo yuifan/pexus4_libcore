@@ -19,16 +19,9 @@
 
 #include "JniConstants.h"
 #include "ScopedPrimitiveArray.h"
-#include "zip.h"
+#include "ZipUtilities.h"
 #include <errno.h>
 
-static struct {
-    jfieldID inRead;
-    jfieldID finished;
-    jfieldID needsDictionary;
-} gCachedFields;
-
-/* Create a new stream . This stream cannot be used until it has been properly initialized. */
 static jlong Inflater_createStream(JNIEnv* env, jobject, jboolean noHeader) {
     UniquePtr<NativeZipStream> jstream(new NativeZipStream);
     if (jstream.get() == NULL) {
@@ -38,15 +31,14 @@ static jlong Inflater_createStream(JNIEnv* env, jobject, jboolean noHeader) {
     jstream->stream.adler = 1;
 
     /*
-     * In the range 8..15 for checked, or -8..-15 for unchecked inflate. Unchecked
-     * is appropriate for formats like zip that do their own validity checking.
+     * See zlib.h for documentation of the inflateInit2 windowBits parameter.
+     *
+     * zconf.h says the "requirements for inflate are (in bytes) 1 << windowBits
+     * that is, 32K for windowBits=15 (default value) plus a few kilobytes
+     * for small objects." This means that we can happily use the default
+     * here without worrying about memory consumption.
      */
-    /* Window bits to use. 15 is fastest but consumes the most memory */
-    int wbits = 15;               /*Use MAX for fastest */
-    if (noHeader) {
-        wbits = wbits / -1;
-    }
-    int err = inflateInit2(&jstream->stream, wbits);
+    int err = inflateInit2(&jstream->stream, noHeader ? -DEF_WBITS : DEF_WBITS);
     if (err != Z_OK) {
         throwExceptionForZlibError(env, "java/lang/IllegalArgumentException", err);
         return -1;
@@ -107,26 +99,31 @@ static jint Inflater_inflateImpl(JNIEnv* env, jobject recv, jbyteArray buf, int 
     Bytef* initialNextOut = stream->stream.next_out;
 
     int err = inflate(&stream->stream, Z_SYNC_FLUSH);
-    if (err != Z_OK) {
-        if (err == Z_STREAM_ERROR) {
-            return 0;
-        }
-        if (err == Z_STREAM_END) {
-            env->SetBooleanField(recv, gCachedFields.finished, JNI_TRUE);
-        } else if (err == Z_NEED_DICT) {
-            env->SetBooleanField(recv, gCachedFields.needsDictionary, JNI_TRUE);
-        } else {
-            throwExceptionForZlibError(env, "java/util/zip/DataFormatException", err);
-            return -1;
-        }
+    switch (err) {
+    case Z_OK:
+        break;
+    case Z_NEED_DICT:
+        static jfieldID needsDictionary = env->GetFieldID(JniConstants::inflaterClass, "needsDictionary", "Z");
+        env->SetBooleanField(recv, needsDictionary, JNI_TRUE);
+        break;
+    case Z_STREAM_END:
+        static jfieldID finished = env->GetFieldID(JniConstants::inflaterClass, "finished", "Z");
+        env->SetBooleanField(recv, finished, JNI_TRUE);
+        break;
+    case Z_STREAM_ERROR:
+        return 0;
+    default:
+        throwExceptionForZlibError(env, "java/util/zip/DataFormatException", err);
+        return -1;
     }
 
     jint bytesRead = stream->stream.next_in - initialNextIn;
     jint bytesWritten = stream->stream.next_out - initialNextOut;
 
-    jint inReadValue = env->GetIntField(recv, gCachedFields.inRead);
+    static jfieldID inReadField = env->GetFieldID(JniConstants::inflaterClass, "inRead", "I");
+    jint inReadValue = env->GetIntField(recv, inReadField);
     inReadValue += bytesRead;
-    env->SetIntField(recv, gCachedFields.inRead, inReadValue);
+    env->SetIntField(recv, inReadField, inReadValue);
     return bytesWritten;
 }
 
@@ -171,9 +168,6 @@ static JNINativeMethod gMethods[] = {
     NATIVE_METHOD(Inflater, setFileInputImpl, "(Ljava/io/FileDescriptor;JIJ)I"),
     NATIVE_METHOD(Inflater, setInputImpl, "([BIIJ)V"),
 };
-int register_java_util_zip_Inflater(JNIEnv* env) {
-    gCachedFields.finished = env->GetFieldID(JniConstants::inflaterClass, "finished", "Z");
-    gCachedFields.inRead = env->GetFieldID(JniConstants::inflaterClass, "inRead", "I");
-    gCachedFields.needsDictionary = env->GetFieldID(JniConstants::inflaterClass, "needsDictionary", "Z");
-    return jniRegisterNativeMethods(env, "java/util/zip/Inflater", gMethods, NELEM(gMethods));
+void register_java_util_zip_Inflater(JNIEnv* env) {
+    jniRegisterNativeMethods(env, "java/util/zip/Inflater", gMethods, NELEM(gMethods));
 }

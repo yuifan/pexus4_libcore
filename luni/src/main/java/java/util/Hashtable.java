@@ -15,10 +15,6 @@
  *  limitations under the License.
  */
 
-// BEGIN android-note
-// Completely different implementation from harmony.  Runs much faster.
-// BEGIN android-note
-
 package java.util;
 
 import java.io.IOException;
@@ -136,7 +132,7 @@ public class Hashtable<K, V> extends Dictionary<K, V>
         } else if (capacity > MAXIMUM_CAPACITY) {
             capacity = MAXIMUM_CAPACITY;
         } else {
-            capacity = roundUpToPowerOfTwo(capacity);
+            capacity = Collections.roundUpToPowerOfTwo(capacity);
         }
         makeTable(capacity);
     }
@@ -182,6 +178,9 @@ public class Hashtable<K, V> extends Dictionary<K, V>
      * readObject).
      */
     private void constructorPutAll(Map<? extends K, ? extends V> map) {
+        if (table == EMPTY_TABLE) {
+            doubleCapacity(); // Don't do unchecked puts to a shared table.
+        }
         for (Entry<? extends K, ? extends V> e : map.entrySet()) {
             constructorPut(e.getKey(), e.getValue());
         }
@@ -263,11 +262,7 @@ public class Hashtable<K, V> extends Dictionary<K, V>
      * @see #put
      */
     public synchronized V get(Object key) {
-        // Doug Lea's supplemental secondaryHash function (inlined)
-        int hash = key.hashCode();
-        hash ^= (hash >>> 20) ^ (hash >>> 12);
-        hash ^= (hash >>> 7) ^ (hash >>> 4);
-
+        int hash = Collections.secondaryHash(key);
         HashtableEntry<K, V>[] tab = table;
         for (HashtableEntry<K, V> e = tab[hash & (tab.length - 1)];
                 e != null; e = e.next) {
@@ -291,11 +286,7 @@ public class Hashtable<K, V> extends Dictionary<K, V>
      * @see java.lang.Object#equals
      */
     public synchronized boolean containsKey(Object key) {
-        // Doug Lea's supplemental secondaryHash function (inlined)
-        int hash = key.hashCode();
-        hash ^= (hash >>> 20) ^ (hash >>> 12);
-        hash ^= (hash >>> 7) ^ (hash >>> 4);
-
+        int hash = Collections.secondaryHash(key);
         HashtableEntry<K, V>[] tab = table;
         for (HashtableEntry<K, V> e = tab[hash & (tab.length - 1)];
                 e != null; e = e.next) {
@@ -317,7 +308,7 @@ public class Hashtable<K, V> extends Dictionary<K, V>
      */
     public synchronized boolean containsValue(Object value) {
         if (value == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("value == null");
         }
 
         HashtableEntry[] tab = table;
@@ -365,10 +356,12 @@ public class Hashtable<K, V> extends Dictionary<K, V>
      * @see java.lang.Object#equals
      */
     public synchronized V put(K key, V value) {
-        if (value == null) {
-            throw new NullPointerException();
+        if (key == null) {
+            throw new NullPointerException("key == null");
+        } else if (value == null) {
+            throw new NullPointerException("value == null");
         }
-        int hash = secondaryHash(key.hashCode());
+        int hash = Collections.secondaryHash(key);
         HashtableEntry<K, V>[] tab = table;
         int index = hash & (tab.length - 1);
         HashtableEntry<K, V> first = tab[index];
@@ -399,10 +392,12 @@ public class Hashtable<K, V> extends Dictionary<K, V>
      * ensure that capacity is sufficient, and does not increment modCount.
      */
     private void constructorPut(K key, V value) {
-        if (value == null) {
-            throw new NullPointerException();
+        if (key == null) {
+            throw new NullPointerException("key == null");
+        } else if (value == null) {
+            throw new NullPointerException("value == null");
         }
-        int hash = secondaryHash(key.hashCode());
+        int hash = Collections.secondaryHash(key);
         HashtableEntry<K, V>[] tab = table;
         int index = hash & (tab.length - 1);
         HashtableEntry<K, V> first = tab[index];
@@ -442,7 +437,7 @@ public class Hashtable<K, V> extends Dictionary<K, V>
      *  <p>This method is called only by putAll.
      */
     private void ensureCapacity(int numMappings) {
-        int newCapacity = roundUpToPowerOfTwo(capacityForInitSize(numMappings));
+        int newCapacity = Collections.roundUpToPowerOfTwo(capacityForInitSize(numMappings));
         HashtableEntry<K, V>[] oldTable = table;
         int oldCapacity = oldTable.length;
         if (newCapacity <= oldCapacity) {
@@ -451,7 +446,7 @@ public class Hashtable<K, V> extends Dictionary<K, V>
 
         rehash();  // Does nothing!!
 
-        if (newCapacity == oldCapacity << 1) {
+        if (newCapacity == oldCapacity * 2) {
             doubleCapacity();
             return;
         }
@@ -508,7 +503,7 @@ public class Hashtable<K, V> extends Dictionary<K, V>
         if (oldCapacity == MAXIMUM_CAPACITY) {
             return oldTable;
         }
-        int newCapacity = oldCapacity << 1;
+        int newCapacity = oldCapacity * 2;
         HashtableEntry<K, V>[] newTable = makeTable(newCapacity);
         if (size == 0) {
             return newTable;
@@ -555,7 +550,7 @@ public class Hashtable<K, V> extends Dictionary<K, V>
      * @see #put
      */
     public synchronized V remove(Object key) {
-        int hash = secondaryHash(key.hashCode());
+        int hash = Collections.secondaryHash(key);
         HashtableEntry<K, V>[] tab = table;
         int index = hash & (tab.length - 1);
         for (HashtableEntry<K, V> e = tab[index], prev = null;
@@ -684,7 +679,7 @@ public class Hashtable<K, V> extends Dictionary<K, V>
 
         public final V setValue(V value) {
             if (value == null) {
-                throw new NullPointerException();
+                throw new NullPointerException("value == null");
             }
             V oldValue = this.value;
             this.value = value;
@@ -799,7 +794,7 @@ public class Hashtable<K, V> extends Dictionary<K, V>
      * Returns true if this map contains the specified mapping.
      */
     private synchronized boolean containsMapping(Object key, Object value) {
-        int hash = secondaryHash(key.hashCode());
+        int hash = Collections.secondaryHash(key);
         HashtableEntry<K, V>[] tab = table;
         int index = hash & (tab.length - 1);
         for (HashtableEntry<K, V> e = tab[index]; e != null; e = e.next) {
@@ -815,7 +810,7 @@ public class Hashtable<K, V> extends Dictionary<K, V>
      * exists; otherwise, returns does nothing and returns false.
      */
     private synchronized boolean removeMapping(Object key, Object value) {
-        int hash = secondaryHash(key.hashCode());
+        int hash = Collections.secondaryHash(key);
         HashtableEntry<K, V>[] tab = table;
         int index = hash & (tab.length - 1);
         for (HashtableEntry<K, V> e = tab[index], prev = null;
@@ -1062,49 +1057,11 @@ public class Hashtable<K, V> extends Dictionary<K, V>
         }
     }
 
-    /**
-     * Applies a supplemental hash function to a given hashCode, which defends
-     * against poor quality hash functions. This is critical because Hashtable
-     * uses power-of-two length hash tables, that otherwise encounter collisions
-     * for hashCodes that do not differ in lower or upper bits.
-     */
-    private static int secondaryHash(int h) {
-        // Doug Lea's supplemental hash function
-        h ^= (h >>> 20) ^ (h >>> 12);
-        return h ^ (h >>> 7) ^ (h >>> 4);
-    }
-
-    /**
-     * Returns the smallest power of two >= its argument, with several caveats:
-     * If the argument is negative but not Integer.MIN_VALUE, the method returns
-     * zero. If the argument is > 2^30 or equal to Integer.MIN_VALUE, the method
-     * returns Integer.MIN_VALUE. If the argument is zero, the method returns
-     * zero.
-     */
-    private static int roundUpToPowerOfTwo(int i) {
-        i--; // If input is a power of two, shift its high-order bit right
-
-        // "Smear" the high-order bit all the way to the right
-        i |= i >>>  1;
-        i |= i >>>  2;
-        i |= i >>>  4;
-        i |= i >>>  8;
-        i |= i >>> 16;
-
-        return i + 1;
-    }
-
     private static final long serialVersionUID = 1421746759512286392L;
 
-    /**
-     * Serializable fields.
-     *
-     * @serialField loadFactor float
-     *              load factor for this Hashtable
-     */
     private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField("threshold", Integer.TYPE),
-        new ObjectStreamField("loadFactor", Float.TYPE)
+        new ObjectStreamField("threshold", int.class),
+        new ObjectStreamField("loadFactor", float.class),
     };
 
     private synchronized void writeObject(ObjectOutputStream stream)
@@ -1135,7 +1092,7 @@ public class Hashtable<K, V> extends Dictionary<K, V>
         } else if (capacity > MAXIMUM_CAPACITY) {
             capacity = MAXIMUM_CAPACITY;
         } else {
-            capacity = roundUpToPowerOfTwo(capacity);
+            capacity = Collections.roundUpToPowerOfTwo(capacity);
         }
         makeTable(capacity);
 

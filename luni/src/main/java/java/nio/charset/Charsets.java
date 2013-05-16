@@ -25,7 +25,7 @@ package java.nio.charset;
  *
  * @hide internal use only
  */
-public class Charsets {
+public final class Charsets {
     /**
      * A cheap and type-safe constant for the ISO-8859-1 Charset.
      */
@@ -58,6 +58,22 @@ public class Charsets {
      * encoded in UTF-8. All characters are representable in UTF-8.
      */
     public static native byte[] toUtf8Bytes(char[] chars, int offset, int length);
+
+    /**
+     * Returns a new byte array containing the bytes corresponding to the given characters,
+     * encoded in UTF-16BE. All characters are representable in UTF-16BE.
+     */
+    public static byte[] toBigEndianUtf16Bytes(char[] chars, int offset, int length) {
+        byte[] result = new byte[length * 2];
+        int end = offset + length;
+        int resultIndex = 0;
+        for (int i = offset; i < end; ++i) {
+            char ch = chars[i];
+            result[resultIndex++] = (byte) (ch >> 8);
+            result[resultIndex++] = (byte) ch;
+        }
+        return result;
+    }
 
     /**
      * Decodes the given US-ASCII bytes into the given char[]. Equivalent to but faster than:

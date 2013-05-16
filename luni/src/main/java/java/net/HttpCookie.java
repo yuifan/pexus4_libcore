@@ -16,9 +16,6 @@
 
 package java.net;
 
-import java.text.DateFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -26,7 +23,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import libcore.base.Objects;
+import libcore.net.http.HttpDate;
+import libcore.util.Objects;
 
 /**
  * An opaque key-value value pair held by an HTTP client to permit a stateful
@@ -64,40 +62,6 @@ import libcore.base.Objects;
  */
 public final class HttpCookie implements Cloneable {
 
-    /**
-     * Most websites serve cookies in the blessed format. Eagerly create the parser to ensure such
-     * cookies are on the fast path.
-     */
-    private static final ThreadLocal<DateFormat> STANDARD_DATE_FORMAT
-            = new ThreadLocal<DateFormat>() {
-        @Override protected DateFormat initialValue() {
-            return new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", Locale.US); // RFC 1123
-        }
-    };
-
-    /**
-     * If we fail to parse a date in a non-standard format, try each of these formats in sequence.
-     */
-    private static final String[] BROWSER_COMPATIBLE_DATE_FORMATS = new String[] {
-            /* This list comes from  {@code org.apache.http.impl.cookie.BrowserCompatSpec}. */
-            "EEEE, dd-MMM-yy HH:mm:ss zzz", // RFC 1036
-            "EEE MMM d HH:mm:ss yyyy", // ANSI C asctime()
-            "EEE, dd-MMM-yyyy HH:mm:ss z",
-            "EEE, dd-MMM-yyyy HH-mm-ss z",
-            "EEE, dd MMM yy HH:mm:ss z",
-            "EEE dd-MMM-yyyy HH:mm:ss z",
-            "EEE dd MMM yyyy HH:mm:ss z",
-            "EEE dd-MMM-yyyy HH-mm-ss z",
-            "EEE dd-MMM-yy HH:mm:ss z",
-            "EEE dd MMM yy HH:mm:ss z",
-            "EEE,dd-MMM-yy HH:mm:ss z",
-            "EEE,dd-MMM-yyyy HH:mm:ss z",
-            "EEE, dd-MM-yyyy HH:mm:ss z",
-
-            /* RI bug 6641315 claims a cookie of this format was once served by www.yahoo.com */
-            "EEE MMM d yyyy HH:mm:ss z",
-    };
-
     private static final Set<String> RESERVED_NAMES = new HashSet<String>();
 
     static {
@@ -127,14 +91,14 @@ public final class HttpCookie implements Cloneable {
             return false;
         }
 
-        String a = host.toLowerCase();
-        String b = domainPattern.toLowerCase();
+        String a = host.toLowerCase(Locale.US);
+        String b = domainPattern.toLowerCase(Locale.US);
 
         /*
          * From the spec: "both host names are IP addresses and their host name strings match
          * exactly; or both host names are FQDN strings and their host name strings match exactly"
          */
-        if (a.equals(b) && (isFullyQualifiedDomainName(a, 0) || !InetAddress.isHostName(a))) {
+        if (a.equals(b) && (isFullyQualifiedDomainName(a, 0) || InetAddress.isNumeric(a))) {
             return true;
         }
         if (!isFullyQualifiedDomainName(a, 0)) {
@@ -223,7 +187,8 @@ public final class HttpCookie implements Cloneable {
 
     /**
      * Constructs a cookie from a string. The string should comply with
-     * set-cookie or set-cookie2 header format as specified in RFC 2965. Since
+     * set-cookie or set-cookie2 header format as specified in
+     * <a href="http://www.ietf.org/rfc/rfc2965.txt">RFC 2965</a>. Since
      * set-cookies2 syntax allows more than one cookie definitions in one
      * header, the returned object is a list.
      *
@@ -359,7 +324,7 @@ public final class HttpCookie implements Cloneable {
             } else if (name.equals("expires")) {
                 hasExpires = true;
                 if (cookie.maxAge == -1L) {
-                    Date date = parseHttpDate(value);
+                    Date date = HttpDate.parse(value);
                     if (date != null) {
                         cookie.setExpires(date);
                     } else {
@@ -378,20 +343,6 @@ public final class HttpCookie implements Cloneable {
             } else if (name.equals("version") && !hasVersion) {
                 cookie.version = Integer.parseInt(value);
             }
-        }
-
-        private Date parseHttpDate(String value) {
-            try {
-                return STANDARD_DATE_FORMAT.get().parse(value);
-            } catch (ParseException ignore) {
-            }
-            for (String formatString : BROWSER_COMPATIBLE_DATE_FORMATS) {
-                try {
-                    return new SimpleDateFormat(formatString, Locale.US).parse(value);
-                } catch (ParseException ignore) {
-                }
-            }
-            return null;
         }
 
         /**
@@ -494,7 +445,7 @@ public final class HttpCookie implements Cloneable {
     public HttpCookie(String name, String value) {
         String ntrim = name.trim(); // erase leading and trailing whitespace
         if (!isValidName(ntrim)) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("Invalid name: " + name);
         }
 
         this.name = ntrim;
@@ -505,7 +456,8 @@ public final class HttpCookie implements Cloneable {
     private boolean isValidName(String n) {
         // name cannot be empty or begin with '$' or equals the reserved
         // attributes (case-insensitive)
-        boolean isValid = !(n.length() == 0 || n.startsWith("$") || RESERVED_NAMES.contains(n.toLowerCase()));
+        boolean isValid = !(n.length() == 0 || n.startsWith("$")
+                || RESERVED_NAMES.contains(n.toLowerCase(Locale.US)));
         if (isValid) {
             for (int i = 0; i < n.length(); i++) {
                 char nameChar = n.charAt(i);
@@ -648,7 +600,7 @@ public final class HttpCookie implements Cloneable {
      * cookies only to matching domains.
      */
     public void setDomain(String pattern) {
-        domain = pattern == null ? null : pattern.toLowerCase();
+        domain = pattern == null ? null : pattern.toLowerCase(Locale.US);
     }
 
     /**
@@ -698,11 +650,11 @@ public final class HttpCookie implements Cloneable {
      *
      * @throws IllegalArgumentException if v is neither 0 nor 1
      */
-    public void setVersion(int v) {
-        if (v != 0 && v != 1) {
-            throw new IllegalArgumentException();
+    public void setVersion(int newVersion) {
+        if (newVersion != 0 && newVersion != 1) {
+            throw new IllegalArgumentException("Bad version: " + newVersion);
         }
-        version = v;
+        version = newVersion;
     }
 
     @Override public Object clone() {
@@ -733,14 +685,14 @@ public final class HttpCookie implements Cloneable {
 
     /**
      * Returns the hash code of this HTTP cookie: <pre>   {@code
-     *   name.toLowerCase().hashCode()
-     *       + (domain == null ? 0 : domain.toLowerCase().hashCode())
+     *   name.toLowerCase(Locale.US).hashCode()
+     *       + (domain == null ? 0 : domain.toLowerCase(Locale.US).hashCode())
      *       + (path == null ? 0 : path.hashCode())
      * }</pre>
      */
     @Override public int hashCode() {
-        return name.toLowerCase().hashCode()
-                + (domain == null ? 0 : domain.toLowerCase().hashCode())
+        return name.toLowerCase(Locale.US).hashCode()
+                + (domain == null ? 0 : domain.toLowerCase(Locale.US).hashCode())
                 + (path == null ? 0 : path.hashCode());
     }
 

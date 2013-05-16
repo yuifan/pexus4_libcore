@@ -78,6 +78,7 @@ public:
         if (mRawArray != NULL) {
             memcpy(newRawArray, mRawArray, mOffset);
             mEnv->ReleaseByteArrayElements(mJavaArray, mRawArray, JNI_ABORT);
+            mEnv->DeleteLocalRef(mJavaArray);
         }
 
         // Point ourselves at the new array.
@@ -244,6 +245,6 @@ static JNINativeMethod gMethods[] = {
     NATIVE_METHOD(Charsets, toIsoLatin1Bytes, "([CII)[B"),
     NATIVE_METHOD(Charsets, toUtf8Bytes, "([CII)[B"),
 };
-int register_java_nio_charset_Charsets(JNIEnv* env) {
-    return jniRegisterNativeMethods(env, "java/nio/charset/Charsets", gMethods, NELEM(gMethods));
+void register_java_nio_charset_Charsets(JNIEnv* env) {
+    jniRegisterNativeMethods(env, "java/nio/charset/Charsets", gMethods, NELEM(gMethods));
 }

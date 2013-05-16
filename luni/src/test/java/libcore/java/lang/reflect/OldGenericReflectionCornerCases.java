@@ -16,11 +16,6 @@
 
 package libcore.java.lang.reflect;
 
-import dalvik.annotation.KnownFailure;
-import dalvik.annotation.TestLevel;
-import dalvik.annotation.TestTargetClass;
-import dalvik.annotation.TestTargetNew;
-import dalvik.annotation.TestTargets;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -33,7 +28,6 @@ import tests.api.java.lang.reflect.GenericReflectionTestsBase;
  * type parameters, equality of type parameters, wildcard types, parameterized
  * types and multiple bounds.
  */
-@TestTargetClass(Method.class)
 public class OldGenericReflectionCornerCases extends GenericReflectionTestsBase {
 
     static class Pair<T, S> {}
@@ -41,20 +35,6 @@ public class OldGenericReflectionCornerCases extends GenericReflectionTestsBase 
     static class WildcardEquality<T> {
         void wildcardEquality(Pair<? extends T, ? extends T> param) {}
     }
-    @TestTargets({
-        @TestTargetNew(
-            level = TestLevel.PARTIAL,
-            notes = "Stress test.",
-            method = "getTypeParameters",
-            args = {}
-        ),
-        @TestTargetNew(
-            level = TestLevel.PARTIAL,
-            notes = "Stress test.",
-            method = "getGenericParameterTypes",
-            args = {}
-        )
-    })
     @SuppressWarnings("unchecked")
     public void testWildcardEquality() throws Exception {
         Class<? extends WildcardEquality> clazz = WildcardEquality.class;
@@ -98,20 +78,6 @@ public class OldGenericReflectionCornerCases extends GenericReflectionTestsBase 
     static class WildcardUnEquality<T> {
         void wildcardUnEquality(Pair<? extends T, ? super T> param) {}
     }
-    @TestTargets({
-        @TestTargetNew(
-            level = TestLevel.PARTIAL,
-            notes = "Stress test.",
-            method = "getTypeParameters",
-            args = {}
-        ),
-        @TestTargetNew(
-            level = TestLevel.PARTIAL,
-            notes = "Stress test.",
-            method = "getGenericParameterTypes",
-            args = {}
-        )
-    })
     @SuppressWarnings("unchecked")
     public void testWildcardUnEquality() throws Exception {
         Class<? extends WildcardUnEquality> clazz = WildcardUnEquality.class;
@@ -154,22 +120,7 @@ public class OldGenericReflectionCornerCases extends GenericReflectionTestsBase 
     static class MultipleBoundedWildcardUnEquality<T extends Object & Comparable<MultipleBoundedWildcardUnEquality<T>>> {
         void multipleBoundedWildcardUnEquality(Pair<? extends T, ? super T> param) {}
     }
-    @TestTargets({
-        @TestTargetNew(
-            level = TestLevel.PARTIAL,
-            notes = "Stress test.",
-            method = "getTypeParameters",
-            args = {}
-        ),
-        @TestTargetNew(
-            level = TestLevel.PARTIAL,
-            notes = "Stress test.",
-            method = "getGenericParameterTypes",
-            args = {}
-        )
-    })
     @SuppressWarnings("unchecked")
-    @KnownFailure("Fails in CTS but passes under run-core-tests")
     public void testMultipleBoundedWildcardUnEquality() throws Exception {
         Class<? extends MultipleBoundedWildcardUnEquality> clazz = MultipleBoundedWildcardUnEquality.class;
 
@@ -224,22 +175,7 @@ public class OldGenericReflectionCornerCases extends GenericReflectionTestsBase 
     static class MultipleBoundedWildcardEquality<T extends Object & Comparable<MultipleBoundedWildcardEquality<T>>> {
         void multipleBoundedWildcardEquality(Pair<? extends T, ? extends T> param) {}
     }
-    @TestTargets({
-        @TestTargetNew(
-            level = TestLevel.PARTIAL,
-            notes = "Stress test.",
-            method = "getTypeParameters",
-            args = {}
-        ),
-        @TestTargetNew(
-            level = TestLevel.PARTIAL,
-            notes = "Stress test.",
-            method = "getGenericParameterTypes",
-            args = {}
-        )
-    })
     @SuppressWarnings("unchecked")
-    @KnownFailure("Fails in CTS but passes under run-core-tests")
     public void testMultipleBoundedWildcard() throws Exception {
         Class<? extends MultipleBoundedWildcardEquality> clazz = MultipleBoundedWildcardEquality.class;
 

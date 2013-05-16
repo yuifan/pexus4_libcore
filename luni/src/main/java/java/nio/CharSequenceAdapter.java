@@ -17,6 +17,8 @@
 
 package java.nio;
 
+import java.util.Arrays;
+
 /**
  * This class wraps a char sequence to be a char buffer.
  * <p>
@@ -69,23 +71,18 @@ final class CharSequenceAdapter extends CharBuffer {
 
     @Override
     public char get(int index) {
-        if (index < 0 || index >= limit) {
-            throw new IndexOutOfBoundsException();
-        }
+        checkIndex(index);
         return sequence.charAt(index);
     }
 
     @Override
-    public final CharBuffer get(char[] dst, int off, int len) {
-        int length = dst.length;
-        if ((off < 0) || (len < 0) || (long) off + (long) len > length) {
-            throw new IndexOutOfBoundsException();
-        }
-        if (len > remaining()) {
+    public final CharBuffer get(char[] dst, int dstOffset, int charCount) {
+        Arrays.checkOffsetAndCount(dst.length, dstOffset, charCount);
+        if (charCount > remaining()) {
             throw new BufferUnderflowException();
         }
-        int newPosition = position + len;
-        sequence.toString().getChars(position, newPosition, dst, off);
+        int newPosition = position + charCount;
+        sequence.toString().getChars(position, newPosition, dst, dstOffset);
         position = newPosition;
         return this;
     }
@@ -105,18 +102,15 @@ final class CharSequenceAdapter extends CharBuffer {
         return ByteOrder.nativeOrder();
     }
 
-    @Override
-    protected char[] protectedArray() {
+    @Override char[] protectedArray() {
         throw new UnsupportedOperationException();
     }
 
-    @Override
-    protected int protectedArrayOffset() {
+    @Override int protectedArrayOffset() {
         throw new UnsupportedOperationException();
     }
 
-    @Override
-    protected boolean protectedHasArray() {
+    @Override boolean protectedHasArray() {
         return false;
     }
 
@@ -131,24 +125,12 @@ final class CharSequenceAdapter extends CharBuffer {
     }
 
     @Override
-    public final CharBuffer put(char[] src, int off, int len) {
-        if ((off < 0) || (len < 0) || (long) off + (long) len > src.length) {
-            throw new IndexOutOfBoundsException();
-        }
-
-        if (len > remaining()) {
-            throw new BufferOverflowException();
-        }
-
+    public final CharBuffer put(char[] src, int srcOffset, int charCount) {
         throw new ReadOnlyBufferException();
     }
 
     @Override
     public CharBuffer put(String src, int start, int end) {
-        if ((start < 0) || (end < 0)
-                || (long) start + (long) end > src.length()) {
-            throw new IndexOutOfBoundsException();
-        }
         throw new ReadOnlyBufferException();
     }
 
@@ -159,10 +141,7 @@ final class CharSequenceAdapter extends CharBuffer {
 
     @Override
     public CharSequence subSequence(int start, int end) {
-        if (end < start || start < 0 || end > remaining()) {
-            throw new IndexOutOfBoundsException();
-        }
-
+        checkStartEndRemaining(start, end);
         CharSequenceAdapter result = copy(this);
         result.position = position + start;
         result.limit = position + end;

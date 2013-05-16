@@ -24,12 +24,12 @@ import java.util.Collection;
 import java.util.EventListener;
 import java.util.EventObject;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
-import org.apache.harmony.luni.util.Base64;
+import libcore.io.Base64;
+import libcore.util.EmptyArray;
 
 /**
  * This abstract class is a partial implementation of the abstract class
@@ -91,9 +91,6 @@ public abstract class AbstractPreferences extends Preferences {
      * Instance fields (private)
      * -----------------------------------------------------------
      */
-    /** Marker class for 'lock' field. */
-    private static class Lock {}
-
     /**
      * The object used to lock this node.
      */
@@ -146,17 +143,17 @@ public abstract class AbstractPreferences extends Preferences {
      *             parent} is not {@code null}.
      */
     protected AbstractPreferences(AbstractPreferences parent, String name) {
-        if ((null == parent ^ name.length() == 0) || name.indexOf("/") >= 0) {
+        if ((parent == null ^ name.length() == 0) || name.indexOf("/") >= 0) {
             throw new IllegalArgumentException();
         }
-        root = null == parent ? this : parent.root;
+        root = (parent == null) ? this : parent.root;
         nodeChangeListeners = new LinkedList<EventListener>();
         preferenceChangeListeners = new LinkedList<EventListener>();
         isRemoved = false;
         cachedNode = new HashMap<String, AbstractPreferences>();
         nodeName = name;
         parentPref = parent;
-        lock = new Lock();
+        lock = new Object();
         userNode = root.userNode;
     }
 
@@ -195,8 +192,8 @@ public abstract class AbstractPreferences extends Preferences {
             checkState();
             AbstractPreferences result = null;
             String[] childrenNames = childrenNames();
-            for (int i = 0; i < childrenNames.length; i++) {
-                if (childrenNames[i].equals(name)) {
+            for (String childrenName : childrenNames) {
+                if (childrenName.equals(name)) {
                     result = childSpi(name);
                     break;
                 }
@@ -366,9 +363,8 @@ public abstract class AbstractPreferences extends Preferences {
     @Override
     public void clear() throws BackingStoreException {
         synchronized (lock) {
-            String[] keyList = keys();
-            for (int i = 0; i < keyList.length; i++) {
-                remove(keyList[i]);
+            for (String key : keys()) {
+                remove(key);
             }
         }
     }
@@ -376,7 +372,7 @@ public abstract class AbstractPreferences extends Preferences {
     @Override
     public void exportNode(OutputStream ostream) throws IOException, BackingStoreException {
         if (ostream == null) {
-            throw new NullPointerException("Stream is null");
+            throw new NullPointerException("ostream == null");
         }
         checkState();
         XMLParser.exportPrefs(this, ostream, false);
@@ -385,7 +381,7 @@ public abstract class AbstractPreferences extends Preferences {
     @Override
     public void exportSubtree(OutputStream ostream) throws IOException, BackingStoreException {
         if (ostream == null) {
-            throw new NullPointerException("Stream is null");
+            throw new NullPointerException("ostream == null");
         }
         checkState();
         XMLParser.exportPrefs(this, ostream, true);
@@ -406,7 +402,7 @@ public abstract class AbstractPreferences extends Preferences {
     @Override
     public String get(String key, String deflt) {
         if (key == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("key == null");
         }
         String result = null;
         synchronized (lock) {
@@ -442,7 +438,7 @@ public abstract class AbstractPreferences extends Preferences {
             return deflt;
         }
         if (svalue.length() == 0) {
-            return new byte[0];
+            return EmptyArray.BYTE;
         }
         try {
             byte[] bavalue = svalue.getBytes(Charsets.US_ASCII);
@@ -564,20 +560,17 @@ public abstract class AbstractPreferences extends Preferences {
             throws BackingStoreException {
         String[] names = path.split("/");
         AbstractPreferences currentNode = this;
-        AbstractPreferences temp = null;
-        if (null != currentNode) {
-            for (int i = 0; i < names.length; i++) {
-                String name = names[i];
-                synchronized (currentNode.lock) {
-                    temp = currentNode.cachedNode.get(name);
-                    if (temp == null) {
-                        temp = getNodeFromBackend(createNew, currentNode, name);
-                    }
+        AbstractPreferences temp;
+        for (String name : names) {
+            synchronized (currentNode.lock) {
+                temp = currentNode.cachedNode.get(name);
+                if (temp == null) {
+                    temp = getNodeFromBackend(createNew, currentNode, name);
                 }
-                currentNode = temp;
-                if (null == currentNode) {
-                    break;
-                }
+            }
+            currentNode = temp;
+            if (currentNode == null) {
+                break;
             }
         }
         return currentNode;
@@ -603,8 +596,8 @@ public abstract class AbstractPreferences extends Preferences {
 
     @Override
     public boolean nodeExists(String name) throws BackingStoreException {
-        if (null == name) {
-            throw new NullPointerException();
+        if (name == null) {
+            throw new NullPointerException("name == null");
         }
         AbstractPreferences startNode = null;
         synchronized (lock) {
@@ -627,7 +620,7 @@ public abstract class AbstractPreferences extends Preferences {
         }
         try {
             Preferences result = startNode.nodeImpl(name, false);
-            return null == result ? false : true;
+            return (result != null);
         } catch(IllegalArgumentException e) {
             return false;
         }
@@ -647,8 +640,10 @@ public abstract class AbstractPreferences extends Preferences {
 
     @Override
     public void put(String key, String value) {
-        if (null == key || null == value) {
-            throw new NullPointerException();
+        if (key == null) {
+            throw new NullPointerException("key == null");
+        } else if (value == null) {
+            throw new NullPointerException("value == null");
         }
         if (key.length() > MAX_KEY_LENGTH || value.length() > MAX_VALUE_LENGTH) {
             throw new IllegalArgumentException();
@@ -662,37 +657,32 @@ public abstract class AbstractPreferences extends Preferences {
 
     @Override
     public void putBoolean(String key, boolean value) {
-        String sval = String.valueOf(value);
-        put(key, sval);
+        put(key, String.valueOf(value));
     }
 
     @Override
     public void putByteArray(String key, byte[] value) {
-        put(key, Base64.encode(value, Charsets.US_ASCII));
+        put(key, Base64.encode(value));
     }
 
     @Override
     public void putDouble(String key, double value) {
-        String sval = Double.toString(value);
-        put(key, sval);
+        put(key, Double.toString(value));
     }
 
     @Override
     public void putFloat(String key, float value) {
-        String sval = Float.toString(value);
-        put(key, sval);
+        put(key, Float.toString(value));
     }
 
     @Override
     public void putInt(String key, int value) {
-        String sval = Integer.toString(value);
-        put(key, sval);
+        put(key, Integer.toString(value));
     }
 
     @Override
     public void putLong(String key, long value) {
-        String sval = Long.toString(value);
-        put(key, sval);
+        put(key, Long.toString(value));
     }
 
     @Override
@@ -718,10 +708,10 @@ public abstract class AbstractPreferences extends Preferences {
         synchronized (lock) {
             checkState();
             String[] childrenNames = childrenNamesSpi();
-            for (int i = 0; i < childrenNames.length; i++) {
-                if (null == cachedNode.get(childrenNames[i])) {
-                    AbstractPreferences child = childSpi(childrenNames[i]);
-                    cachedNode.put(childrenNames[i], child);
+            for (String childrenName : childrenNames) {
+                if (cachedNode.get(childrenName) == null) {
+                    AbstractPreferences child = childSpi(childrenName);
+                    cachedNode.put(childrenName, child);
                 }
             }
 
@@ -741,8 +731,8 @@ public abstract class AbstractPreferences extends Preferences {
 
     @Override
     public void addNodeChangeListener(NodeChangeListener ncl) {
-        if (null == ncl) {
-            throw new NullPointerException();
+        if (ncl == null) {
+            throw new NullPointerException("ncl == null");
         }
         checkState();
         synchronized (nodeChangeListeners) {
@@ -752,8 +742,8 @@ public abstract class AbstractPreferences extends Preferences {
 
     @Override
     public void addPreferenceChangeListener(PreferenceChangeListener pcl) {
-        if (null == pcl) {
-            throw new NullPointerException();
+        if (pcl == null) {
+            throw new NullPointerException("pcl == null");
         }
         checkState();
         synchronized (preferenceChangeListeners) {
@@ -833,15 +823,14 @@ public abstract class AbstractPreferences extends Preferences {
         @Override
         public void run() {
             while (true) {
-                EventObject event = null;
+                EventObject event;
                 try {
                     event = getEventObject();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                     continue;
                 }
-                AbstractPreferences pref = (AbstractPreferences) event
-                        .getSource();
+                AbstractPreferences pref = (AbstractPreferences) event.getSource();
                 if (event instanceof NodeAddEvent) {
                     dispatchNodeAdd((NodeChangeEvent) event,
                             pref.nodeChangeListeners);
@@ -869,11 +858,8 @@ public abstract class AbstractPreferences extends Preferences {
         private void dispatchPrefChange(PreferenceChangeEvent event,
                 List<EventListener> preferenceChangeListeners) {
             synchronized (preferenceChangeListeners) {
-                Iterator<EventListener> i = preferenceChangeListeners.iterator();
-                while (i.hasNext()) {
-                    PreferenceChangeListener pcl = (PreferenceChangeListener) i
-                            .next();
-                    pcl.preferenceChange(event);
+                for (EventListener preferenceChangeListener : preferenceChangeListeners) {
+                    ((PreferenceChangeListener) preferenceChangeListener).preferenceChange(event);
                 }
             }
         }
@@ -881,10 +867,8 @@ public abstract class AbstractPreferences extends Preferences {
         private void dispatchNodeRemove(NodeChangeEvent event,
                 List<EventListener> nodeChangeListeners) {
             synchronized (nodeChangeListeners) {
-                Iterator<EventListener> i = nodeChangeListeners.iterator();
-                while (i.hasNext()) {
-                    NodeChangeListener ncl = (NodeChangeListener) i.next();
-                    ncl.childRemoved(event);
+                for (EventListener nodeChangeListener : nodeChangeListeners) {
+                    ((NodeChangeListener) nodeChangeListener).childRemoved(event);
                 }
             }
         }
@@ -892,9 +876,8 @@ public abstract class AbstractPreferences extends Preferences {
         private void dispatchNodeAdd(NodeChangeEvent event,
                 List<EventListener> nodeChangeListeners) {
             synchronized (nodeChangeListeners) {
-                Iterator<EventListener> i = nodeChangeListeners.iterator();
-                while (i.hasNext()) {
-                    NodeChangeListener ncl = (NodeChangeListener) i.next();
+                for (EventListener nodeChangeListener : nodeChangeListeners) {
+                    NodeChangeListener ncl = (NodeChangeListener) nodeChangeListener;
                     ncl.childAdded(event);
                 }
             }

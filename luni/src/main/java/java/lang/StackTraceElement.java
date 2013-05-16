@@ -30,9 +30,7 @@ public final class StackTraceElement implements Serializable {
 
     private static final long serialVersionUID = 6992337162326171013L;
 
-    // BEGIN android-added
     private static final int NATIVE_LINE_NUMBER = -2;
-    // END android-added
 
     String declaringClass;
 
@@ -60,9 +58,10 @@ public final class StackTraceElement implements Serializable {
      *             if {@code cls} or {@code method} is {@code null}.
      */
     public StackTraceElement(String cls, String method, String file, int line) {
-        super();
-        if (cls == null || method == null) {
-            throw new NullPointerException();
+        if (cls == null) {
+            throw new NullPointerException("cls == null");
+        } else if (method == null) {
+            throw new NullPointerException("method == null");
         }
         declaringClass = cls;
         methodName = method;
@@ -76,7 +75,6 @@ public final class StackTraceElement implements Serializable {
      * </p>
      */
     private StackTraceElement() {
-        super();
     }
 
     /**
@@ -200,9 +198,7 @@ public final class StackTraceElement implements Serializable {
      *         executing is a native method; {@code false} otherwise.
      */
     public boolean isNativeMethod() {
-        // BEGIN android-changed
         return lineNumber == NATIVE_LINE_NUMBER;
-        // END android-changed
     }
 
     @Override

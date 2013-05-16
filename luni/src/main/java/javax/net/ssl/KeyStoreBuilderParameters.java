@@ -41,7 +41,9 @@ public class KeyStoreBuilderParameters implements ManagerFactoryParameters {
      *            the key store builder.
      */
     public KeyStoreBuilderParameters(KeyStore.Builder builder) {
-        super();
+        if (builder == null) {
+            throw new NullPointerException("builder == null");
+        }
         ksbuilders = Collections.singletonList(builder);
     }
 
@@ -55,12 +57,11 @@ public class KeyStoreBuilderParameters implements ManagerFactoryParameters {
      *             if the specified list is empty.
      */
     public KeyStoreBuilderParameters(List<KeyStore.Builder> parameters) {
-        super();
         if (parameters == null) {
-            throw new NullPointerException("Builders list is null");
+            throw new NullPointerException("parameters == null");
         }
         if (parameters.isEmpty()) {
-            throw new IllegalArgumentException("Builders list is empty");
+            throw new IllegalArgumentException("parameters.isEmpty()");
         }
         ksbuilders = Collections.unmodifiableList(new ArrayList<KeyStore.Builder>(parameters));
     }

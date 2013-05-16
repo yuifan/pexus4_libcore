@@ -21,8 +21,6 @@ import java.io.FileDescriptor;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import org.apache.harmony.luni.platform.INetworkSystem;
-import org.apache.harmony.luni.platform.Platform;
 
 /**
  * This class is the base of all streaming socket implementation classes.
@@ -55,10 +53,6 @@ public abstract class SocketImpl implements SocketOptions {
      */
     protected int localport;
 
-    INetworkSystem netImpl = Platform.getNetworkSystem();
-
-    boolean streaming = true;
-
     /**
      * Waits for an incoming request and blocks until the connection is opened
      * on the given socket.
@@ -90,8 +84,7 @@ public abstract class SocketImpl implements SocketOptions {
      * @throws IOException
      *             if an error occurs while binding this socket.
      */
-    protected abstract void bind(InetAddress address, int port)
-            throws IOException;
+    protected abstract void bind(InetAddress address, int port) throws IOException;
 
     /**
      * Closes this socket. This makes later access invalid.
@@ -149,6 +142,13 @@ public abstract class SocketImpl implements SocketOptions {
     }
 
     /**
+     * @hide used by java.nio
+     */
+    public FileDescriptor getFD$() {
+        return fd;
+    }
+
+    /**
      * Gets the remote address this socket is connected to.
      *
      * @return the remote address of this socket.
@@ -199,8 +199,8 @@ public abstract class SocketImpl implements SocketOptions {
     /**
      * Listens for connection requests on this streaming socket. Incoming
      * connection requests are queued up to the limit specified by {@code
-     * backlog}. Additional requests are rejected. The method {@code listen()}
-     * may only be invoked on streaming sockets.
+     * backlog}. Additional requests are rejected. This method
+     * may only be invoked on stream sockets.
      *
      * @param backlog
      *            the maximum number of outstanding connection requests.
@@ -215,40 +215,16 @@ public abstract class SocketImpl implements SocketOptions {
      *
      * @return the textual representation of this socket.
      */
-    @SuppressWarnings("nls")
     @Override
     public String toString() {
-        return new StringBuilder(100).append("Socket[addr=").append(
-                getInetAddress()).append(",port=").append(port).append(
-                ",localport=").append(getLocalPort()).append("]").toString();
-    }
-
-    /**
-     * In the IP stack, write at most {@code count} bytes on the socket
-     * from the {@code buffer}, from the {@code offset}.
-     *
-     * @param buffer
-     *            the buffer to read into
-     * @param offset
-     *            the offset into the buffer
-     * @param count
-     *            the number of bytes to write
-     * @return int the actual number of bytes written
-     * @throws IOException
-     *                thrown if an error occurs while writing
-     */
-    int write(byte[] buffer, int offset, int count) throws IOException {
-        if (streaming) {
-            return this.netImpl.write(fd, buffer, offset, count);
-        } else {
-            return this.netImpl.send(fd, buffer, offset, count, port, address);
-        }
+        return "Socket[address=" + getInetAddress() +
+                ",port=" + port + ",localPort=" + getLocalPort() + "]";
     }
 
     /**
      * Closes the input channel of this socket.
-     * <p>
-     * This default implementation always throws an {@link IOException} to
+     *
+     * <p>This default implementation always throws an {@link IOException} to
      * indicate that the subclass should have overridden this method.
      *
      * @throws IOException
@@ -260,8 +236,8 @@ public abstract class SocketImpl implements SocketOptions {
 
     /**
      * Closes the output channel of this socket.
-     * <p>
-     * This default implementation always throws an {@link IOException} to
+     *
+     * <p>This default implementation always throws an {@link IOException} to
      * indicate that the subclass should have overridden this method.
      *
      * @throws IOException
@@ -283,8 +259,7 @@ public abstract class SocketImpl implements SocketOptions {
      * @throws IOException
      *             if an error occurs while connecting.
      */
-    protected abstract void connect(SocketAddress remoteAddr, int timeout)
-            throws IOException;
+    protected abstract void connect(SocketAddress remoteAddr, int timeout) throws IOException;
 
     /**
      * Returns whether the socket supports urgent data or not. Subclasses should
@@ -317,9 +292,6 @@ public abstract class SocketImpl implements SocketOptions {
      * @param bandwidth
      *            the importance of bandwidth.
      */
-    protected void setPerformancePreferences(int connectionTime, int latency,
-            int bandwidth) {
-        // Our socket implementation only provide one protocol: TCP/IP, so
-        // we do nothing for this method
+    protected void setPerformancePreferences(int connectionTime, int latency, int bandwidth) {
     }
 }

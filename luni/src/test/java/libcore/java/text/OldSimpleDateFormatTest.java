@@ -30,9 +30,21 @@ import java.util.TimeZone;
 
 public class OldSimpleDateFormatTest extends junit.framework.TestCase {
 
-    SimpleDateFormat format = new SimpleDateFormat("", Locale.ENGLISH);
+    SimpleDateFormat format = null;
+    SimpleDateFormat pFormat = null;
 
-    SimpleDateFormat pFormat = new SimpleDateFormat("", Locale.ENGLISH);
+    @Override
+    protected void setUp() throws Exception {
+        TimeZone.setDefault(TimeZone.getTimeZone("GMT"));
+        format = new SimpleDateFormat("", Locale.ENGLISH);
+        pFormat = new SimpleDateFormat("", Locale.ENGLISH);
+    }
+
+    @Override
+    protected void tearDown() throws Exception {
+        format = null;
+        pFormat = null;
+    }
 
     class FormatTester {
         boolean testsFailed = false;
@@ -76,7 +88,7 @@ public class OldSimpleDateFormatTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.text.SimpleDateFormat#SimpleDateFormat(java.lang.String,
+     * java.text.SimpleDateFormat#SimpleDateFormat(java.lang.String,
      *        java.text.DateFormatSymbols)
      */
     public void test_ConstructorLjava_lang_StringLjava_text_DateFormatSymbols() {
@@ -183,7 +195,7 @@ public class OldSimpleDateFormatTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.text.SimpleDateFormat#applyPattern(java.lang.String)
+     * java.text.SimpleDateFormat#applyPattern(java.lang.String)
      */
     public void test_applyPatternLjava_lang_String() {
         // Test for method void
@@ -233,7 +245,7 @@ public class OldSimpleDateFormatTest extends junit.framework.TestCase {
         test.test(" MM", cal, " 06", DateFormat.MONTH_FIELD);
         test.test(" MMM", cal, " Jun", DateFormat.MONTH_FIELD);
         test.test(" MMMM", cal, " June", DateFormat.MONTH_FIELD);
-        test.test(" MMMMM", cal, " June", DateFormat.MONTH_FIELD);
+        test.test(" MMMMM", cal, " J", DateFormat.MONTH_FIELD);
 
         test.test(" d", cal, " 2", DateFormat.DATE_FIELD);
         test.test(" d", new GregorianCalendar(1999, Calendar.NOVEMBER, 12),
@@ -283,7 +295,7 @@ public class OldSimpleDateFormatTest extends junit.framework.TestCase {
         test.test(" EE", cal, " Wed", DateFormat.DAY_OF_WEEK_FIELD);
         test.test(" EEE", cal, " Wed", DateFormat.DAY_OF_WEEK_FIELD);
         test.test(" EEEE", cal, " Wednesday", DateFormat.DAY_OF_WEEK_FIELD);
-        test.test(" EEEEE", cal, " Wednesday", DateFormat.DAY_OF_WEEK_FIELD);
+        test.test(" EEEEE", cal, " W", DateFormat.DAY_OF_WEEK_FIELD);
 
         test.test(" D", cal, " 153", DateFormat.DAY_OF_YEAR_FIELD);
         test.test(" DD", cal, " 153", DateFormat.DAY_OF_YEAR_FIELD);
@@ -387,12 +399,25 @@ public class OldSimpleDateFormatTest extends junit.framework.TestCase {
         FormatTester test = new FormatTester();
         Calendar cal = new GregorianCalendar(1999, Calendar.JUNE, 2, 15, 3, 6);
 
-        format.setTimeZone(new SimpleTimeZone(60000, "ONE MINUTE"));
+        TimeZone tz0001 = new SimpleTimeZone(60000, "ONE MINUTE");
+        TimeZone tz0130 = new SimpleTimeZone(5400000, "ONE HOUR, THIRTY");
+        TimeZone tzMinus0130 = new SimpleTimeZone(-5400000, "NEG ONE HOUR, THIRTY");
+
+        format.setTimeZone(tz0001);
+        test.test(" Z", cal, " +0001", DateFormat.TIMEZONE_FIELD);
+        test.test(" ZZZZ", cal, " GMT+00:01", DateFormat.TIMEZONE_FIELD);
+        test.test(" ZZZZZ", cal, " +00:01", DateFormat.TIMEZONE_FIELD);
+        format.setTimeZone(tz0130);
+        test.test(" Z", cal, " +0130", DateFormat.TIMEZONE_FIELD);
+        format.setTimeZone(tzMinus0130);
+        test.test(" Z", cal, " -0130", DateFormat.TIMEZONE_FIELD);
+
+        format.setTimeZone(tz0001);
         test.test(" z", cal, " GMT+00:01", DateFormat.TIMEZONE_FIELD);
         test.test(" zzzz", cal, " GMT+00:01", DateFormat.TIMEZONE_FIELD);
-        format.setTimeZone(new SimpleTimeZone(5400000, "ONE HOUR, THIRTY"));
+        format.setTimeZone(tz0130);
         test.test(" z", cal, " GMT+01:30", DateFormat.TIMEZONE_FIELD);
-        format.setTimeZone(new SimpleTimeZone(-5400000, "NEG ONE HOUR, THIRTY"));
+        format.setTimeZone(tzMinus0130);
         test.test(" z", cal, " GMT-01:30", DateFormat.TIMEZONE_FIELD);
 
         format.setTimeZone(TimeZone.getTimeZone("America/New_York"));
@@ -408,14 +433,8 @@ public class OldSimpleDateFormatTest extends junit.framework.TestCase {
         assertFalse(test.testsFailed);
     }
 
-    public void testDefaultMinimalDaysInFirstWeek() {
-        Locale.setDefault(Locale.US);
-        assertEquals(1, new GregorianCalendar().getMinimalDaysInFirstWeek());
-        assertEquals(1, new GregorianCalendar().getFirstDayOfWeek());
-    }
-
     /**
-     * @tests java.text.SimpleDateFormat#format(java.util.Date)
+     * java.text.SimpleDateFormat#format(java.util.Date)
      */
     public void test_timeZoneFormatting() {
         // tests specific to formatting of timezones
@@ -423,22 +442,18 @@ public class OldSimpleDateFormatTest extends junit.framework.TestCase {
         Date winterDate = new GregorianCalendar(1999, Calendar.JANUARY, 12).getTime();
 
         FormatTester test = new FormatTester();
-        test.verifyFormatTimezone("GMT-7", "GMT-07:00, GMT-07:00", "-0700, -0700", summerDate);
-        test.verifyFormatTimezone("GMT-7", "GMT-07:00, GMT-07:00", "-0700, -0700", winterDate);
+        test.verifyFormatTimezone("GMT-7", "GMT-07:00, GMT-07:00", "-0700, GMT-07:00", summerDate);
+        test.verifyFormatTimezone("GMT-7", "GMT-07:00, GMT-07:00", "-0700, GMT-07:00", winterDate);
 
-        test.verifyFormatTimezone("GMT+14", "GMT+14:00, GMT+14:00", "+1400, +1400", summerDate);
-        test.verifyFormatTimezone("GMT+14", "GMT+14:00, GMT+14:00", "+1400, +1400", winterDate);
+        test.verifyFormatTimezone("GMT+14", "GMT+14:00, GMT+14:00", "+1400, GMT+14:00", summerDate);
+        test.verifyFormatTimezone("GMT+14", "GMT+14:00, GMT+14:00", "+1400, GMT+14:00", winterDate);
 
-        test.verifyFormatTimezone("America/Los_Angeles", "PDT, Pacific Daylight Time",
-                "-0700, -0700", summerDate);
-        test.verifyFormatTimezone("America/Los_Angeles", "PST, Pacific Standard Time",
-                "-0800, -0800", winterDate);
+        test.verifyFormatTimezone("America/Los_Angeles", "PDT, Pacific Daylight Time", "-0700, GMT-07:00", summerDate);
+        test.verifyFormatTimezone("America/Los_Angeles", "PST, Pacific Standard Time", "-0800, GMT-08:00", winterDate);
 
         // this fails on the RI!
-        test.verifyFormatTimezone("America/Detroit", "EDT, Eastern Daylight Time",
-                "-0400, -0400", summerDate);
-        test.verifyFormatTimezone("America/Detroit", "EST, Eastern Standard Time",
-                "-0500, -0500", winterDate);
+        test.verifyFormatTimezone("America/Detroit", "EDT, Eastern Daylight Time", "-0400, GMT-04:00", summerDate);
+        test.verifyFormatTimezone("America/Detroit", "EST, Eastern Standard Time", "-0500, GMT-05:00", winterDate);
 
         assertFalse(test.testsFailed);
     }

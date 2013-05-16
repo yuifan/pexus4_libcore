@@ -28,11 +28,20 @@ public class InetSocketAddress extends SocketAddress {
 
     private static final long serialVersionUID = 5076001401234631237L;
 
-    private String hostname;
+    // Exactly one of hostname or addr should be set.
+    private final InetAddress addr;
+    private final String hostname;
+    private final int port;
 
-    private InetAddress addr;
-
-    private int port;
+    /**
+     * @hide internal use only
+     */
+    public InetSocketAddress() {
+        // These will be filled in the native implementation of recvfrom.
+        this.addr = null;
+        this.hostname = null;
+        this.port = -1;
+    }
 
     /**
      * Creates a socket endpoint with the given port number {@code port} and
@@ -59,14 +68,10 @@ public class InetSocketAddress extends SocketAddress {
      */
     public InetSocketAddress(InetAddress address, int port) {
         if (port < 0 || port > 65535) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("port=" + port);
         }
-        if (address == null) {
-            addr = Inet4Address.ANY;
-        } else {
-            addr = address;
-        }
-        hostname = addr.getHostName();
+        this.addr = (address == null) ? Inet4Address.ANY : address;
+        this.hostname = null;
         this.port = port;
     }
 
@@ -80,10 +85,6 @@ public class InetSocketAddress extends SocketAddress {
      *            the specified port number to which this socket is bound.
      * @param host
      *            the specified hostname to which this socket is bound.
-     * @throws SecurityException
-     *             if a {@link SecurityManager} is installed and its {@code
-     *             checkConnect()} method does not allow the resolving of the
-     *             host name.
      */
     public InetSocketAddress(String host, int port) {
         this(host, port, true);
@@ -97,20 +98,18 @@ public class InetSocketAddress extends SocketAddress {
         if (hostname == null || port < 0 || port > 65535) {
             throw new IllegalArgumentException("host=" + hostname + ", port=" + port);
         }
-        this.hostname = hostname;
-        this.port = port;
 
+        InetAddress addr = null;
         if (needResolved) {
-            SecurityManager smgr = System.getSecurityManager();
-            if (smgr != null) {
-                smgr.checkConnect(hostname, port);
-            }
             try {
-                this.addr = InetAddress.getByName(hostname);
-                this.hostname = null;
+                addr = InetAddress.getByName(hostname);
+                hostname = null;
             } catch (UnknownHostException ignored) {
             }
         }
+        this.addr = addr;
+        this.hostname = hostname;
+        this.port = port;
     }
 
     /**
@@ -132,30 +131,35 @@ public class InetSocketAddress extends SocketAddress {
     }
 
     /**
-     * Gets the port number of this socket.
-     *
-     * @return the socket endpoint port number.
+     * Returns this socket address' port.
      */
     public final int getPort() {
         return port;
     }
 
     /**
-     * Gets the address of this socket.
-     *
-     * @return the socket endpoint address.
+     * Returns this socket address' address.
      */
     public final InetAddress getAddress() {
         return addr;
     }
 
     /**
-     * Gets the hostname of this socket.
-     *
-     * @return the socket endpoint hostname.
+     * Returns the hostname, doing a reverse lookup on the {@code InetAddress} if no
+     * hostname string was provided at construction time.
      */
     public final String getHostName() {
-        return (null != addr) ? addr.getHostName() : hostname;
+        return (addr != null) ? addr.getHostName() : hostname;
+    }
+
+    /**
+     * Returns the hostname if known, or the result of {@code InetAddress.getHostAddress}.
+     * Unlike {@link #getHostName}, this method will never cause a DNS lookup.
+     * @since 1.7
+     * @hide 1.7 - remember to add a link in the getHostName documentation!
+     */
+    public final String getHostString() {
+        return (hostname != null) ? hostname : addr.getHostAddress();
     }
 
     /**
@@ -169,20 +173,12 @@ public class InetSocketAddress extends SocketAddress {
     }
 
     /**
-     * Gets a string representation of this socket included the address and the
-     * port number.
-     *
-     * @return the address and port number as a textual representation.
+     * Returns a string containing the address (or the hostname for an
+     * unresolved {@code InetSocketAddress}) and port number.
+     * For example: {@code "www.google.com/74.125.224.115:80"} or {@code "/127.0.0.1:80"}.
      */
-    @Override
-    public String toString() {
-        String host;
-        if (addr != null) {
-            host = addr.toString();
-        } else {
-            host = hostname;
-        }
-        return host + ":" + port;
+    @Override public String toString() {
+        return ((addr != null) ? addr.toString() : hostname) + ":" + port;
     }
 
     /**
@@ -225,11 +221,6 @@ public class InetSocketAddress extends SocketAddress {
         return addr.equals(iSockAddr.addr);
     }
 
-    /**
-     * Gets the hashcode of this socket.
-     *
-     * @return the appropriate hashcode.
-     */
     @Override
     public final int hashCode() {
         if (addr == null) {
@@ -238,8 +229,7 @@ public class InetSocketAddress extends SocketAddress {
         return addr.hashCode() + port;
     }
 
-    private void readObject(ObjectInputStream stream) throws IOException,
-            ClassNotFoundException {
+    private void readObject(ObjectInputStream stream) throws IOException, ClassNotFoundException {
         stream.defaultReadObject();
     }
 }

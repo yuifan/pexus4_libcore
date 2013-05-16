@@ -17,6 +17,8 @@
 
 package java.io;
 
+import java.util.Arrays;
+
 /**
  * A specialized {@link Reader} for reading the contents of a char array.
  *
@@ -205,15 +207,7 @@ public class CharArrayReader extends Reader {
      */
     @Override
     public int read(char[] buffer, int offset, int len) throws IOException {
-        // BEGIN android-note
-        // changed array notation to be consistent with the rest of harmony
-        // END android-note
-        if (offset < 0 || offset > buffer.length) {
-            throw new ArrayIndexOutOfBoundsException("Offset out of bounds: " + offset);
-        }
-        if (len < 0 || len > buffer.length - offset) {
-            throw new ArrayIndexOutOfBoundsException("Length out of bounds: " + len);
-        }
+        Arrays.checkOffsetAndCount(buffer.length, offset, len);
         synchronized (lock) {
             checkNotClosed();
             if (pos < this.count) {
@@ -264,27 +258,25 @@ public class CharArrayReader extends Reader {
     }
 
     /**
-     * Skips {@code count} number of characters in this reader. Subsequent
-     * {@code read()}s will not return these characters unless {@code reset()}
-     * is used. This method does nothing and returns 0 if {@code n} is negative.
+     * Skips {@code charCount} characters in this reader. Subsequent calls to
+     * {@code read} will not return these characters unless {@code reset}
+     * is used. This method does nothing and returns 0 if {@code charCount <= 0}.
      *
-     * @param n
-     *            the number of characters to skip.
      * @return the number of characters actually skipped.
      * @throws IOException
      *             if this reader is closed.
      */
     @Override
-    public long skip(long n) throws IOException {
+    public long skip(long charCount) throws IOException {
         synchronized (lock) {
             checkNotClosed();
-            if (n <= 0) {
+            if (charCount <= 0) {
                 return 0;
             }
             long skipped = 0;
-            if (n < this.count - pos) {
-                pos = pos + (int) n;
-                skipped = n;
+            if (charCount < this.count - pos) {
+                pos = pos + (int) charCount;
+                skipped = charCount;
             } else {
                 skipped = this.count - pos;
                 pos = this.count;

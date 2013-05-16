@@ -21,6 +21,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.LockSupport;
+import libcore.java.lang.ref.FinalizationTester;
 
 public class OldThreadTest extends junit.framework.TestCase {
 
@@ -116,7 +117,7 @@ public class OldThreadTest extends junit.framework.TestCase {
                     try {
                         Thread.sleep(100);
                         LockSupport.unpark(parker);
-                    } catch (InterruptedException ignored) {
+                    } catch (InterruptedException expected) {
                     }
                 }
             }
@@ -169,7 +170,7 @@ public class OldThreadTest extends junit.framework.TestCase {
     }
 
     /**
-     * @tests java.lang.Thread#sleep(long)
+     * java.lang.Thread#sleep(long)
      */
     public void test_sleepJ() {
         // Note: Not too much we can test here that can be reliably measured.
@@ -301,11 +302,12 @@ public class OldThreadTest extends junit.framework.TestCase {
     }
 
 
-    public void test_getState() {
+    public void test_getState() throws InterruptedException {
         Thread.State state = Thread.currentThread().getState();
         assertNotNull(state);
         assertEquals(Thread.State.RUNNABLE, state);
 
+        run = true;
         final Semaphore sem = new Semaphore(0);
         final Object lock = new Object();
         Thread th = new Thread() {
@@ -344,15 +346,11 @@ public class OldThreadTest extends junit.framework.TestCase {
         };
         assertEquals(Thread.State.NEW, th.getState());
         th.start();
-        try {
-            sem.acquire();
-        } catch (InterruptedException e) {
-            fail("InterruptedException was thrown.");
-        }
+        sem.acquire();
         assertEquals(Thread.State.RUNNABLE, th.getState());
         run = false;
 
-        while (!sem.hasQueuedThreads()){}
+        Thread.sleep(200);
 
         assertEquals(Thread.State.WAITING, th.getState());
         synchronized (lock) {
@@ -362,25 +360,17 @@ public class OldThreadTest extends junit.framework.TestCase {
             assertEquals(Thread.State.BLOCKED, th.getState());
         }
 
-        try {
-            sem.acquire();
-        } catch (InterruptedException e) {
-            fail("InterruptedException was thrown.");
-        }
+        sem.acquire();
 
         synchronized (lock) {
             assertEquals(Thread.State.TIMED_WAITING, th.getState());
             th.interrupt();
         }
 
-        try {
-            th.join(1000);
-        } catch(InterruptedException ie) {
-            fail("InterruptedException was thrown.");
-        }
+        th.join(1000);
         assertEquals(Thread.State.TERMINATED, th.getState());
     }
-    volatile boolean run = true;
+    volatile boolean run;
 
     public void test_holdsLock() {
         MonitoredClass monitor = new MonitoredClass();
@@ -406,10 +396,11 @@ public class OldThreadTest extends junit.framework.TestCase {
             // Ignore
         }
 
-        // No-op in Android. Must neither have an effect nor throw an exception.
-        Thread.State state = thread.getState();
-        thread.stop();
-        assertEquals(state, thread.getState());
+        try {
+            thread.stop();
+            fail();
+        } catch (UnsupportedOperationException expected) {
+        }
     }
 
     public void test_start() {
@@ -441,10 +432,11 @@ public class OldThreadTest extends junit.framework.TestCase {
             // Ignore
         }
 
-        // No-op in Android. Must neither have an effect nor throw an exception.
-        Thread.State state = thread.getState();
-        thread.stop(new Exception("Oops!"));
-        assertEquals(state, thread.getState());
+        try {
+            thread.stop(new Exception("Oops!"));
+            fail();
+        } catch (UnsupportedOperationException expected) {
+        }
     }
 
     @SuppressWarnings("deprecation")
@@ -457,10 +449,11 @@ public class OldThreadTest extends junit.framework.TestCase {
             // Ignore
         }
 
-        // No-op in Android. Must neither have an effect nor throw an exception.
-        Thread.State state = thread.getState();
-        thread.suspend();
-        assertEquals(state, thread.getState());
+        try {
+            thread.suspend();
+            fail();
+        } catch (UnsupportedOperationException expected) {
+        }
     }
 
     Thread st, ct, spinner;
@@ -487,7 +480,7 @@ public class OldThreadTest extends junit.framework.TestCase {
             spinner = null;
             st = null;
             ct = null;
-            System.runFinalization();
+            FinalizationTester.induceFinalization();
         } catch (Exception e) {
         }
     }

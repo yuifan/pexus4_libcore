@@ -17,7 +17,10 @@
 
 package java.security;
 
+import java.nio.ByteOrder;
 import java.util.Random;
+import libcore.io.Memory;
+import libcore.io.SizeOf;
 import org.apache.harmony.security.fortress.Engine;
 import org.apache.harmony.security.fortress.Services;
 import org.apache.harmony.security.provider.crypto.SHA1PRNG_SecureRandomImpl;
@@ -25,20 +28,26 @@ import org.apache.harmony.security.provider.crypto.SHA1PRNG_SecureRandomImpl;
 /**
  * This class generates cryptographically secure pseudo-random numbers.
  *
- * <h3>Supported Algorithms</h3>
- * <ul>
- *   <li><strong>SHA1PRNG</strong>: Based on <a
- *     href="http://en.wikipedia.org/wiki/SHA-1">SHA-1</a>. Not guaranteed to be
- *     compatible with the SHA1PRNG algorithm on the reference
- *     implementation.</li>
- * </ul>
+ * It is best to invoke {@code SecureRandom} using the default constructor.
+ * This will provide an instance of the most cryptographically strong
+ * provider available:
+ *
+ * <pre>SecureRandom sr = new SecureRandom();
+ * byte[] output = new byte[16];
+ * sr.nextBytes(output);</pre>
  *
  * <p>The default algorithm is defined by the first {@code SecureRandomSpi}
- * provider found in the VM's installed security providers. Use {@link
- * Security} to install custom {@link SecureRandomSpi} providers.
+ * provider found in the installed security providers. Use {@link Security}
+ * to install custom {@link SecureRandomSpi} providers.
  *
- * <a name="insecure_seed"><h3>Seeding {@code SecureRandom} may be
- * insecure</h3></a>
+ * <p>Note that the output of a {@code SecureRandom} instance should never
+ * be relied upon to be deterministic. For deterministic output from a given
+ * input, see {@link MessageDigest} which provides one-way hash functions.
+ * For deriving keys from passwords, see
+ * {@link javax.crypto.SecretKeyFactory}.
+ *
+ * <h3><a name="insecure_seed">Seeding {@code SecureRandom} may be
+ * insecure</a></h3>
  * A seed is an array of bytes used to bootstrap random number generation.
  * To produce cryptographically secure random numbers, both the seed and the
  * algorithm must be secure.
@@ -47,54 +56,36 @@ import org.apache.harmony.security.provider.crypto.SHA1PRNG_SecureRandomImpl;
  * an internal entropy source, such as {@code /dev/urandom}. This seed is
  * unpredictable and appropriate for secure use.
  *
- * <p>You may alternatively specify the initial seed explicitly with the
- * {@link #SecureRandom(byte[]) seeded constructor} or by calling {@link
- * #setSeed} before any random numbers have been generated. Specifying a fixed
- * seed will cause the instance to return a predictable sequence of numbers.
- * This may be useful for testing but it is not appropriate for secure use.
- *
- * <p>Although it is common practice to seed {@link Random} with the current
- * time, that is dangerous with {@code SecureRandom} since that value is
- * predictable to an attacker and not appropriate for secure use.
- *
- * <p>Calling {@link #setSeed} on a {@code SecureRandom} <i>after</i> it has
- * been used to generate random numbers (ie. calling {#link nextBytes}) will
- * supplement the existing seed. This does not cause the instance to return a
- * predictable numbers, nor does it harm the security of the numbers generated.
+ * <p>Using the {@link #SecureRandom(byte[]) seeded constructor} or calling
+ * {@link #setSeed} may completely replace the cryptographically strong
+ * default seed causing the instance to return a predictable sequence of
+ * numbers unfit for secure use. Due to variations between implementations
+ * it is not recommended to use {@code setSeed} at all.
  */
 public class SecureRandom extends Random {
 
     private static final long serialVersionUID = 4940670005562187L;
 
     // The service name.
-    private static final transient String SERVICE = "SecureRandom";
+    private static final String SERVICE = "SecureRandom";
 
     // Used to access common engine functionality
-    private static transient Engine engine = new Engine(SERVICE);
+    private static final Engine ENGINE = new Engine(SERVICE);
 
-    private Provider provider;
+    private final Provider provider;
 
-    private SecureRandomSpi secureRandomSpi;
+    private final SecureRandomSpi secureRandomSpi;
 
-    private String algorithm;
-
-    private byte[] state;
-
-    private byte[] randomBytes;
-
-    private int randomBytesUsed;
-
-    private long counter;
+    private final String algorithm;
 
     // Internal SecureRandom used for getSeed(int)
-    private static transient SecureRandom internalSecureRandom;
+    private static volatile SecureRandom internalSecureRandom;
 
     /**
      * Constructs a new {@code SecureRandom} that uses the default algorithm.
      */
     public SecureRandom() {
         super(0);
-        Services.refresh();
         Provider.Service service = Services.getSecureRandomService();
         if (service == null) {
             this.provider = null;
@@ -158,15 +149,13 @@ public class SecureRandom extends Random {
      * @throws NullPointerException
      *             if {@code algorithm} is {@code null}.
      */
-    public static SecureRandom getInstance(String algorithm)
-                                throws NoSuchAlgorithmException {
+    public static SecureRandom getInstance(String algorithm) throws NoSuchAlgorithmException {
         if (algorithm == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("algorithm == null");
         }
-        synchronized (engine) {
-            engine.getInstance(algorithm, null);
-            return new SecureRandom((SecureRandomSpi)engine.spi, engine.provider, algorithm);
-        }
+        Engine.SpiAndProvider sap = ENGINE.getInstance(algorithm, null);
+        return new SecureRandom((SecureRandomSpi) sap.spi, sap.provider,
+                                algorithm);
     }
 
     /**
@@ -216,17 +205,15 @@ public class SecureRandom extends Random {
      * @throws IllegalArgumentException if {@code provider == null}
      */
     public static SecureRandom getInstance(String algorithm, Provider provider)
-                                throws NoSuchAlgorithmException {
+            throws NoSuchAlgorithmException {
         if (provider == null) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("provider == null");
         }
         if (algorithm == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("algorithm == null");
         }
-        synchronized (engine) {
-            engine.getInstance(algorithm, provider, null);
-            return new SecureRandom((SecureRandomSpi)engine.spi, provider, algorithm);
-        }
+        Object spi = ENGINE.getInstance(algorithm, provider, null);
+        return new SecureRandom((SecureRandomSpi) spi, provider, algorithm);
     }
 
     /**
@@ -266,16 +253,8 @@ public class SecureRandom extends Random {
         if (seed == 0) {    // skip call from Random
             return;
         }
-        byte[] byteSeed = {
-                (byte)((seed >> 56) & 0xFF),
-                (byte)((seed >> 48) & 0xFF),
-                (byte)((seed >> 40) & 0xFF),
-                (byte)((seed >> 32) & 0xFF),
-                (byte)((seed >> 24) & 0xFF),
-                (byte)((seed >> 16) & 0xFF),
-                (byte)((seed >> 8) & 0xFF),
-                (byte)((seed) & 0xFF)
-        };
+        byte[] byteSeed = new byte[SizeOf.LONG];
+        Memory.pokeLong(byteSeed, 0, seed, ByteOrder.BIG_ENDIAN);
         setSeed(byteSeed);
     }
 
@@ -330,10 +309,12 @@ public class SecureRandom extends Random {
      * @return the seed bytes
      */
     public static byte[] getSeed(int numBytes) {
-        if (internalSecureRandom == null) {
-            internalSecureRandom = new SecureRandom();
+        SecureRandom result = internalSecureRandom;
+        if (result == null) {
+            // single-check idiom
+            internalSecureRandom = result = new SecureRandom();
         }
-        return internalSecureRandom.generateSeed(numBytes);
+        return result.generateSeed(numBytes);
     }
 
     /**

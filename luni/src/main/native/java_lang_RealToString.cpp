@@ -23,6 +23,7 @@
 
 #include "JNIHelp.h"
 #include "JniConstants.h"
+#include "ScopedLocalRef.h"
 #include "ScopedPrimitiveArray.h"
 #include "cbigint.h"
 
@@ -168,8 +169,8 @@ void RealToString_bigIntDigitGenerator(JNIEnv* env, jobject obj, jlong f, jint e
     }
 
   static jfieldID digitsFid = env->GetFieldID(JniConstants::realToStringClass, "digits", "[I");
-  jintArray javaDigits = reinterpret_cast<jintArray>(env->GetObjectField(obj, digitsFid));
-  ScopedIntArrayRW digits(env, javaDigits);
+  ScopedLocalRef<jintArray> javaDigits(env, reinterpret_cast<jintArray>(env->GetObjectField(obj, digitsFid)));
+  ScopedIntArrayRW digits(env, javaDigits.get());
   if (digits.get() == NULL) {
     return;
   }
@@ -236,6 +237,6 @@ void RealToString_bigIntDigitGenerator(JNIEnv* env, jobject obj, jlong f, jint e
 static JNINativeMethod gMethods[] = {
     NATIVE_METHOD(RealToString, bigIntDigitGenerator, "(JIZI)V"),
 };
-int register_java_lang_RealToString(JNIEnv* env) {
-    return jniRegisterNativeMethods(env, "java/lang/RealToString", gMethods, NELEM(gMethods));
+void register_java_lang_RealToString(JNIEnv* env) {
+    jniRegisterNativeMethods(env, "java/lang/RealToString", gMethods, NELEM(gMethods));
 }

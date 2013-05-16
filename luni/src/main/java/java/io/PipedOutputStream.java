@@ -15,12 +15,6 @@
  *  limitations under the License.
  */
 
-// BEGIN android-note
-// We've made several changes including:
-//  - avoid shallow concurrency problems
-//  - improved consistency with PipedWriter
-// END android-note
-
 package java.io;
 
 /**
@@ -43,7 +37,6 @@ public class PipedOutputStream extends OutputStream {
      * written to it.
      */
     public PipedOutputStream() {
-        super();
     }
 
     /**
@@ -57,7 +50,6 @@ public class PipedOutputStream extends OutputStream {
      *             if this stream or {@code target} are already connected.
      */
     public PipedOutputStream(PipedInputStream target) throws IOException {
-        super();
         connect(target);
     }
 
@@ -89,7 +81,7 @@ public class PipedOutputStream extends OutputStream {
      */
     public void connect(PipedInputStream stream) throws IOException {
         if (stream == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("stream == null");
         }
         synchronized (stream) {
             if (this.target != null) {

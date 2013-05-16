@@ -17,12 +17,12 @@
 
 package java.net;
 
+import java.io.FileDescriptor;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.SocketChannel;
-import org.apache.harmony.luni.net.PlainSocketImpl;
-import org.apache.harmony.luni.platform.Platform;
+import libcore.io.IoBridge;
 
 /**
  * Provides a client-side TCP socket.
@@ -42,10 +42,7 @@ public class Socket {
 
     private InetAddress localAddress = Inet4Address.ANY;
 
-    private static class ConnectLock {
-    }
-
-    private final Object connectLock = new ConnectLock();
+    private final Object connectLock = new Object();
 
     /**
      * Creates a new unconnected socket. When a SocketImplFactory is defined it
@@ -76,33 +73,17 @@ public class Socket {
      * @throws IllegalArgumentException
      *             if the argument {@code proxy} is {@code null} or of an
      *             invalid type.
-     * @throws SecurityException
-     *             if a security manager exists and it denies the permission to
-     *             connect to the given proxy.
      * @see SocketImplFactory
      * @see SocketImpl
      */
     public Socket(Proxy proxy) {
-        this.proxy = proxy;
         if (proxy == null || proxy.type() == Proxy.Type.HTTP) {
-            throw new IllegalArgumentException("Proxy is null or invalid type");
+            throw new IllegalArgumentException("Invalid proxy: " + proxy);
         }
-        InetSocketAddress address = (InetSocketAddress) proxy.address();
-        if (null != address) {
-            InetAddress addr = address.getAddress();
-            String host;
-            if (null != addr) {
-                host = addr.getHostAddress();
-            } else {
-                host = address.getHostName();
-            }
-            int port = address.getPort();
-            checkConnectPermission(host, port);
-        }
+        this.proxy = proxy;
         this.impl = factory != null ? factory.createSocketImpl() : new PlainSocketImpl(proxy);
     }
 
-    // BEGIN android-added
     /**
      * Tries to connect a socket to all IP addresses of the given hostname.
      *
@@ -121,9 +102,6 @@ public class Socket {
      *             if the host name could not be resolved into an IP address.
      * @throws IOException
      *             if an error occurs while creating the socket.
-     * @throws SecurityException
-     *             if a security manager exists and it denies the permission to
-     *             connect to the given address and port.
      */
     private void tryAllAddresses(String dstName, int dstPort, InetAddress
             localAddress, int localPort, boolean streaming) throws IOException {
@@ -138,8 +116,7 @@ public class Socket {
                 checkDestination(dstAddress, dstPort);
                 startupSocket(dstAddress, dstPort, localAddress, localPort, streaming);
                 return;
-            } catch (SecurityException e1) {
-            } catch (IOException e2) {
+            } catch (IOException ex) {
             }
         }
 
@@ -149,16 +126,15 @@ public class Socket {
         checkDestination(dstAddress, dstPort);
         startupSocket(dstAddress, dstPort, localAddress, localPort, streaming);
     }
-    // END android-added
 
     /**
      * Creates a new streaming socket connected to the target host specified by
      * the parameters {@code dstName} and {@code dstPort}. The socket is bound
      * to any available port on the local host.
-     * <p><strong>Implementation note:</strong> this implementation tries each
-     * IP address for the given hostname until it either connects successfully
-     * or it exhausts the set. It will try both IPv4 and IPv6 addresses in the
-     * order specified by the system property {@code "java.net.preferIPv6Addresses"}.
+     *
+     * <p>This implementation tries each IP address for the given hostname (in
+     * <a href="http://www.ietf.org/rfc/rfc3484.txt">RFC 3484</a> order)
+     * until it either connects successfully or it exhausts the set.
      *
      * @param dstName
      *            the target host name or IP address to connect to.
@@ -168,9 +144,6 @@ public class Socket {
      *             if the host name could not be resolved into an IP address.
      * @throws IOException
      *             if an error occurs while creating the socket.
-     * @throws SecurityException
-     *             if a security manager exists and it denies the permission to
-     *             connect to the given address and port.
      */
     public Socket(String dstName, int dstPort) throws UnknownHostException, IOException {
         this(dstName, dstPort, null, 0);
@@ -180,13 +153,11 @@ public class Socket {
      * Creates a new streaming socket connected to the target host specified by
      * the parameters {@code dstName} and {@code dstPort}. On the local endpoint
      * the socket is bound to the given address {@code localAddress} on port
-     * {@code localPort}.
+     * {@code localPort}. If {@code host} is {@code null} a loopback address is used to connect to.
      *
-     * If {@code host} is {@code null} a loopback address is used to connect to.
-     * <p><strong>Implementation note:</strong> this implementation tries each
-     * IP address for the given hostname until it either connects successfully
-     * or it exhausts the set. It will try both IPv4 and IPv6 addresses in the
-     * order specified by the system property {@code "java.net.preferIPv6Addresses"}.
+     * <p>This implementation tries each IP address for the given hostname (in
+     * <a href="http://www.ietf.org/rfc/rfc3484.txt">RFC 3484</a> order)
+     * until it either connects successfully or it exhausts the set.
      *
      * @param dstName
      *            the target host name or IP address to connect to.
@@ -200,9 +171,6 @@ public class Socket {
      *             if the host name could not be resolved into an IP address.
      * @throws IOException
      *             if an error occurs while creating the socket.
-     * @throws SecurityException
-     *             if a security manager exists and it denies the permission to
-     *             connect to the given address and port.
      */
     public Socket(String dstName, int dstPort, InetAddress localAddress, int localPort) throws IOException {
         this();
@@ -213,10 +181,10 @@ public class Socket {
      * Creates a new streaming or datagram socket connected to the target host
      * specified by the parameters {@code hostName} and {@code port}. The socket
      * is bound to any available port on the local host.
-     * <p><strong>Implementation note:</strong> this implementation tries each
-     * IP address for the given hostname until it either connects successfully
-     * or it exhausts the set. It will try both IPv4 and IPv6 addresses in the
-     * order specified by the system property {@code "java.net.preferIPv6Addresses"}.
+     *
+     * <p>This implementation tries each IP address for the given hostname (in
+     * <a href="http://www.ietf.org/rfc/rfc3484.txt">RFC 3484</a> order)
+     * until it either connects successfully or it exhausts the set.
      *
      * @param hostName
      *            the target host name or IP address to connect to.
@@ -229,9 +197,6 @@ public class Socket {
      *             if the host name could not be resolved into an IP address.
      * @throws IOException
      *             if an error occurs while creating the socket.
-     * @throws SecurityException
-     *             if a security manager exists and it denies the permission to
-     *             connect to the given address and port.
      * @deprecated Use {@code Socket(String, int)} instead of this for streaming
      *             sockets or an appropriate constructor of {@code
      *             DatagramSocket} for UDP transport.
@@ -253,9 +218,6 @@ public class Socket {
      *            the port on the target host to connect to.
      * @throws IOException
      *             if an error occurs while creating the socket.
-     * @throws SecurityException
-     *             if a security manager exists and it denies the permission to
-     *             connect to the given address and port.
      */
     public Socket(InetAddress dstAddress, int dstPort) throws IOException {
         this();
@@ -279,9 +241,6 @@ public class Socket {
      *            the port on the local host to bind to.
      * @throws IOException
      *             if an error occurs while creating the socket.
-     * @throws SecurityException
-     *             if a security manager exists and it denies the permission to
-     *             connect to the given address and port.
      */
     public Socket(InetAddress dstAddress, int dstPort,
             InetAddress localAddress, int localPort) throws IOException {
@@ -304,9 +263,6 @@ public class Socket {
      *            socket otherwise.
      * @throws IOException
      *             if an error occurs while creating the socket.
-     * @throws SecurityException
-     *             if a security manager exists and it denies the permission to
-     *             connect to the given address and port.
      * @deprecated Use {@code Socket(InetAddress, int)} instead of this for
      *             streaming sockets or an appropriate constructor of {@code
      *             DatagramSocket} for UDP transport.
@@ -344,22 +300,6 @@ public class Socket {
         if (dstPort < 0 || dstPort > 65535) {
             throw new IllegalArgumentException("Port out of range: " + dstPort);
         }
-        checkConnectPermission(destAddr.getHostAddress(), dstPort);
-    }
-
-    /**
-     * Checks whether the connection destination satisfies the security policy.
-     *
-     * @param hostname
-     *            the destination hostname.
-     * @param dstPort
-     *            the port on the destination host.
-     */
-    private void checkConnectPermission(String hostname, int dstPort) {
-        SecurityManager security = System.getSecurityManager();
-        if (security != null) {
-            security.checkConnect(hostname, dstPort);
-        }
     }
 
     /**
@@ -377,10 +317,8 @@ public class Socket {
     }
 
     /**
-     * Gets the IP address of the target host this socket is connected to.
-     *
-     * @return the IP address of the connected target host or {@code null} if
-     *         this socket is not yet connected.
+     * Returns the IP address of the target host this socket is connected to, or null if this
+     * socket is not yet connected.
      */
     public InetAddress getInetAddress() {
         if (!isConnected()) {
@@ -390,7 +328,7 @@ public class Socket {
     }
 
     /**
-     * Gets an input stream to read data from this socket.
+     * Returns an input stream to read data from this socket.
      *
      * @return the byte-oriented input stream.
      * @throws IOException
@@ -406,13 +344,7 @@ public class Socket {
     }
 
     /**
-     * Gets the setting of the socket option {@code SocketOptions.SO_KEEPALIVE}.
-     *
-     * @return {@code true} if the {@code SocketOptions.SO_KEEPALIVE} is
-     *         enabled, {@code false} otherwise.
-     * @throws SocketException
-     *             if an error occurs while reading the socket option.
-     * @see SocketOptions#SO_KEEPALIVE
+     * Returns this socket's {@link SocketOptions#SO_KEEPALIVE} setting.
      */
     public boolean getKeepAlive() throws SocketException {
         checkOpenAndCreate(true);
@@ -438,7 +370,7 @@ public class Socket {
     }
 
     /**
-     * Gets an output stream to write data into this socket.
+     * Returns an output stream to write data into this socket.
      *
      * @return the byte-oriented output stream.
      * @throws IOException
@@ -454,10 +386,8 @@ public class Socket {
     }
 
     /**
-     * Gets the port number of the target host this socket is connected to.
-     *
-     * @return the port number of the connected target host or {@code 0} if this
-     *         socket is not yet connected.
+     * Returns the port number of the target host this socket is connected to, or 0 if this socket
+     * is not yet connected.
      */
     public int getPort() {
         if (!isConnected()) {
@@ -467,13 +397,8 @@ public class Socket {
     }
 
     /**
-     * Gets the value of the socket option {@link SocketOptions#SO_LINGER}.
-     *
-     * @return the current value of the option {@code SocketOptions.SO_LINGER}
-     *         or {@code -1} if this option is disabled.
-     * @throws SocketException
-     *             if an error occurs while reading the socket option.
-     * @see SocketOptions#SO_LINGER
+     * Returns this socket's {@link SocketOptions#SO_LINGER linger} timeout in seconds, or -1
+     * for no linger (i.e. {@code close} will return immediately).
      */
     public int getSoLinger() throws SocketException {
         checkOpenAndCreate(true);
@@ -487,12 +412,7 @@ public class Socket {
     }
 
     /**
-     * Gets the receive buffer size of this socket.
-     *
-     * @return the current value of the option {@code SocketOptions.SO_RCVBUF}.
-     * @throws SocketException
-     *             if an error occurs while reading the socket option.
-     * @see SocketOptions#SO_RCVBUF
+     * Returns this socket's {@link SocketOptions#SO_RCVBUF receive buffer size}.
      */
     public synchronized int getReceiveBufferSize() throws SocketException {
         checkOpenAndCreate(true);
@@ -500,12 +420,7 @@ public class Socket {
     }
 
     /**
-     * Gets the send buffer size of this socket.
-     *
-     * @return the current value of the option {@code SocketOptions.SO_SNDBUF}.
-     * @throws SocketException
-     *             if an error occurs while reading the socket option.
-     * @see SocketOptions#SO_SNDBUF
+     * Returns this socket's {@link SocketOptions#SO_SNDBUF send buffer size}.
      */
     public synchronized int getSendBufferSize() throws SocketException {
         checkOpenAndCreate(true);
@@ -513,10 +428,7 @@ public class Socket {
     }
 
     /**
-     * Gets the socket {@link SocketOptions#SO_TIMEOUT receive timeout}.
-     *
-     * @throws SocketException
-     *             if an error occurs while reading the socket option.
+     * Returns this socket's {@link SocketOptions#SO_TIMEOUT receive timeout}.
      */
     public synchronized int getSoTimeout() throws SocketException {
         checkOpenAndCreate(true);
@@ -524,13 +436,7 @@ public class Socket {
     }
 
     /**
-     * Gets the setting of the socket option {@code SocketOptions.TCP_NODELAY}.
-     *
-     * @return {@code true} if the {@code SocketOptions.TCP_NODELAY} is enabled,
-     *         {@code false} otherwise.
-     * @throws SocketException
-     *             if an error occurs while reading the socket option.
-     * @see SocketOptions#TCP_NODELAY
+     * Returns this socket's {@code SocketOptions#TCP_NODELAY} setting.
      */
     public boolean getTcpNoDelay() throws SocketException {
         checkOpenAndCreate(true);
@@ -538,13 +444,7 @@ public class Socket {
     }
 
     /**
-     * Sets the state of the {@code SocketOptions.SO_KEEPALIVE} for this socket.
-     *
-     * @param keepAlive
-     *            the state whether this option is enabled or not.
-     * @throws SocketException
-     *             if an error occurs while setting the option.
-     * @see SocketOptions#SO_KEEPALIVE
+     * Sets this socket's {@link SocketOptions#SO_KEEPALIVE} option.
      */
     public void setKeepAlive(boolean keepAlive) throws SocketException {
         if (impl != null) {
@@ -564,10 +464,6 @@ public class Socket {
      */
     public static synchronized void setSocketImplFactory(SocketImplFactory fac)
             throws IOException {
-        SecurityManager security = System.getSecurityManager();
-        if (security != null) {
-            security.checkSetFactory();
-        }
         if (factory != null) {
             throw new SocketException("Factory already set");
         }
@@ -575,15 +471,7 @@ public class Socket {
     }
 
     /**
-     * Sets the send buffer size of this socket.
-     *
-     * @param size
-     *            the buffer size in bytes. This value must be a positive number
-     *            greater than {@code 0}.
-     * @throws SocketException
-     *             if an error occurs while setting the size or the given value
-     *             is an invalid size.
-     * @see SocketOptions#SO_SNDBUF
+     * Sets this socket's {@link SocketOptions#SO_SNDBUF send buffer size}.
      */
     public synchronized void setSendBufferSize(int size) throws SocketException {
         checkOpenAndCreate(true);
@@ -594,15 +482,7 @@ public class Socket {
     }
 
     /**
-     * Sets the receive buffer size of this socket.
-     *
-     * @param size
-     *            the buffer size in bytes. This value must be a positive number
-     *            greater than {@code 0}.
-     * @throws SocketException
-     *             if an error occurs while setting the size or the given value
-     *             is an invalid size.
-     * @see SocketOptions#SO_RCVBUF
+     * Sets this socket's {@link SocketOptions#SO_RCVBUF receive buffer size}.
      */
     public synchronized void setReceiveBufferSize(int size) throws SocketException {
         checkOpenAndCreate(true);
@@ -613,15 +493,8 @@ public class Socket {
     }
 
     /**
-     * Sets the {@link SocketOptions#SO_LINGER} timeout in seconds.
-     *
-     * @param on
-     *            the state whether this option is enabled or not.
-     * @param timeout
-     *            the linger timeout value in seconds.
-     * @throws SocketException
-     *             if an error occurs while setting the option.
-     * @see SocketOptions#SO_LINGER
+     * Sets this socket's {@link SocketOptions#SO_LINGER linger} timeout in seconds.
+     * If {@code on} is false, {@code timeout} is irrelevant.
      */
     public void setSoLinger(boolean on, int timeout) throws SocketException {
         checkOpenAndCreate(true);
@@ -637,15 +510,9 @@ public class Socket {
     }
 
     /**
-     * Sets the {@link SocketOptions#SO_TIMEOUT read timeout} in milliseconds for this socket.
-     * This receive timeout defines the period the socket will block waiting to
-     * receive data before throwing an {@code InterruptedIOException}. The value
-     * {@code 0} (default) is used to set an infinite timeout. To have effect
-     * this option must be set before the blocking method was called.
-     *
-     * @param timeout the timeout in milliseconds or 0 for no timeout.
-     * @throws SocketException
-     *             if an error occurs while setting the option.
+     * Sets this socket's {@link SocketOptions#SO_TIMEOUT read timeout} in milliseconds.
+     * Use 0 for no timeout.
+     * To take effect, this option must be set before the blocking method was called.
      */
     public synchronized void setSoTimeout(int timeout) throws SocketException {
         checkOpenAndCreate(true);
@@ -656,13 +523,7 @@ public class Socket {
     }
 
     /**
-     * Sets the state of the {@code SocketOptions.TCP_NODELAY} for this socket.
-     *
-     * @param on
-     *            the state whether this option is enabled or not.
-     * @throws SocketException
-     *             if an error occurs while setting the option.
-     * @see SocketOptions#TCP_NODELAY
+     * Sets this socket's {@link SocketOptions#TCP_NODELAY} option.
      */
     public void setTcpNoDelay(boolean on) throws SocketException {
         checkOpenAndCreate(true);
@@ -810,11 +671,9 @@ public class Socket {
     }
 
     /**
-     * Gets the local address and port of this socket as a SocketAddress or
-     * {@code null} if the socket is unbound. This is useful on multihomed
+     * Returns the local address and port of this socket as a SocketAddress or
+     * null if the socket is unbound. This is useful on multihomed
      * hosts.
-     *
-     * @return the bound local socket address and port.
      */
     public SocketAddress getLocalSocketAddress() {
         if (!isBound()) {
@@ -824,8 +683,8 @@ public class Socket {
     }
 
     /**
-     * Gets the remote address and port of this socket as a {@code
-     * SocketAddress} or {@code null} if the socket is not connected.
+     * Returns the remote address and port of this socket as a {@code
+     * SocketAddress} or null if the socket is not connected.
      *
      * @return the remote socket address and port.
      */
@@ -893,7 +752,7 @@ public class Socket {
             }
             InetSocketAddress inetAddr = (InetSocketAddress) localAddr;
             if ((addr = inetAddr.getAddress()) == null) {
-                throw new SocketException("Host is unresolved: " + inetAddr.getHostName());
+                throw new UnknownHostException("Host is unresolved: " + inetAddr.getHostName());
             }
             port = inetAddr.getPort();
         }
@@ -963,7 +822,7 @@ public class Socket {
         InetSocketAddress inetAddr = (InetSocketAddress) remoteAddr;
         InetAddress addr;
         if ((addr = inetAddr.getAddress()) == null) {
-            throw new SocketException("Host is unresolved: " + inetAddr.getHostName());
+            throw new UnknownHostException("Host is unresolved: " + inetAddr.getHostName());
         }
         int port = inetAddr.getPort();
 
@@ -1013,13 +872,7 @@ public class Socket {
     }
 
     /**
-     * Sets the state of the {@code SocketOptions.SO_REUSEADDR} for this socket.
-     *
-     * @param reuse
-     *            the state whether this option is enabled or not.
-     * @throws SocketException
-     *             if an error occurs while setting the option.
-     * @see SocketOptions#SO_REUSEADDR
+     * Sets this socket's {@link SocketOptions#SO_REUSEADDR} option.
      */
     public void setReuseAddress(boolean reuse) throws SocketException {
         checkOpenAndCreate(true);
@@ -1027,13 +880,7 @@ public class Socket {
     }
 
     /**
-     * Gets the setting of the socket option {@code SocketOptions.SO_REUSEADDR}.
-     *
-     * @return {@code true} if the {@code SocketOptions.SO_REUSEADDR} is
-     *         enabled, {@code false} otherwise.
-     * @throws SocketException
-     *             if an error occurs while reading the socket option.
-     * @see SocketOptions#SO_REUSEADDR
+     * Returns this socket's {@link SocketOptions#SO_REUSEADDR} setting.
      */
     public boolean getReuseAddress() throws SocketException {
         checkOpenAndCreate(true);
@@ -1041,15 +888,7 @@ public class Socket {
     }
 
     /**
-     * Sets the state of the {@code SocketOptions.SO_OOBINLINE} for this socket.
-     * When this option is enabled urgent data can be received in-line with
-     * normal data.
-     *
-     * @param oobinline
-     *            whether this option is enabled or not.
-     * @throws SocketException
-     *             if an error occurs while setting the option.
-     * @see SocketOptions#SO_OOBINLINE
+     * Sets this socket's {@link SocketOptions#SO_OOBINLINE} option.
      */
     public void setOOBInline(boolean oobinline) throws SocketException {
         checkOpenAndCreate(true);
@@ -1057,13 +896,7 @@ public class Socket {
     }
 
     /**
-     * Gets the setting of the socket option {@code SocketOptions.SO_OOBINLINE}.
-     *
-     * @return {@code true} if the {@code SocketOptions.SO_OOBINLINE} is
-     *         enabled, {@code false} otherwise.
-     * @throws SocketException
-     *             if an error occurs while reading the socket option.
-     * @see SocketOptions#SO_OOBINLINE
+     * Returns this socket's {@link SocketOptions#SO_OOBINLINE} setting.
      */
     public boolean getOOBInline() throws SocketException {
         checkOpenAndCreate(true);
@@ -1071,24 +904,18 @@ public class Socket {
     }
 
     /**
-     * Sets the {@see SocketOptions#IP_TOS} value for every packet sent by this socket.
-     *
-     * @throws SocketException
-     *             if the socket is closed or the option could not be set.
+     * Sets this socket's {@link SocketOptions#IP_TOS} value for every packet sent by this socket.
      */
     public void setTrafficClass(int value) throws SocketException {
         checkOpenAndCreate(true);
         if (value < 0 || value > 255) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("Value doesn't fit in an unsigned byte: " + value);
         }
         impl.setOption(SocketOptions.IP_TOS, Integer.valueOf(value));
     }
 
     /**
      * Returns this socket's {@see SocketOptions#IP_TOS} setting.
-     *
-     * @throws SocketException
-     *             if the socket is closed or the option is invalid.
      */
     public int getTrafficClass() throws SocketException {
         checkOpenAndCreate(true);
@@ -1114,29 +941,38 @@ public class Socket {
      *
      * @see ServerSocket#implAccept
      */
-    void accepted() {
+    void accepted() throws SocketException {
         isCreated = isBound = isConnected = true;
         cacheLocalAddress();
     }
 
-    private void cacheLocalAddress() {
-        this.localAddress = Platform.getNetworkSystem().getSocketLocalAddress(impl.fd);
+    private void cacheLocalAddress() throws SocketException {
+        this.localAddress = IoBridge.getSocketLocalAddress(impl.fd);
     }
 
     /**
-     * Gets the SocketChannel of this socket, if one is available. The current
-     * implementation of this method returns always {@code null}.
-     *
-     * @return the related SocketChannel or {@code null} if no channel exists.
+     * Returns this socket's {@code SocketChannel}, if one exists. A channel is
+     * available only if this socket wraps a channel. (That is, you can go from a
+     * channel to a socket and back again, but you can't go from an arbitrary socket to a channel.)
+     * In practice, this means that the socket must have been created by
+     * {@link java.nio.channels.ServerSocketChannel#accept} or
+     * {@link java.nio.channels.SocketChannel#open}.
      */
     public SocketChannel getChannel() {
         return null;
     }
 
     /**
+     * @hide internal use only
+     */
+    public FileDescriptor getFileDescriptor$() {
+        return impl.fd;
+    }
+
+    /**
      * Sets performance preferences for connectionTime, latency and bandwidth.
-     * <p>
-     * This method does currently nothing.
+     *
+     * <p>This method does currently nothing.
      *
      * @param connectionTime
      *            the value representing the importance of a short connecting

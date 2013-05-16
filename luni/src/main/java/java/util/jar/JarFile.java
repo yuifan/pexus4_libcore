@@ -26,8 +26,7 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import org.apache.harmony.archive.util.Util;
-import org.apache.harmony.luni.util.InputStreamHelper;
+import libcore.io.Streams;
 
 /**
  * {@code JarFile} is used to read jar entries and their associated data from
@@ -136,19 +135,8 @@ public class JarFile extends ZipFile {
         }
 
         @Override
-        public long skip(long nbytes) throws IOException {
-            long cnt = 0, rem = 0;
-            byte[] buf = new byte[(int)Math.min(nbytes, 2048L)];
-            while (cnt < nbytes) {
-                int x = read(buf, 0,
-                        (rem = nbytes - cnt) > buf.length ? buf.length
-                                : (int) rem);
-                if (x == -1) {
-                    return cnt;
-                }
-                cnt += x;
-            }
-            return cnt;
+        public long skip(long byteCount) throws IOException {
+            return Streams.skipByReading(this, byteCount);
         }
     }
 
@@ -301,8 +289,7 @@ public class JarFile extends ZipFile {
         try {
             InputStream is = super.getInputStream(manifestEntry);
             if (verifier != null) {
-                verifier.addMetaEntry(manifestEntry.getName(),
-                        InputStreamHelper.readFullyAndClose(is));
+                verifier.addMetaEntry(manifestEntry.getName(), Streams.readFully(is));
                 is = super.getInputStream(manifestEntry);
             }
             try {
@@ -339,8 +326,7 @@ public class JarFile extends ZipFile {
         for (ZipEntry entry : metaEntries) {
             String entryName = entry.getName();
             // Is this the entry for META-INF/MANIFEST.MF ?
-            if (manifestEntry == null
-                    && Util.asciiEqualsIgnoreCase(MANIFEST_NAME, entryName)) {
+            if (manifestEntry == null && entryName.equalsIgnoreCase(MANIFEST_NAME)) {
                 manifestEntry = entry;
                 // If there is no verifier then we don't need to look any further.
                 if (verifier == null) {
@@ -349,13 +335,13 @@ public class JarFile extends ZipFile {
             } else {
                 // Is this an entry that the verifier needs?
                 if (verifier != null
-                        && (Util.asciiEndsWithIgnoreCase(entryName, ".SF")
-                                || Util.asciiEndsWithIgnoreCase(entryName, ".DSA")
-                                || Util.asciiEndsWithIgnoreCase(entryName, ".RSA"))) {
+                        && (endsWithIgnoreCase(entryName, ".SF")
+                                || endsWithIgnoreCase(entryName, ".DSA")
+                                || endsWithIgnoreCase(entryName, ".RSA")
+                                || endsWithIgnoreCase(entryName, ".EC"))) {
                     signed = true;
                     InputStream is = super.getInputStream(entry);
-                    byte[] buf = InputStreamHelper.readFullyAndClose(is);
-                    verifier.addMetaEntry(entryName, buf);
+                    verifier.addMetaEntry(entryName, Streams.readFully(is));
                 }
             }
         }
@@ -364,6 +350,10 @@ public class JarFile extends ZipFile {
         if (!signed) {
             verifier = null;
         }
+    }
+
+    private static boolean endsWithIgnoreCase(String s, String suffix) {
+        return s.regionMatches(true, s.length() - suffix.length(), suffix, 0, suffix.length());
     }
 
     /**

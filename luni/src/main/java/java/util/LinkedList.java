@@ -67,7 +67,7 @@ public class LinkedList<E> extends AbstractSequentialList<E> implements
         LinkIterator(LinkedList<ET> object, int location) {
             list = object;
             expectedModCount = list.modCount;
-            if (0 <= location && location <= list.size) {
+            if (location >= 0 && location <= list.size) {
                 // pos ends up as -1 if list is empty, it ranges from -1 to
                 // list.size - 1
                 // if link == voidLink then pos must == -1
@@ -195,7 +195,6 @@ public class LinkedList<E> extends AbstractSequentialList<E> implements
         private boolean canRemove;
 
         ReverseLinkIterator(LinkedList<ET> linkedList) {
-            super();
             list = linkedList;
             expectedModCount = list.modCount;
             link = list.voidLink;
@@ -273,11 +272,11 @@ public class LinkedList<E> extends AbstractSequentialList<E> implements
      * @param object
      *            the object to add.
      * @throws IndexOutOfBoundsException
-     *             if {@code location < 0 || >= size()}
+     *             if {@code location < 0 || location > size()}
      */
     @Override
     public void add(int location, E object) {
-        if (0 <= location && location <= size) {
+        if (location >= 0 && location <= size) {
             Link<E> link = voidLink;
             if (location < (size / 2)) {
                 for (int i = 0; i <= location; i++) {
@@ -337,7 +336,7 @@ public class LinkedList<E> extends AbstractSequentialList<E> implements
      * @throws IllegalArgumentException
      *             if an object cannot be added to this list.
      * @throws IndexOutOfBoundsException
-     *             if {@code location < 0 || > size()}
+     *             if {@code location < 0 || location > size()}
      */
     @Override
     public boolean addAll(int location, Collection<? extends E> collection) {
@@ -469,7 +468,7 @@ public class LinkedList<E> extends AbstractSequentialList<E> implements
             l.addAll(this);
             return l;
         } catch (CloneNotSupportedException e) {
-            throw new AssertionError(e); // android-changed
+            throw new AssertionError(e);
         }
     }
 
@@ -504,7 +503,7 @@ public class LinkedList<E> extends AbstractSequentialList<E> implements
 
     @Override
     public E get(int location) {
-        if (0 <= location && location < size) {
+        if (location >= 0 && location < size) {
             Link<E> link = voidLink;
             if (location < (size / 2)) {
                 for (int i = 0; i <= location; i++) {
@@ -620,7 +619,7 @@ public class LinkedList<E> extends AbstractSequentialList<E> implements
      *            the index at which to start the iteration
      * @return a ListIterator on the elements of this {@code LinkedList}
      * @throws IndexOutOfBoundsException
-     *             if {@code location < 0 || >= size()}
+     *             if {@code location < 0 || location > size()}
      * @see ListIterator
      */
     @Override
@@ -635,11 +634,11 @@ public class LinkedList<E> extends AbstractSequentialList<E> implements
      *            the index of the object to remove
      * @return the removed object
      * @throws IndexOutOfBoundsException
-     *             if {@code location < 0 || >= size()}
+     *             if {@code location < 0 || location >= size()}
      */
     @Override
     public E remove(int location) {
-        if (0 <= location && location < size) {
+        if (location >= 0 && location < size) {
             Link<E> link = voidLink;
             if (location < (size / 2)) {
                 for (int i = 0; i <= location; i++) {
@@ -856,11 +855,11 @@ public class LinkedList<E> extends AbstractSequentialList<E> implements
      * @throws IllegalArgumentException
      *             if an object cannot be added to this list.
      * @throws IndexOutOfBoundsException
-     *             if {@code location < 0 || >= size()}
+     *             if {@code location < 0 || location >= size()}
      */
     @Override
     public E set(int location, E object) {
-        if (0 <= location && location < size) {
+        if (location >= 0 && location < size) {
             Link<E> link = voidLink;
             if (location < (size / 2)) {
                 for (int i = 0; i <= location; i++) {

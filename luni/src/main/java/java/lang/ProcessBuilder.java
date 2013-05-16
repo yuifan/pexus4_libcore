@@ -19,23 +19,20 @@ package java.lang;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Creates operating system processes.
- *
- * @since 1.5
+ * Creates operating system processes. See {@link Process} for documentation and
+ * example usage.
  */
 public final class ProcessBuilder {
 
     private List<String> command;
-
     private File directory;
-
     private Map<String, String> environment;
-
     private boolean redirectErrorStream;
 
     /**
@@ -46,7 +43,7 @@ public final class ProcessBuilder {
      *            the requested operating system program and its arguments.
      */
     public ProcessBuilder(String... command) {
-        this(toList(command));
+        this(new ArrayList<String>(Arrays.asList(command)));
     }
 
     /**
@@ -61,9 +58,8 @@ public final class ProcessBuilder {
      *             if {@code command} is {@code null}.
      */
     public ProcessBuilder(List<String> command) {
-        super();
         if (command == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("command == null");
         }
         this.command = command;
 
@@ -90,7 +86,7 @@ public final class ProcessBuilder {
      * @return this process builder instance.
      */
     public ProcessBuilder command(String... command) {
-        return command(toList(command));
+        return command(new ArrayList<String>(Arrays.asList(command)));
     }
 
     /**
@@ -106,7 +102,7 @@ public final class ProcessBuilder {
      */
     public ProcessBuilder command(List<String> command) {
         if (command == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("command == null");
         }
         this.command = command;
         return this;
@@ -185,14 +181,11 @@ public final class ProcessBuilder {
      *             if any of the elements of {@link #command()} is {@code null}.
      * @throws IndexOutOfBoundsException
      *             if {@link #command()} is empty.
-     * @throws SecurityException
-     *             if {@link SecurityManager#checkExec(String)} doesn't allow
-     *             process creation.
      * @throws IOException
      *             if an I/O error happens.
      */
     public Process start() throws IOException {
-        // BEGIN android-changed: push responsibility for argument checking into ProcessManager
+        // We push responsibility for argument checking into ProcessManager.
         String[] cmdArray = command.toArray(new String[command.size()]);
         String[] envArray = new String[environment.size()];
         int i = 0;
@@ -200,14 +193,5 @@ public final class ProcessBuilder {
             envArray[i++] = entry.getKey() + "=" + entry.getValue();
         }
         return ProcessManager.getInstance().exec(cmdArray, envArray, directory, redirectErrorStream);
-        // END android-changed
-    }
-
-    private static List<String> toList(String[] strings) {
-        ArrayList<String> arrayList = new ArrayList<String>(strings.length);
-        for (String string : strings) {
-            arrayList.add(string);
-        }
-        return arrayList;
     }
 }

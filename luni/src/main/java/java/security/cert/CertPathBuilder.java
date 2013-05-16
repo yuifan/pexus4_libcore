@@ -17,7 +17,6 @@
 
 package java.security.cert;
 
-import java.security.AccessController;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
@@ -35,20 +34,19 @@ public class CertPathBuilder {
     private static final String SERVICE = "CertPathBuilder";
 
     // Used to access common engine functionality
-    private static Engine engine = new Engine(SERVICE);
+    private static final Engine ENGINE = new Engine(SERVICE);
 
     // Store default property name
-    private static final String PROPERTYNAME = "certpathbuilder.type";
+    private static final String PROPERTY_NAME = "certpathbuilder.type";
 
-    // Default value of CertPathBuilder type. It returns if certpathbuild.type
-    // property is not defined in java.security file
-    private static final String DEFAULTPROPERTY = "PKIX";
+    // Default value of CertPathBuilder type.
+    private static final String DEFAULT_PROPERTY = "PKIX";
 
     // Store used provider
     private final Provider provider;
 
     // Store spi implementation
-    private CertPathBuilderSpi spiImpl;
+    private final CertPathBuilderSpi spiImpl;
 
     // Store algorithm name
     private final String algorithm;
@@ -103,13 +101,10 @@ public class CertPathBuilder {
     public static CertPathBuilder getInstance(String algorithm)
             throws NoSuchAlgorithmException {
         if (algorithm == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("algorithm == null");
         }
-        synchronized (engine) {
-            engine.getInstance(algorithm, null);
-            return new CertPathBuilder((CertPathBuilderSpi) engine.spi,
-                    engine.provider, algorithm);
-        }
+        Engine.SpiAndProvider sap = ENGINE.getInstance(algorithm, null);
+        return new CertPathBuilder((CertPathBuilderSpi) sap.spi, sap.provider, algorithm);
     }
 
     /**
@@ -132,7 +127,7 @@ public class CertPathBuilder {
     public static CertPathBuilder getInstance(String algorithm, String provider)
             throws NoSuchAlgorithmException, NoSuchProviderException {
         if (provider == null || provider.isEmpty()) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("provider == null || provider.isEmpty()");
         }
         Provider impProvider = Security.getProvider(provider);
         if (impProvider == null) {
@@ -160,16 +155,13 @@ public class CertPathBuilder {
     public static CertPathBuilder getInstance(String algorithm,
             Provider provider) throws NoSuchAlgorithmException {
         if (provider == null) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("provider == null");
         }
         if (algorithm == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("algorithm == null");
         }
-        synchronized (engine) {
-            engine.getInstance(algorithm, provider, null);
-            return new CertPathBuilder((CertPathBuilderSpi) engine.spi, provider,
-                    algorithm);
-        }
+        Object spi = ENGINE.getInstance(algorithm, provider, null);
+        return new CertPathBuilder((CertPathBuilderSpi) spi, provider, algorithm);
     }
 
     /**
@@ -199,12 +191,7 @@ public class CertPathBuilder {
      *         determined.
      */
     public static final String getDefaultType() {
-        String defaultType = AccessController
-                .doPrivileged(new java.security.PrivilegedAction<String>() {
-                    public String run() {
-                        return Security.getProperty(PROPERTYNAME);
-                    }
-                });
-        return (defaultType != null ? defaultType : DEFAULTPROPERTY);
+        String defaultType = Security.getProperty(PROPERTY_NAME);
+        return (defaultType != null ? defaultType : DEFAULT_PROPERTY);
     }
 }

@@ -1,6 +1,23 @@
+/* Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package libcore.java.net;
 
 import java.io.IOException;
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.Proxy;
@@ -38,11 +55,11 @@ public class OldURLStreamHandlerTest extends TestCase {
         URL url1 = new URL("ftp://test_url/test?a=b&c=%D0+%D1");
         assertNull(handler.getHostAddress(url1));
 
-        URL url2 = new URL("http://test:pwd@host/test?a=b&c=%D0+%D1");
-        assertNull("testHost", handler.getHostAddress(url2));handler.getHostAddress(url2);
+        URL url2 = new URL("http://test:pwd@fakehostname.fakedomain/test?a=b&c=%D0+%D1");
+        assertNull(handler.getHostAddress(url2));
 
         URL url3 = new URL("http://localhost/test");
-        assertEquals(InetAddress.getLocalHost(), handler.getHostAddress(url3));
+        assertEquals(InetAddress.getByName("localhost"), handler.getHostAddress(url3));
     }
 
     public void test_hashCodeLjava_net_URL() throws MalformedURLException {
@@ -60,9 +77,9 @@ public class OldURLStreamHandlerTest extends TestCase {
         }
     }
 
-    public void test_hostsEqualLjava_net_URLLjava_net_URL() throws MalformedURLException {
+    public void test_hostsEqualLjava_net_URLLjava_net_URL() throws Exception {
         URL url1 = new URL("ftp://localhost:21/*test");
-        URL url2 = new URL("http://127.0.0.1/_test");
+        URL url2 = new URL("http://localhost/_test");
         assertTrue(handler.hostsEqual(url1, url2));
 
         URL url3 = new URL("http://foo/_test_goo");
@@ -98,12 +115,12 @@ public class OldURLStreamHandlerTest extends TestCase {
         }
     }
 
-    public void test_sameFile() throws MalformedURLException {
+    public void test_sameFile() throws Exception {
         URL url1  = new URL("http://test:pwd@localhost:80/foo/foo1.c");
-        URL url2  = new URL("http://test:pwd@127.0.01:80/foo/foo1.c");
-        URL url3  = new URL("http://test:pwd@127.0.01:80/foo/foo2.c");
-        URL url4  = new URL("ftp://test:pwd@127.0.01:21/foo/foo2.c");
-        URL url5  = new URL("ftp://test:pwd@127.0.01:21/foo/foo1/foo2.c");
+        URL url2  = new URL("http://test:pwd@localhost:80/foo/foo1.c");
+        URL url3  = new URL("http://test:pwd@localhost:80/foo/foo2.c");
+        URL url4  = new URL("ftp://test:pwd@localhost:21/foo/foo2.c");
+        URL url5  = new URL("ftp://test:pwd@localhost:21/foo/foo1/foo2.c");
         URL url6  = new URL("http://test/foo/foo1.c");
 
         assertTrue("Test case 1", handler.sameFile(url1, url2));
@@ -156,44 +173,43 @@ public class OldURLStreamHandlerTest extends TestCase {
 
     class MockURLStreamHandler extends URLStreamHandler {
 
-        @Override
-        protected URLConnection openConnection(URL arg0) throws IOException {
+        @Override protected URLConnection openConnection(URL arg0) throws IOException {
             return null;
         }
 
-        public boolean equals(URL u1, URL u2) {
-            return super.equals(u1, u2);
+        @Override public boolean equals(URL a, URL b) {
+            return super.equals(a, b);
         }
 
-        public int getDefaultPort() {
+        @Override public int getDefaultPort() {
             return super.getDefaultPort();
         }
 
-        public InetAddress getHostAddress(URL u) {
+        @Override public InetAddress getHostAddress(URL u) {
             return super.getHostAddress(u);
         }
 
-        public int hashCode(URL u) {
+        @Override public int hashCode(URL u) {
             return super.hashCode(u);
         }
 
-        public boolean hostsEqual(URL u1, URL u2) {
-            return super.hostsEqual(u1, u2);
+        @Override public boolean hostsEqual(URL a, URL b) {
+            return super.hostsEqual(a, b);
         }
 
-        public URLConnection openConnection(URL u, Proxy p) throws IOException {
+        @Override public URLConnection openConnection(URL u, Proxy p) throws IOException {
             return super.openConnection(u, p);
         }
 
-        public void parseURL(URL u, String spec, int start, int limit) {
-            super.parseURL(u, spec, start, limit);
+        @Override public void parseURL(URL url, String spec, int start, int limit) {
+            super.parseURL(url, spec, start, limit);
         }
 
-        public boolean sameFile(URL u1, URL u2) {
-            return super.sameFile(u1, u2);
+        @Override public boolean sameFile(URL a, URL b) {
+            return super.sameFile(a, b);
         }
 
-        public void setURL(URL u,
+        @Override public void setURL(URL u,
                 String protocol,
                 String host,
                 int port,
@@ -202,7 +218,7 @@ public class OldURLStreamHandlerTest extends TestCase {
             super.setURL(u, protocol, host, port, file, ref);
         }
 
-        public void setURL(URL u,
+        @Override public void setURL(URL u,
                 String protocol,
                 String host,
                 int port,
@@ -215,7 +231,7 @@ public class OldURLStreamHandlerTest extends TestCase {
                     userInfo, path, query, ref);
         }
 
-        public String toExternalForm(URL u) {
+        @Override public String toExternalForm(URL u) {
             return super.toExternalForm(u);
         }
     }

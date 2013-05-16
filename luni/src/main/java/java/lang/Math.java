@@ -53,16 +53,8 @@ public final class Math {
      * <li>{@code abs(-infinity) = +infinity}</li>
      * <li>{@code abs(NaN) = NaN}</li>
      * </ul>
-     *
-     * @param d
-     *            the value whose absolute value has to be computed.
-     * @return the absolute value of the argument.
      */
-    public static double abs(double d) {
-        long bits = Double.doubleToLongBits(d);
-        bits &= 0x7fffffffffffffffL;
-        return Double.longBitsToDouble(bits);
-    }
+    public static native double abs(double d);
 
     /**
      * Returns the absolute value of the argument.
@@ -74,45 +66,22 @@ public final class Math {
      * <li>{@code abs(-infinity) = +infinity}</li>
      * <li>{@code abs(NaN) = NaN}</li>
      * </ul>
-     *
-     * @param f
-     *            the value whose absolute value has to be computed.
-     * @return the argument if it is positive, otherwise the negation of the
-     *         argument.
      */
-    public static float abs(float f) {
-        int bits = Float.floatToIntBits(f);
-        bits &= 0x7fffffff;
-        return Float.intBitsToFloat(bits);
-    }
+    public static native float abs(float f);
 
     /**
      * Returns the absolute value of the argument.
      * <p>
      * If the argument is {@code Integer.MIN_VALUE}, {@code Integer.MIN_VALUE}
      * is returned.
-     *
-     * @param i
-     *            the value whose absolute value has to be computed.
-     * @return the argument if it is positive, otherwise the negation of the
-     *         argument.
      */
-    public static int abs(int i) {
-        return i >= 0 ? i : -i;
-    }
+    public static native int abs(int i);
 
     /**
      * Returns the absolute value of the argument. If the argument is {@code
      * Long.MIN_VALUE}, {@code Long.MIN_VALUE} is returned.
-     *
-     * @param l
-     *            the value whose absolute value has to be computed.
-     * @return the argument if it is positive, otherwise the negation of the
-     *         argument.
      */
-    public static long abs(long l) {
-        return l >= 0 ? l : -l;
-    }
+    public static native long abs(long l);
 
     /**
      * Returns the closest double approximation of the arc cosine of the
@@ -231,7 +200,7 @@ public final class Math {
 
     /**
      * Returns the double conversion of the most negative (closest to negative
-     * infinity) integer value which is greater than the argument.
+     * infinity) integer value greater than or equal to the argument.
      * <p>
      * Special cases:
      * <ul>
@@ -242,10 +211,6 @@ public final class Math {
      * <li>{@code ceil(-infinity) = -infinity}</li>
      * <li>{@code ceil(NaN) = NaN}</li>
      * </ul>
-     *
-     * @param d
-     *            the value whose closest integer value has to be computed.
-     * @return the ceiling of the argument.
      */
     public static native double ceil(double d);
 
@@ -332,7 +297,7 @@ public final class Math {
 
     /**
      * Returns the double conversion of the most positive (closest to positive
-     * infinity) integer value which is less than the argument.
+     * infinity) integer value less than or equal to the argument.
      * <p>
      * Special cases:
      * <ul>
@@ -342,10 +307,6 @@ public final class Math {
      * <li>{@code floor(-infinity) = -infinity}</li>
      * <li>{@code floor(NaN) = NaN}</li>
      * </ul>
-     *
-     * @param d
-     *            the value whose closest integer value has to be computed.
-     * @return the floor of the argument.
      */
     public static native double floor(double d);
 
@@ -479,12 +440,6 @@ public final class Math {
      * <li>{@code max(+0.0, -0.0) = +0.0}</li>
      * <li>{@code max(-0.0, +0.0) = +0.0}</li>
      * </ul>
-     *
-     * @param d1
-     *            the first argument.
-     * @param d2
-     *            the second argument.
-     * @return the larger of {@code d1} and {@code d2}.
      */
     public static double max(double d1, double d2) {
         if (d1 > d2) {
@@ -516,12 +471,6 @@ public final class Math {
      * <li>{@code max(+0.0, -0.0) = +0.0}</li>
      * <li>{@code max(-0.0, +0.0) = +0.0}</li>
      * </ul>
-     *
-     * @param f1
-     *            the first argument.
-     * @param f2
-     *            the second argument.
-     * @return the larger of {@code f1} and {@code f2}.
      */
     public static float max(float f1, float f2) {
         if (f1 > f2) {
@@ -545,26 +494,12 @@ public final class Math {
     /**
      * Returns the most positive (closest to positive infinity) of the two
      * arguments.
-     *
-     * @param i1
-     *            the first argument.
-     * @param i2
-     *            the second argument.
-     * @return the larger of {@code i1} and {@code i2}.
      */
-    public static int max(int i1, int i2) {
-        return i1 > i2 ? i1 : i2;
-    }
+    public static native int max(int i1, int i2);
 
     /**
      * Returns the most positive (closest to positive infinity) of the two
      * arguments.
-     *
-     * @param l1
-     *            the first argument.
-     * @param l2
-     *            the second argument.
-     * @return the larger of {@code l1} and {@code l2}.
      */
     public static long max(long l1, long l2) {
         return l1 > l2 ? l1 : l2;
@@ -581,12 +516,6 @@ public final class Math {
      * <li>{@code min(+0.0, -0.0) = -0.0}</li>
      * <li>{@code min(-0.0, +0.0) = -0.0}</li>
      * </ul>
-     *
-     * @param d1
-     *            the first argument.
-     * @param d2
-     *            the second argument.
-     * @return the smaller of {@code d1} and {@code d2}.
      */
     public static double min(double d1, double d2) {
         if (d1 > d2) {
@@ -618,12 +547,6 @@ public final class Math {
      * <li>{@code min(+0.0, -0.0) = -0.0}</li>
      * <li>{@code min(-0.0, +0.0) = -0.0}</li>
      * </ul>
-     *
-     * @param f1
-     *            the first argument.
-     * @param f2
-     *            the second argument.
-     * @return the smaller of {@code f1} and {@code f2}.
      */
     public static float min(float f1, float f2) {
         if (f1 > f2) {
@@ -647,26 +570,12 @@ public final class Math {
     /**
      * Returns the most negative (closest to negative infinity) of the two
      * arguments.
-     *
-     * @param i1
-     *            the first argument.
-     * @param i2
-     *            the second argument.
-     * @return the smaller of {@code i1} and {@code i2}.
      */
-    public static int min(int i1, int i2) {
-        return i1 < i2 ? i1 : i2;
-    }
+    public static native int min(int i1, int i2);
 
     /**
      * Returns the most negative (closest to negative infinity) of the two
      * arguments.
-     *
-     * @param l1
-     *            the first argument.
-     * @param l2
-     *            the second argument.
-     * @return the smaller of {@code l1} and {@code l2}.
      */
     public static long min(long l1, long l2) {
         return l1 < l2 ? l1 : l2;
@@ -767,8 +676,8 @@ public final class Math {
      * <li>{@code round(-0.0) = +0.0}</li>
      * <li>{@code round((anything > Integer.MAX_VALUE) = Integer.MAX_VALUE}</li>
      * <li>{@code round((anything < Integer.MIN_VALUE) = Integer.MIN_VALUE}</li>
-     * <li>{@code round(+infintiy) = Integer.MAX_VALUE}</li>
-     * <li>{@code round(-infintiy) = Integer.MIN_VALUE}</li>
+     * <li>{@code round(+infinity) = Integer.MAX_VALUE}</li>
+     * <li>{@code round(-infinity) = Integer.MIN_VALUE}</li>
      * <li>{@code round(NaN) = +0.0}</li>
      * </ul>
      *
@@ -900,10 +809,6 @@ public final class Math {
      * <li>{@code sqrt(+infinity) = +infinity}</li>
      * <li>{@code sqrt(NaN) = NaN}</li>
      * </ul>
-     *
-     * @param d
-     *            the value whose square root has to be computed.
-     * @return the square root of the argument.
      */
     public static native double sqrt(double d);
 
@@ -1017,8 +922,8 @@ public final class Math {
      * <ul>
      * <li>{@code ulp(+0.0) = Double.MIN_VALUE}</li>
      * <li>{@code ulp(-0.0) = Double.MIN_VALUE}</li>
-     * <li>{@code ulp(+infintiy) = infinity}</li>
-     * <li>{@code ulp(-infintiy) = infinity}</li>
+     * <li>{@code ulp(+infinity) = infinity}</li>
+     * <li>{@code ulp(-infinity) = infinity}</li>
      * <li>{@code ulp(NaN) = NaN}</li>
      * </ul>
      *
@@ -1037,6 +942,8 @@ public final class Math {
         return nextafter(d, Double.MAX_VALUE) - d;
     }
 
+    private static native double nextafter(double x, double y);
+
     /**
      * Returns the argument's ulp (unit in the last place). The size of a ulp of
      * a float value is the positive distance between this value and the float
@@ -1047,8 +954,8 @@ public final class Math {
      * <ul>
      * <li>{@code ulp(+0.0) = Float.MIN_VALUE}</li>
      * <li>{@code ulp(-0.0) = Float.MIN_VALUE}</li>
-     * <li>{@code ulp(+infintiy) = infinity}</li>
-     * <li>{@code ulp(-infintiy) = infinity}</li>
+     * <li>{@code ulp(+infinity) = infinity}</li>
+     * <li>{@code ulp(-infinity) = infinity}</li>
      * <li>{@code ulp(NaN) = NaN}</li>
      * </ul>
      *
@@ -1065,13 +972,20 @@ public final class Math {
         } else if (f == Float.MAX_VALUE || f == -Float.MAX_VALUE) {
             return (float) pow(2, 104);
         }
-        f = abs(f);
-        return nextafterf(f, Float.MAX_VALUE) - f;
+
+        f = Math.abs(f);
+        int hx = Float.floatToRawIntBits(f);
+        int hy = Float.floatToRawIntBits(Float.MAX_VALUE);
+        if ((hx & 0x7fffffff) == 0) { /* f == 0 */
+            return Float.intBitsToFloat((hy & 0x80000000) | 0x1);
+        }
+        if ((hx > 0) ^ (hx > hy)) { /* |f| < |Float.MAX_VALUE| */
+            hx += 1;
+        } else {
+            hx -= 1;
+        }
+        return Float.intBitsToFloat(hx) - f;
     }
-
-    private native static double nextafter(double x, double y);
-
-    private native static float nextafterf(float x, float y);
 
     /**
      * Returns a double with the given magnitude and the sign of {@code sign}.
@@ -1100,7 +1014,7 @@ public final class Math {
     }
 
     /**
-     * Returns the exponent of float {@code f}.
+     * Returns the unbiased base-2 exponent of float {@code f}.
      * @since 1.6
      */
     public static int getExponent(float f) {
@@ -1110,7 +1024,7 @@ public final class Math {
     }
 
     /**
-     * Returns the exponent of double {@code d}.
+     * Returns the unbiased base-2 exponent of double {@code d}.
      * @since 1.6
      */
     public static int getExponent(double d) {
@@ -1281,7 +1195,7 @@ public final class Math {
         int sign = bits & Float.SIGN_MASK;
         int factor = ((bits & Float.EXPONENT_MASK) >> Float.MANTISSA_BITS)
                 - Float.EXPONENT_BIAS + scaleFactor;
-        // calcutes the factor of sub-normal values
+        // calculates the factor of sub-normal values
         int subNormalFactor = Integer.numberOfLeadingZeros(bits & ~Float.SIGN_MASK)
                 - Float.NON_MANTISSA_BITS;
         if (subNormalFactor < 0) {
@@ -1327,17 +1241,17 @@ public final class Math {
             return bits << digits;
         }
         // change it to positive
-        int absdigits = -digits;
-        if (!(Integer.numberOfLeadingZeros(bits & ~Float.SIGN_MASK) <= (32 - absdigits))) {
+        int absDigits = -digits;
+        if (!(Integer.numberOfLeadingZeros(bits & ~Float.SIGN_MASK) <= (32 - absDigits))) {
             return 0;
         }
-        int ret = bits >> absdigits;
-        boolean halfbit = ((bits >> (absdigits - 1)) & 0x1) == 1;
-        if (halfbit) {
-            if (Integer.numberOfTrailingZeros(bits) < (absdigits - 1)) {
+        int ret = bits >> absDigits;
+        boolean halfBit = ((bits >> (absDigits - 1)) & 0x1) == 1;
+        if (halfBit) {
+            if (Integer.numberOfTrailingZeros(bits) < (absDigits - 1)) {
                 ret = ret + 1;
             }
-            if (Integer.numberOfTrailingZeros(bits) == (absdigits - 1)) {
+            if (Integer.numberOfTrailingZeros(bits) == (absDigits - 1)) {
                 if ((ret & 0x1) == 1) {
                     ret = ret + 1;
                 }
@@ -1353,19 +1267,19 @@ public final class Math {
             return bits << digits;
         }
         // change it to positive
-        long absdigits = -digits;
-        if (!(Long.numberOfLeadingZeros(bits & ~Double.SIGN_MASK) <= (64 - absdigits))) {
+        long absDigits = -digits;
+        if (!(Long.numberOfLeadingZeros(bits & ~Double.SIGN_MASK) <= (64 - absDigits))) {
             return 0;
         }
-        long ret = bits >> absdigits;
-        boolean halfbit = ((bits >> (absdigits - 1)) & 0x1) == 1;
-        if (halfbit) {
+        long ret = bits >> absDigits;
+        boolean halfBit = ((bits >> (absDigits - 1)) & 0x1) == 1;
+        if (halfBit) {
             // some bits will remain after shifting, calculates its carry
             // subnormal
-            if (Long.numberOfTrailingZeros(bits) < (absdigits - 1)) {
+            if (Long.numberOfTrailingZeros(bits) < (absDigits - 1)) {
                 ret = ret + 1;
             }
-            if (Long.numberOfTrailingZeros(bits) == (absdigits - 1)) {
+            if (Long.numberOfTrailingZeros(bits) == (absDigits - 1)) {
                 if ((ret & 0x1) == 1) {
                     ret = ret + 1;
                 }

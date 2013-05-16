@@ -32,6 +32,7 @@ import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
 import javax.security.auth.Destroyable;
 import javax.security.auth.callback.CallbackHandler;
+import libcore.io.IoUtils;
 import org.apache.harmony.security.fortress.Engine;
 
 /**
@@ -51,10 +52,10 @@ public class KeyStore {
     private static final String SERVICE = "KeyStore";
 
     // Used to access common engine functionality
-    private static Engine engine = new Engine(SERVICE);
+    private static final Engine ENGINE = new Engine(SERVICE);
 
     //  Store KeyStore property name
-    private static final String PROPERTYNAME = "keystore.type";
+    private static final String PROPERTY_NAME = "keystore.type";
 
     //  Store default KeyStore type
     private static final String DEFAULT_KEYSTORE_TYPE = "jks";
@@ -109,15 +110,13 @@ public class KeyStore {
      */
     public static KeyStore getInstance(String type) throws KeyStoreException {
         if (type == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("type == null");
         }
-        synchronized (engine) {
-            try {
-                engine.getInstance(type, null);
-                return new KeyStore((KeyStoreSpi) engine.spi, engine.provider, type);
-            } catch (NoSuchAlgorithmException e) {
-                throw new KeyStoreException(e.getMessage());
-            }
+        try {
+            Engine.SpiAndProvider sap = ENGINE.getInstance(type, null);
+            return new KeyStore((KeyStoreSpi) sap.spi, sap.provider, type);
+        } catch (NoSuchAlgorithmException e) {
+            throw new KeyStoreException(e);
         }
     }
 
@@ -154,7 +153,7 @@ public class KeyStore {
         try {
             return getInstance(type, impProvider);
         } catch (Exception e) {
-            throw new KeyStoreException(e.getMessage(), e);
+            throw new KeyStoreException(e);
         }
     }
 
@@ -177,44 +176,35 @@ public class KeyStore {
      *             NoSuchAlgorithmException) as in 1.4 release
      * @see #getDefaultType
      */
-    public static KeyStore getInstance(String type, Provider provider)
-            throws KeyStoreException {
+    public static KeyStore getInstance(String type, Provider provider) throws KeyStoreException {
         // check parameters
         if (provider == null) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("provider == null");
         }
         if (type == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("type == null");
         }
         // return KeyStore instance
-        synchronized (engine) {
-            try {
-                engine.getInstance(type, provider, null);
-                return new KeyStore((KeyStoreSpi) engine.spi, provider, type);
-            } catch (Exception e) {
+        try {
+            Object spi = ENGINE.getInstance(type, provider, null);
+            return new KeyStore((KeyStoreSpi) spi, provider, type);
+        } catch (Exception e) {
             // override exception
-                throw new KeyStoreException(e.getMessage());
-            }
+            throw new KeyStoreException(e);
         }
     }
 
     /**
      * Returns the default type for {@code KeyStore} instances.
-     * <p>
-     * The default is specified in the {@code 'keystore.type'} property in the
-     * file named {@code JAVA_HOME/lib/security/java.security}. If this property
+     *
+     * <p>The default is specified in the {@code 'keystore.type'} property in the
+     * file named {@code java.security} properties file. If this property
      * is not set, {@code "jks"} will be used.
      *
      * @return the default type for {@code KeyStore} instances
      */
     public static final String getDefaultType() {
-        String dt = AccessController.doPrivileged(
-                new PrivilegedAction<String>() {
-                    public String run() {
-                        return Security.getProperty(PROPERTYNAME);
-                    }
-                }
-            );
+        String dt = Security.getProperty(PROPERTY_NAME);
         return (dt == null ? DEFAULT_KEYSTORE_TYPE : dt);
     }
 
@@ -257,9 +247,7 @@ public class KeyStore {
             throws KeyStoreException, NoSuchAlgorithmException,
             UnrecoverableKeyException {
         if (!isInit) {
-            // BEGIN android-changed
             throwNotInitialized();
-            // END android-changed
         }
         return implSpi.engineGetKey(alias, password);
     }
@@ -274,12 +262,9 @@ public class KeyStore {
      * @throws KeyStoreException
      *             if this {@code KeyStore} is not initialized.
      */
-    public final Certificate[] getCertificateChain(String alias)
-            throws KeyStoreException {
+    public final Certificate[] getCertificateChain(String alias) throws KeyStoreException {
         if (!isInit) {
-            // BEGIN android-changed
             throwNotInitialized();
-            // END android-changed
         }
         return implSpi.engineGetCertificateChain(alias);
     }
@@ -294,12 +279,9 @@ public class KeyStore {
      * @throws KeyStoreException
      *             if this {@code KeyStore} is not initialized.
      */
-    public final Certificate getCertificate(String alias)
-            throws KeyStoreException {
+    public final Certificate getCertificate(String alias) throws KeyStoreException {
         if (!isInit) {
-            // BEGIN android-changed
             throwNotInitialized();
-            // END android-changed
         }
         return implSpi.engineGetCertificate(alias);
     }
@@ -316,9 +298,7 @@ public class KeyStore {
      */
     public final Date getCreationDate(String alias) throws KeyStoreException {
         if (!isInit) {
-            // BEGIN android-changed
             throwNotInitialized();
-            // END android-changed
         }
         return implSpi.engineGetCreationDate(alias);
     }
@@ -347,13 +327,11 @@ public class KeyStore {
     public final void setKeyEntry(String alias, Key key, char[] password,
             Certificate[] chain) throws KeyStoreException {
         if (!isInit) {
-            // BEGIN android-changed
             throwNotInitialized();
-            // END android-changed
         }
 
         // Certificate chain is required for PrivateKey
-        if (null != key && key instanceof PrivateKey && (chain == null || chain.length == 0)) {
+        if (key != null && key instanceof PrivateKey && (chain == null || chain.length == 0)) {
             throw new IllegalArgumentException("Certificate chain is not defined for Private key");
         }
         implSpi.engineSetKeyEntry(alias, key, password, chain);
@@ -386,9 +364,7 @@ public class KeyStore {
     public final void setKeyEntry(String alias, byte[] key, Certificate[] chain)
             throws KeyStoreException {
         if (!isInit) {
-            // BEGIN android-changed
             throwNotInitialized();
-            // END android-changed
         }
         implSpi.engineSetKeyEntry(alias, key, chain);
     }
@@ -409,12 +385,9 @@ public class KeyStore {
      * @throws NullPointerException
      *             if {@code alias} is {@code null}.
      */
-    public final void setCertificateEntry(String alias, Certificate cert)
-            throws KeyStoreException {
+    public final void setCertificateEntry(String alias, Certificate cert) throws KeyStoreException {
         if (!isInit) {
-            // BEGIN android-changed
             throwNotInitialized();
-            // END android-changed
         }
         implSpi.engineSetCertificateEntry(alias, cert);
     }
@@ -431,9 +404,7 @@ public class KeyStore {
      */
     public final void deleteEntry(String alias) throws KeyStoreException {
         if (!isInit) {
-            // BEGIN android-changed
             throwNotInitialized();
-            // END android-changed
         }
         implSpi.engineDeleteEntry(alias);
     }
@@ -449,9 +420,7 @@ public class KeyStore {
      */
     public final Enumeration<String> aliases() throws KeyStoreException {
         if (!isInit) {
-            // BEGIN android-changed
             throwNotInitialized();
-            // END android-changed
         }
         return implSpi.engineAliases();
     }
@@ -467,9 +436,7 @@ public class KeyStore {
      */
     public final boolean containsAlias(String alias) throws KeyStoreException {
         if (!isInit) {
-            // BEGIN android-changed
             throwNotInitialized();
-            // END android-changed
         }
         return implSpi.engineContainsAlias(alias);
     }
@@ -483,9 +450,7 @@ public class KeyStore {
      */
     public final int size() throws KeyStoreException {
         if (!isInit) {
-            // BEGIN android-changed
             throwNotInitialized();
-            // END android-changed
         }
         return implSpi.engineSize();
     }
@@ -502,9 +467,7 @@ public class KeyStore {
      */
     public final boolean isKeyEntry(String alias) throws KeyStoreException {
         if (!isInit) {
-            // BEGIN android-changed
             throwNotInitialized();
-            // END android-changed
         }
         return implSpi.engineIsKeyEntry(alias);
     }
@@ -520,12 +483,9 @@ public class KeyStore {
      * @throws KeyStoreException
      *             if this {@code KeyStore} is not initialized.
      */
-    public final boolean isCertificateEntry(String alias)
-            throws KeyStoreException {
+    public final boolean isCertificateEntry(String alias) throws KeyStoreException {
         if (!isInit) {
-            // BEGIN android-changed
             throwNotInitialized();
-            // END android-changed
         }
         return implSpi.engineIsCertificateEntry(alias);
     }
@@ -541,12 +501,9 @@ public class KeyStore {
      * @throws KeyStoreException
      *             if this {@code KeyStore} is not initialized.
      */
-    public final String getCertificateAlias(Certificate cert)
-            throws KeyStoreException {
+    public final String getCertificateAlias(Certificate cert) throws KeyStoreException {
         if (!isInit) {
-            // BEGIN android-changed
             throwNotInitialized();
-            // END android-changed
         }
         return implSpi.engineGetCertificateAlias(cert);
     }
@@ -571,12 +528,9 @@ public class KeyStore {
      *             this {@code KeyStore}.
      */
     public final void store(OutputStream stream, char[] password)
-            throws KeyStoreException, IOException, NoSuchAlgorithmException,
-            CertificateException {
+            throws KeyStoreException, IOException, NoSuchAlgorithmException, CertificateException {
         if (!isInit) {
-            // BEGIN android-changed
             throwNotInitialized();
-            // END android-changed
         }
 
         //Just delegate stream and password to implSpi
@@ -605,9 +559,7 @@ public class KeyStore {
     public final void store(LoadStoreParameter param) throws KeyStoreException,
             IOException, NoSuchAlgorithmException, CertificateException {
         if (!isInit) {
-            // BEGIN android-changed
             throwNotInitialized();
-            // END android-changed
         }
         implSpi.engineStore(param);
     }
@@ -682,15 +634,12 @@ public class KeyStore {
      *             if {@code alias} is {@code null}.
      */
     public final Entry getEntry(String alias, ProtectionParameter param)
-            throws NoSuchAlgorithmException, UnrecoverableEntryException,
-            KeyStoreException {
+            throws NoSuchAlgorithmException, UnrecoverableEntryException, KeyStoreException {
         if (alias == null) {
             throw new NullPointerException("alias == null");
         }
         if (!isInit) {
-            // BEGIN android-changed
             throwNotInitialized();
-            // END android-changed
         }
         return implSpi.engineGetEntry(alias, param);
     }
@@ -717,9 +666,7 @@ public class KeyStore {
     public final void setEntry(String alias, Entry entry,
             ProtectionParameter param) throws KeyStoreException {
         if (!isInit) {
-            // BEGIN android-changed
             throwNotInitialized();
-            // END android-changed
         }
         if (alias == null) {
             throw new NullPointerException("alias == null");
@@ -754,9 +701,7 @@ public class KeyStore {
         }
 
         if (!isInit) {
-            // BEGIN android-changed
             throwNotInitialized();
-            // END android-changed
         }
         return implSpi.engineEntryInstanceOf(alias, entryClass);
     }
@@ -829,8 +774,7 @@ public class KeyStore {
             if (!keyStore.isInit) {
                 throw new IllegalArgumentException("KeyStore was not initialized");
             }
-            return new BuilderImpl(keyStore, protectionParameter,
-                    null, null, null, null);
+            return new BuilderImpl(keyStore, protectionParameter, null, null, null);
         }
 
         /**
@@ -879,7 +823,8 @@ public class KeyStore {
             // CallbackHandlerProtection
             if (!(protectionParameter instanceof PasswordProtection)
                     && !(protectionParameter instanceof CallbackHandlerProtection)) {
-                throw new IllegalArgumentException("protectionParameter is neither PasswordProtection nor CallbackHandlerProtection instance");
+                throw new IllegalArgumentException("protectionParameter is neither "
+                        + "PasswordProtection nor CallbackHandlerProtection instance");
             }
             // check file parameter
             if (!file.exists()) {
@@ -889,8 +834,7 @@ public class KeyStore {
                 throw new IllegalArgumentException("Not a regular file: " + file.getName());
             }
             // create new instance
-            return new BuilderImpl(null, protectionParameter, file,
-                    type, provider, AccessController.getContext());
+            return new BuilderImpl(null, protectionParameter, file, type, provider);
         }
 
         /**
@@ -928,8 +872,7 @@ public class KeyStore {
             if (protectionParameter == null) {
                 throw new NullPointerException("protectionParameter == null");
             }
-            return new BuilderImpl(null, protectionParameter, null,
-                    type, provider, AccessController.getContext());
+            return new BuilderImpl(null, protectionParameter, null, type, provider);
         }
 
         /*
@@ -960,17 +903,13 @@ public class KeyStore {
             // Store last Exception in getKeyStore()
             private KeyStoreException lastException;
 
-            // Store AccessControlContext which is used in getKeyStore() method
-            private final AccessControlContext accControlContext;
-
-            //
-            // Constructor BuilderImpl initializes private fields: keyStore,
-            // protParameter, typeForKeyStore providerForKeyStore fileForLoad,
-            // isGetKeyStore
-            //
+            /**
+             * Constructor BuilderImpl initializes private fields: keyStore,
+             * protParameter, typeForKeyStore providerForKeyStore fileForLoad,
+             * isGetKeyStore
+             */
             BuilderImpl(KeyStore ks, ProtectionParameter pp, File file,
-                    String type, Provider provider, AccessControlContext context) {
-                super();
+                        String type, Provider provider) {
                 keyStore = ks;
                 protParameter = pp;
                 fileForLoad = file;
@@ -978,23 +917,22 @@ public class KeyStore {
                 providerForKeyStore = provider;
                 isGetKeyStore = false;
                 lastException = null;
-                accControlContext = context;
             }
 
-            //
-            // Implementation of abstract getKeyStore() method If
-            // KeyStoreBuilder encapsulates KeyStore object then this object is
-            // returned
-            //
-            // If KeyStoreBuilder encapsulates KeyStore type and provider then
-            // KeyStore is created using these parameters. If KeyStoreBuilder
-            // encapsulates file and ProtectionParameter then KeyStore data are
-            // loaded from FileInputStream that is created on file. If file is
-            // not defined then KeyStore object is initialized with null
-            // InputStream and null password.
-            //
-            // Result KeyStore object is returned.
-            //
+            /**
+             * Implementation of abstract getKeyStore() method If
+             * KeyStoreBuilder encapsulates KeyStore object then this object is
+             * returned
+             *
+             * If KeyStoreBuilder encapsulates KeyStore type and provider then
+             * KeyStore is created using these parameters. If KeyStoreBuilder
+             * encapsulates file and ProtectionParameter then KeyStore data are
+             * loaded from FileInputStream that is created on file. If file is
+             * not defined then KeyStore object is initialized with null
+             * InputStream and null password.
+             *
+             * Result KeyStore object is returned.
+             */
             @Override
             public synchronized KeyStore getKeyStore() throws KeyStoreException {
                 // If KeyStore was created but in final block some exception was
@@ -1011,15 +949,13 @@ public class KeyStore {
                 }
 
                 try {
-                    final KeyStore ks;
-                    final char[] passwd;
-
                     // get KeyStore instance using type or type and provider
-                    ks = (providerForKeyStore == null ? KeyStore
+                    final KeyStore ks = (providerForKeyStore == null ? KeyStore
                             .getInstance(typeForKeyStore) : KeyStore
                             .getInstance(typeForKeyStore, providerForKeyStore));
                     // protection parameter should be PasswordProtection
                     // or CallbackHandlerProtection
+                    final char[] passwd;
                     if (protParameter instanceof PasswordProtection) {
                         passwd = ((PasswordProtection) protParameter)
                                 .getPassword();
@@ -1027,32 +963,22 @@ public class KeyStore {
                         passwd = KeyStoreSpi
                                 .getPasswordFromCallBack(protParameter);
                     } else {
-                        throw new KeyStoreException("protectionParameter is neither PasswordProtection nor CallbackHandlerProtection instance");
+                        throw new KeyStoreException("protectionParameter is neither "
+                                + "PasswordProtection nor CallbackHandlerProtection instance");
                     }
 
                     // load KeyStore from file
-                    AccessController.doPrivileged(
-                            new PrivilegedExceptionAction<Object>() {
-                                public Object run() throws Exception {
-                                    if (fileForLoad != null) {
-                                        FileInputStream fis = null;
-                                        try {
-                                            fis = new FileInputStream(fileForLoad);
-                                            ks.load(fis, passwd);
-                                        } finally {
-                                            // close file input stream
-                                            if( fis != null ) {
-                                                fis.close();
-                                            }
-                                        }
-                                    } else {
-                                        ks.load(new TmpLSParameter(
-                                                protParameter));
-                                    }
-                                    return null;
-                                }
-                            }, accControlContext);
-
+                    if (fileForLoad != null) {
+                        FileInputStream fis = null;
+                        try {
+                            fis = new FileInputStream(fileForLoad);
+                            ks.load(fis, passwd);
+                        } finally {
+                            IoUtils.closeQuietly(fis);
+                        }
+                    } else {
+                        ks.load(new TmpLSParameter(protParameter));
+                    }
 
                     isGetKeyStore = true;
                     return ks;
@@ -1065,13 +991,13 @@ public class KeyStore {
                 }
             }
 
-            //
-            // This is implementation of abstract method
-            // getProtectionParameter(String alias)
-            //
-            // Return: ProtectionParameter to get Entry which was saved in
-            // KeyStore with defined alias
-            //
+            /**
+             * This is implementation of abstract method
+             * getProtectionParameter(String alias)
+             *
+             * Return: ProtectionParameter to get Entry which was saved in
+             * KeyStore with defined alias
+             */
             @Override
             public synchronized ProtectionParameter getProtectionParameter(
                     String alias) throws KeyStoreException {
@@ -1286,20 +1212,22 @@ public class KeyStore {
             // the end certificate
             String s = chain[0].getType();
             if (!(chain[0].getPublicKey().getAlgorithm()).equals(privateKey.getAlgorithm())) {
-                throw new IllegalArgumentException("Algorithm of private key does not match " +
-                        "algorithm of public key in end certificate of entry (with index number: 0)");
+                throw new IllegalArgumentException("Algorithm of private key does not match "
+                        + "algorithm of public key in end certificate of entry "
+                        + "(with index number: 0)");
             }
             // Match certificate types
             for (int i = 1; i < chain.length; i++) {
                 if (!s.equals(chain[i].getType())) {
-                    throw new IllegalArgumentException("Certificates from the given chain have different types");
+                    throw new IllegalArgumentException("Certificates from the given chain have "
+                                                       + "different types");
                 }
             }
             // clone chain - this.chain = (Certificate[])chain.clone();
             boolean isAllX509Certificates = true;
             // assert chain length > 0
-            for(Certificate cert: chain){
-                if(!(cert instanceof X509Certificate)){
+            for (Certificate cert: chain) {
+                if (!(cert instanceof X509Certificate)) {
                     isAllX509Certificates = false;
                     break;
                 }

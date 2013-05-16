@@ -18,14 +18,17 @@ package libcore.java.nio.channels;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import libcore.io.IoUtils;
 
 public class FileChannelTest extends junit.framework.TestCase {
-    public void test_read_intoReadOnlyByteArrays() throws Exception {
+    public void testReadOnlyByteArrays() throws Exception {
         ByteBuffer readOnly = ByteBuffer.allocate(1).asReadOnlyBuffer();
-        File tmp = File.createTempFile("empty", "tmp");
-        tmp.deleteOnExit();
+        File tmp = File.createTempFile("FileChannelTest", "tmp");
+
+        // You can't read into a read-only buffer...
         FileChannel fc = new FileInputStream(tmp).getChannel();
         try {
             fc.read(readOnly);
@@ -47,5 +50,64 @@ public class FileChannelTest extends junit.framework.TestCase {
             fail();
         } catch (IllegalArgumentException expected) {
         }
+        fc.close();
+
+
+        // But you can write from a read-only buffer...
+        fc = new FileOutputStream(tmp).getChannel();
+        fc.write(readOnly);
+        fc.write(new ByteBuffer[] { readOnly });
+        fc.write(new ByteBuffer[] { readOnly }, 0, 1);
+        fc.write(readOnly, 0L);
+        fc.close();
+    }
+
+    public void test_readv() throws Exception {
+        File tmp = File.createTempFile("FileChannelTest", "tmp");
+        FileChannel fc = new FileOutputStream(tmp).getChannel();
+        fc.write(ByteBuffer.wrap("abcdABCD".getBytes("US-ASCII")));
+        fc.close();
+        // Check that both direct and non-direct buffers work.
+        fc = new FileInputStream(tmp).getChannel();
+        ByteBuffer[] buffers = new ByteBuffer[] { ByteBuffer.allocateDirect(4), ByteBuffer.allocate(4) };
+        assertEquals(8, fc.read(buffers));
+        fc.close();
+        assertEquals(8, buffers[0].limit() + buffers[1].limit());
+        byte[] bytes = new byte[4];
+        buffers[0].flip();
+        buffers[0].get(bytes);
+        assertEquals("abcd", new String(bytes, "US-ASCII"));
+        buffers[1].flip();
+        buffers[1].get(bytes);
+        assertEquals("ABCD", new String(bytes, "US-ASCII"));
+    }
+
+    public void test_writev() throws Exception {
+        File tmp = File.createTempFile("FileChannelTest", "tmp");
+        FileChannel fc = new FileOutputStream(tmp).getChannel();
+        // Check that both direct and non-direct buffers work.
+        ByteBuffer[] buffers = new ByteBuffer[] { ByteBuffer.allocateDirect(4), ByteBuffer.allocate(4) };
+        buffers[0].put("abcd".getBytes("US-ASCII")).flip();
+        buffers[1].put("ABCD".getBytes("US-ASCII")).flip();
+        assertEquals(8, fc.write(buffers));
+        fc.close();
+        assertEquals(8, tmp.length());
+        assertEquals("abcdABCD", new String(IoUtils.readFileAsString(tmp.getPath())));
+    }
+
+    public void test_append() throws Exception {
+        File tmp = File.createTempFile("FileChannelTest", "tmp");
+        FileOutputStream fos = new FileOutputStream(tmp, true);
+        FileChannel fc = fos.getChannel();
+
+        fc.write(ByteBuffer.wrap("hello".getBytes("US-ASCII")));
+        fc.position(0);
+        // The RI reports whatever position you set...
+        assertEquals(0, fc.position());
+        // ...but writes to the end of the file.
+        fc.write(ByteBuffer.wrap(" world".getBytes("US-ASCII")));
+        fos.close();
+
+        assertEquals("hello world", new String(IoUtils.readFileAsString(tmp.getPath())));
     }
 }

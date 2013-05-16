@@ -19,9 +19,10 @@ package dalvik.system;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.security.ProtectionDomain;
 import java.util.Enumeration;
-
+import libcore.io.ErrnoException;
+import libcore.io.Libcore;
+import libcore.io.StructStat;
 
 /**
  * Manipulates DEX files. The class is similar in principle to
@@ -31,8 +32,9 @@ import java.util.Enumeration;
  * read-only by the VM.
  */
 public final class DexFile {
-    private final int mCookie;
-    private String mFileName;
+    private int mCookie;
+    private final String mFileName;
+    private final CloseGuard guard = CloseGuard.get();
 
     /**
      * Opens a DEX file from a given File object. This will usually be a ZIP/JAR
@@ -73,12 +75,9 @@ public final class DexFile {
      *             access rights missing for opening it
      */
     public DexFile(String fileName) throws IOException {
-        String wantDex = System.getProperty("android.vm.dexfile", "false");
-        if (!wantDex.equals("true"))
-            throw new UnsupportedOperationException("No dex in this VM");
-
         mCookie = openDexFile(fileName, null, 0);
         mFileName = fileName;
+        guard.open("close");
         //System.out.println("DEX FILE cookie is " + mCookie);
     }
 
@@ -93,15 +92,23 @@ public final class DexFile {
      * @param flags
      *  Enable optional features.
      */
-    private DexFile(String sourceName, String outputName, int flags)
-        throws IOException {
-
-        String wantDex = System.getProperty("android.vm.dexfile", "false");
-        if (!wantDex.equals("true"))
-            throw new UnsupportedOperationException("No dex in this VM");
+    private DexFile(String sourceName, String outputName, int flags) throws IOException {
+        if (outputName != null) {
+            try {
+                String parent = new File(outputName).getParent();
+                if (Libcore.os.getuid() != Libcore.os.stat(parent).st_uid) {
+                    throw new IllegalArgumentException("Optimized data directory " + parent
+                            + " is not owned by the current user. Shared storage cannot protect"
+                            + " your application from code injection attacks.");
+                }
+            } catch (ErrnoException ignored) {
+                // assume we'll fail with a more contextual error later
+            }
+        }
 
         mCookie = openDexFile(sourceName, outputName, flags);
         mFileName = sourceName;
+        guard.open("close");
         //System.out.println("DEX FILE cookie is " + mCookie);
     }
 
@@ -154,17 +161,17 @@ public final class DexFile {
     /**
      * Closes the DEX file.
      * <p>
-     * This may not be able to release any resources. If classes have been
-     * loaded, the underlying storage can't be discarded.
+     * This may not be able to release any resources. If classes from this
+     * DEX file are still resident, the DEX file can't be unmapped.
      *
      * @throws IOException
      *             if an I/O error occurs during closing the file, which
      *             normally should not happen
-     *
-     * @cts Second sentence is a bit cryptic.
      */
     public void close() throws IOException {
+        guard.close();
         closeDexFile(mCookie);
+        mCookie = 0;
     }
 
     /**
@@ -175,9 +182,8 @@ public final class DexFile {
      * going to do what you want. Use {@link Class#forName(String)} instead.
      * <p>
      * The method does not throw {@link ClassNotFoundException} if the class
-     * isn't found because it isn't feasible to throw exceptions wildly every
-     * time a class is not found in the first DEX file we look at. It will
-     * throw exceptions for other failures, though.
+     * isn't found because it isn't reasonable to throw exceptions wildly every
+     * time a class is not found in the first DEX file we look at.
      *
      * @param name
      *            the class name, which should look like "java/lang/String"
@@ -188,8 +194,6 @@ public final class DexFile {
      *
      * @return the {@link Class} object representing the class, or {@code null}
      *         if the class cannot be loaded
-     *
-     * @cts Exception comment is a bit cryptic. What exception will be thrown?
      */
     public Class loadClass(String name, ClassLoader loader) {
         String slashName = name.replace('.', '/');
@@ -201,16 +205,13 @@ public final class DexFile {
      *
      * This takes a "binary" class name to better match ClassLoader semantics.
      *
-     * {@hide}
+     * @hide
      */
     public Class loadClassBinaryName(String name, ClassLoader loader) {
-        return defineClass(name, loader, mCookie,
-            null);
-            //new ProtectionDomain(name) /*DEBUG ONLY*/);
+        return defineClass(name, loader, mCookie);
     }
 
-    native private static Class defineClass(String name, ClassLoader loader,
-        int cookie, ProtectionDomain pd);
+    private native static Class defineClass(String name, ClassLoader loader, int cookie);
 
     /**
      * Enumerate the names of the classes in this DEX file.
@@ -255,6 +256,9 @@ public final class DexFile {
      */
     @Override protected void finalize() throws Throwable {
         try {
+            if (guard != null) {
+                guard.warnIfOpen();
+            }
             close();
         } finally {
             super.finalize();
@@ -267,6 +271,12 @@ public final class DexFile {
      */
     native private static int openDexFile(String sourceName, String outputName,
         int flags) throws IOException;
+
+    /*
+     * Open a DEX file based on a {@code byte[]}. The value returned
+     * is a magic VM cookie. On failure, a RuntimeException is thrown.
+     */
+    native private static int openDexFile(byte[] fileContents);
 
     /*
      * Close DEX file.
